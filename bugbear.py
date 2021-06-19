@@ -694,6 +694,13 @@ B008.immutable_calls = {
     "frozenset",
     "types.MappingProxyType",
     "MappingProxyType",
+    "re.compile",
+    "operator.attrgetter",
+    "operator.itemgetter",
+    "operator.methodcaller",
+    "attrgetter",
+    "itemgetter",
+    "methodcaller",
 }
 B009 = Error(
     message=(

@@ -1,7 +1,10 @@
 import collections
 import logging
+import operator
+import re
 import time
 import types
+from operator import attrgetter, itemgetter, methodcaller
 from types import MappingProxyType
 
 
@@ -97,4 +100,22 @@ def float_int_is_wrong(value=float(3)):
 
 
 def float_str_not_inf_or_nan_is_wrong(value=float("3.14")):
+    pass
+
+
+def re_compile_ok(value=re.compile("foo")):
+    pass
+
+
+def operators_ok(
+    v=operator.attrgetter("foo"),
+    v2=operator.itemgetter("foo"),
+    v3=operator.methodcaller("foo"),
+):
+    pass
+
+
+def operators_ok_unqualified(
+    v=attrgetter("foo"), v2=itemgetter("foo"), v3=methodcaller("foo")
+):
     pass
