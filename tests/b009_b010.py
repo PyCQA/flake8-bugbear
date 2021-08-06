@@ -22,7 +22,7 @@ getattr(foo, "abc123")
 setattr(foo, bar, None)
 setattr(foo, "bar{foo}".format(foo="a"), None)
 setattr(foo, "123abc", None)
-getattr(foo, "except", None)
+setattr(foo, "except", None)
 
 # Invalid usage
 setattr(foo, "bar", None)
