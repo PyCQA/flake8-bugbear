@@ -28,12 +28,6 @@ from bugbear import (
     B015,
     B016,
     B017,
-    B301,
-    B302,
-    B303,
-    B304,
-    B305,
-    B306,
     B901,
     B902,
     B903,
@@ -212,38 +206,6 @@ class BugbearTestCase(unittest.TestCase):
         errors = list(bbc.run())
         expected = self.errors(B017(22, 8))
         self.assertEqual(errors, expected)
-
-    def test_b301_b302_b305(self):
-        filename = Path(__file__).absolute().parent / "b301_b302_b305.py"
-        bbc = BugBearChecker(filename=str(filename))
-        errors = list(bbc.run())
-        self.assertEqual(
-            errors,
-            self.errors(
-                B301(39, 4),
-                B301(40, 4),
-                B301(41, 4),
-                B301(42, 4),
-                B302(43, 4),
-                B302(44, 4),
-                B302(45, 4),
-                B302(46, 4),
-                B305(47, 4),
-                B305(48, 4),
-            ),
-        )
-
-    def test_b303_b304(self):
-        filename = Path(__file__).absolute().parent / "b303_b304.py"
-        bbc = BugBearChecker(filename=str(filename))
-        errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B303(25, 4), B304(46, 4)))
-
-    def test_b306(self):
-        filename = Path(__file__).absolute().parent / "b306.py"
-        bbc = BugBearChecker(filename=str(filename))
-        errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B306(9, 10)))
 
     def test_b901(self):
         filename = Path(__file__).absolute().parent / "b901.py"

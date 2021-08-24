@@ -226,14 +226,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node):
         if isinstance(node.func, ast.Attribute):
-            for bug in (B301, B302, B305):
-                if node.func.attr in bug.methods:
-                    call_path = ".".join(self.compose_call_path(node.func.value))
-                    if call_path not in bug.valid_paths:
-                        self.errors.append(bug(node.lineno, node.col_offset))
-                    break
-            else:
-                self.check_for_b005(node)
+            self.check_for_b005(node)
         else:
             with suppress(AttributeError, IndexError):
                 if (
@@ -258,25 +251,8 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-    def visit_Attribute(self, node):
-        call_path = list(self.compose_call_path(node))
-        if ".".join(call_path) == "sys.maxint":
-            self.errors.append(B304(node.lineno, node.col_offset))
-        elif len(call_path) == 2 and call_path[1] == "message":
-            name = call_path[0]
-            for elem in reversed(self.node_stack[:-1]):
-                if isinstance(elem, ast.ExceptHandler) and elem.name == name:
-                    self.errors.append(B306(node.lineno, node.col_offset))
-                    break
-
     def visit_Assign(self, node):
-        if isinstance(self.node_stack[-2], ast.ClassDef):
-            # note: by hasattr below we're ignoring starred arguments, slices
-            # and tuples for simplicity.
-            assign_targets = {t.id for t in node.targets if hasattr(t, "id")}
-            if "__metaclass__" in assign_targets:
-                self.errors.append(B303(node.lineno, node.col_offset))
-        elif len(node.targets) == 1:
+        if len(node.targets) == 1:
             t = node.targets[0]
             if isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name):
                 if (t.value.id, t.attr) == ("os", "environ"):
@@ -768,60 +744,6 @@ B017 = Error(
         "never executed due to a typo. Either assert for a more specific "
         "exception (builtin or custom), use assertRaisesRegex, or use the "
         "context manager form of assertRaises."
-    )
-)
-
-# Those could be false positives but it's more dangerous to let them slip
-# through if they're not.
-B301 = Error(
-    message=(
-        "B301 Python 3 does not include `.iter*` methods on dictionaries. "
-        "Remove the `iter` prefix from the method name. For Python 2 "
-        "compatibility, prefer the Python 3 equivalent unless you expect "
-        "the size of the container to be large or unbounded. Then use "
-        "`six.iter*` or `future.utils.iter*`."
-    )
-)
-B301.methods = {"iterkeys", "itervalues", "iteritems", "iterlists"}
-B301.valid_paths = {"six", "future.utils", "builtins"}
-
-B302 = Error(
-    message=(
-        "B302 Python 3 does not include `.view*` methods on dictionaries. "
-        "Remove the `view` prefix from the method name. For Python 2 "
-        "compatibility, prefer the Python 3 equivalent unless you expect "
-        "the size of the container to be large or unbounded. Then use "
-        "`six.view*` or `future.utils.view*`."
-    )
-)
-B302.methods = {"viewkeys", "viewvalues", "viewitems", "viewlists"}
-B302.valid_paths = {"six", "future.utils", "builtins"}
-
-B303 = Error(
-    message=(
-        "B303 `__metaclass__` does nothing on Python 3. Use "
-        "`class MyClass(BaseClass, metaclass=...)`. For Python 2 "
-        "compatibility, use `six.add_metaclass`."
-    )
-)
-
-B304 = Error(message="B304 `sys.maxint` is not a thing on Python 3. Use `sys.maxsize`.")
-
-B305 = Error(
-    message=(
-        "B305 `.next()` is not a thing on Python 3. Use the `next()` "
-        "builtin. For Python 2 compatibility, use `six.next()`."
-    )
-)
-B305.methods = {"next"}
-B305.valid_paths = {"six", "future.utils", "builtins"}
-
-B306 = Error(
-    message=(
-        "B306 `BaseException.message` has been deprecated as of Python "
-        "2.6 and is removed in Python 3. Use `str(e)` to access the "
-        "user-readable message. Use `e.args` to access arguments passed "
-        "to the exception."
     )
 )
 

@@ -131,45 +131,6 @@ Either assert for a more specific exception (builtin or custom), use
 data available in ``ex``.
 
 
-Python 3 compatibility warnings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-These have higher risk of false positives but discover regressions that
-are dangerous to slip through when test coverage is not great. Let me
-know if a popular library is triggering any of the following warnings
-for valid code.
-
-**B301**: Python 3 does not include ``.iter*`` methods on dictionaries.
-The default behavior is to return iterables. Simply remove the ``iter``
-prefix from the method.  For Python 2 compatibility, also prefer the
-Python 3 equivalent if you expect that the size of the dict to be small
-and bounded. The performance regression on Python 2 will be negligible
-and the code is going to be the clearest.  Alternatively, use
-``six.iter*`` or ``future.utils.iter*``.
-
-**B302**: Python 3 does not include ``.view*`` methods on dictionaries.
-The default behavior is to return viewables. Simply remove the ``view``
-prefix from the method.  For Python 2 compatibility, also prefer the
-Python 3 equivalent if you expect that the size of the dict to be small
-and bounded. The performance regression on Python 2 will be negligible
-and the code is going to be the clearest.  Alternatively, use
-``six.view*`` or ``future.utils.view*``.
-
-**B303**: The ``__metaclass__`` attribute on a class definition does
-nothing on Python 3. Use ``class MyClass(BaseClass, metaclass=...)``.
-For Python 2 compatibility, use ``six.add_metaclass``.
-
-**B304**: ``sys.maxint`` is not a thing on Python 3. Use
-``sys.maxsize``.
-
-**B305**: ``.next()`` is not a thing on Python 3. Use the ``next()``
-builtin. For Python 2 compatibility, use ``six.next()``.
-
-**B306**: ``BaseException.message`` has been deprecated as of Python 2.6
-and is removed in Python 3. Use ``str(e)`` to access the user-readable
-message. Use ``e.args`` to access arguments passed to the exception.
-
-
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
