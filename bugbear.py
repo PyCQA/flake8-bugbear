@@ -434,8 +434,10 @@ class BugBearVisitor(ast.NodeVisitor):
         earlier error, or suppress it with `raise ... from None`.  See
         https://docs.python.org/3/tutorial/errors.html#exception-chaining
         """
-        if node.cause is None and node.exc is not None and any(
-            isinstance(n, ast.ExceptHandler) for n in self.node_stack
+        if (
+            node.cause is None
+            and node.exc is not None
+            and any(isinstance(n, ast.ExceptHandler) for n in self.node_stack)
         ):
             self.errors.append(B018(node.lineno, node.col_offset))
 
