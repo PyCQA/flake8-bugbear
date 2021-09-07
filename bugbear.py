@@ -437,6 +437,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if (
             node.cause is None
             and node.exc is not None
+            and not (isinstance(node.exc, ast.Name) and node.exc.id.islower())
             and any(isinstance(n, ast.ExceptHandler) for n in self.node_stack)
         ):
             self.errors.append(B018(node.lineno, node.col_offset))
