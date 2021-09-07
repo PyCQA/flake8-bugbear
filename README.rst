@@ -130,6 +130,11 @@ Either assert for a more specific exception (builtin or custom), use
 (``with self.assertRaises(Exception) as ex:``) with an assertion against the
 data available in ``ex``.
 
+**B018**: Within an ``except`` clause, raise exceptions with ``raise ... from err``
+or ``raise ... from None`` to distinguish them from errors in exception handling.
+See [the exception chaining tutorial](https://docs.python.org/3/tutorial/errors.html#exception-chaining)
+for details.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -216,6 +221,11 @@ MIT
 
 Change Log
 ----------
+
+Future
+~~~~~~
+
+* Add B018: check for ``raise`` without ``from`` in an ``except`` clause
 
 21.4.3
 ~~~~~~
