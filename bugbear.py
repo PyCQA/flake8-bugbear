@@ -292,7 +292,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Raise(self, node):
         self.check_for_b016(node)
-        self.check_for_b018(node)
+        self.check_for_b904(node)
         self.generic_visit(node)
 
     def visit_With(self, node):
@@ -427,7 +427,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B017(node.lineno, node.col_offset))
 
-    def check_for_b018(self, node):
+    def check_for_b904(self, node):
         """Checks `raise` without `from` inside an `except` clause.
 
         In these cases, you should use explicit exception chaining from the
@@ -440,7 +440,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and not (isinstance(node.exc, ast.Name) and node.exc.id.islower())
             and any(isinstance(n, ast.ExceptHandler) for n in self.node_stack)
         ):
-            self.errors.append(B018(node.lineno, node.col_offset))
+            self.errors.append(B904(node.lineno, node.col_offset))
 
     def walk_function_body(self, node):
         def _loop(parent, node):
@@ -762,13 +762,6 @@ B017 = Error(
         "context manager form of assertRaises."
     )
 )
-B018 = Error(
-    message=(
-        "B018 Within an `except` clause, raise exceptions with `raise ... from err` "
-        "or `raise ... from None` to distinguish them from errors in exception handling.  "
-        "See https://docs.python.org/3/tutorial/errors.html#exception-chaining for details."
-    )
-)
 
 # Warnings disabled by default.
 B901 = Error(
@@ -798,6 +791,14 @@ B903 = Error(
     )
 )
 
+B904 = Error(
+    message=(
+        "B904 Within an `except` clause, raise exceptions with `raise ... from err` "
+        "or `raise ... from None` to distinguish them from errors in exception handling.  "
+        "See https://docs.python.org/3/tutorial/errors.html#exception-chaining for details."
+    )
+)
+
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
-disabled_by_default = ["B901", "B902", "B903", "B950"]
+disabled_by_default = ["B901", "B902", "B903", "B904", "B950"]

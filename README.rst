@@ -130,11 +130,6 @@ Either assert for a more specific exception (builtin or custom), use
 (``with self.assertRaises(Exception) as ex:``) with an assertion against the
 data available in ``ex``.
 
-**B018**: Within an ``except`` clause, raise exceptions with ``raise ... from err``
-or ``raise ... from None`` to distinguish them from errors in exception handling.
-See [the exception chaining tutorial](https://docs.python.org/3/tutorial/errors.html#exception-chaining)
-for details.
-
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -161,6 +156,11 @@ data classes that only set attributes in an ``__init__`` method, and do
 nothing else. If the attributes should be mutable, define the attributes
 in ``__slots__`` to save per-instance memory and to prevent accidentally
 creating additional attributes on instances.
+
+**B904**: Within an ``except`` clause, raise exceptions with ``raise ... from err``
+or ``raise ... from None`` to distinguish them from errors in exception handling.
+See [the exception chaining tutorial](https://docs.python.org/3/tutorial/errors.html#exception-chaining)
+for details.
 
 **B950**: Line too long. This is a pragmatic equivalent of
 ``pycodestyle``'s E501: it considers "max-line-length" but only triggers
@@ -225,7 +225,7 @@ Change Log
 Future
 ~~~~~~
 
-* Add B018: check for ``raise`` without ``from`` in an ``except`` clause
+* Add B904: check for ``raise`` without ``from`` in an ``except`` clause
 
 21.4.3
 ~~~~~~
