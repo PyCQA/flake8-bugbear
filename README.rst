@@ -210,7 +210,7 @@ Tests
 
 Just run::
 
-    python tests/test_bugbear.py
+    coverage run tests/test_bugbear.py
 
 
 License
@@ -222,10 +222,13 @@ MIT
 Change Log
 ----------
 
-Future
+21.9.1
 ~~~~~~
 
-* Add B904: check for ``raise`` without ``from`` in an ``except`` clause
+* Update B008: Whitelist more immutable function calls (#173)
+* Remove Python Compatibility Warnings (#182)
+* Add B904: check for ``raise`` without ``from`` in an ``except`` clause (#181)
+* Add Python 3.10 tests to ensure we pass (#183)
 
 21.4.3
 ~~~~~~
