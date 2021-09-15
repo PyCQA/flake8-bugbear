@@ -119,3 +119,11 @@ def operators_ok_unqualified(
     v=attrgetter("foo"), v2=itemgetter("foo"), v3=methodcaller("foo")
 ):
     pass
+
+
+def list_comprehension_also_not_okay(default=[i ** 2 for i in range(3)]):
+    pass
+
+
+def dict_comprehension_also_not_okay(default={i: i ** 2 for i in range(3)}):
+    pass

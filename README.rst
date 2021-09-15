@@ -222,6 +222,11 @@ MIT
 Change Log
 ----------
 
+Unreleased
+~~~~~~~~~~
+
+* Update B006: list and dictionary comprehension are now also disallowed (#186)
+
 21.9.1
 ~~~~~~
 

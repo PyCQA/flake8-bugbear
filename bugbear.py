@@ -328,7 +328,9 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def check_for_b006(self, node):
         for default in node.args.defaults + node.args.kw_defaults:
-            if isinstance(default, B006.mutable_literals):
+            if isinstance(
+                default, (*B006.mutable_literals, *B006.mutable_comprehensions)
+            ):
                 self.errors.append(B006(default.lineno, default.col_offset))
             elif isinstance(default, ast.Call):
                 call_path = ".".join(self.compose_call_path(default.func))
@@ -653,6 +655,7 @@ B006 = Error(
     )
 )
 B006.mutable_literals = (ast.Dict, ast.List, ast.Set)
+B006.mutable_comprehensions = (ast.ListComp, ast.DictComp)
 B006.mutable_calls = {
     "Counter",
     "OrderedDict",
