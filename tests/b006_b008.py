@@ -127,3 +127,7 @@ def list_comprehension_also_not_okay(default=[i ** 2 for i in range(3)]):
 
 def dict_comprehension_also_not_okay(default={i: i ** 2 for i in range(3)}):
     pass
+
+
+def set_comprehension_also_not_okay(default={i ** 2 for i in range(3)}):
+    pass

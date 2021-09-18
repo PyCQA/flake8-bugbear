@@ -105,6 +105,7 @@ class BugbearTestCase(unittest.TestCase):
                 B008(102, 44),
                 B006(124, 45 if sys.version_info >= (3, 8) else 46),
                 B006(128, 45),
+                B006(132, 44)
             ),
         )
 

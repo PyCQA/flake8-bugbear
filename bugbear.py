@@ -655,7 +655,7 @@ B006 = Error(
     )
 )
 B006.mutable_literals = (ast.Dict, ast.List, ast.Set)
-B006.mutable_comprehensions = (ast.ListComp, ast.DictComp)
+B006.mutable_comprehensions = (ast.ListComp, ast.DictComp, ast.SetComp)
 B006.mutable_calls = {
     "Counter",
     "OrderedDict",
