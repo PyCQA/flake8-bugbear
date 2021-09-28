@@ -125,6 +125,8 @@ def _to_name_str(node):
     # "pkg.mod.error", handling any depth of attribute accesses.
     if isinstance(node, ast.Name):
         return node.id
+    if isinstance(node, ast.Call):
+        return _to_name_str(node.func)
     try:
         return _to_name_str(node.value) + "." + node.attr
     except AttributeError:

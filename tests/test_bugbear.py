@@ -336,6 +336,14 @@ class TestFuzz(unittest.TestCase):
         )
         BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
 
+    def test_does_not_crash_on_call_in_except_statement(self):
+        # akin to test_does_not_crash_on_tuple_expansion_in_except_statement
+        # see https://github.com/PyCQA/flake8-bugbear/issues/171
+        syntax_tree = ast.parse(
+            "foo = lambda: IOError\ntry:\n    ...\nexcept (foo(),):\n    ...\n"
+        )
+        BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
+
 
 if __name__ == "__main__":
     unittest.main()
