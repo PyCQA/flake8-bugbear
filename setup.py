@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017 Łukasz Langa
+# Copyright (C) 2016-2021 Łukasz Langa
 
 import ast
 import os
