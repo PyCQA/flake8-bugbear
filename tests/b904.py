@@ -19,3 +19,10 @@ except BaseException as base_err:
     raise base_err
 finally:
     raise Exception("Nothing to chain from, so no warning here")
+
+try:
+    raise ValueError
+except ValueError:
+    # should not emit, since we are not raising something
+    def proxy():
+        raise NameError

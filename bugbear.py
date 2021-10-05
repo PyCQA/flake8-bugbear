@@ -16,6 +16,19 @@ import pycodestyle
 __version__ = "21.9.2"
 
 LOG = logging.getLogger("flake8.bugbear")
+CONTEXTFUL_NODES = (
+    ast.Module,
+    ast.ClassDef,
+    ast.AsyncFunctionDef,
+    ast.FunctionDef,
+    ast.Lambda,
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+)
+
+Context = namedtuple("Context", ["node", "stack"])
 
 
 @attr.s(hash=False)
@@ -147,10 +160,11 @@ def _typesafe_issubclass(cls, class_or_tuple):
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
     lines = attr.ib()
-    node_stack = attr.ib(default=attr.Factory(list))
+    contexts = attr.ib(default=attr.Factory(list))
     node_window = attr.ib(default=attr.Factory(list))
     errors = attr.ib(default=attr.Factory(list))
     futures = attr.ib(default=attr.Factory(set))
+    context = attr.ib(default=attr.Factory(list))
 
     NODE_WINDOW_SIZE = 4
 
@@ -161,12 +175,29 @@ class BugBearVisitor(ast.NodeVisitor):
             print(name)
             return self.__getattribute__(name)
 
+    @property
+    def node_stack(self):
+        if len(self.contexts) == 0:
+            return []
+
+        context, stack = self.contexts[-1]
+        return stack
+
     def visit(self, node):
+        is_contextful = isinstance(node, CONTEXTFUL_NODES)
+
+        if is_contextful:
+            context = Context(node, [])
+            self.contexts.append(context)
+
         self.node_stack.append(node)
         self.node_window.append(node)
         self.node_window = self.node_window[-self.NODE_WINDOW_SIZE :]
         super().visit(node)
         self.node_stack.pop()
+
+        if is_contextful:
+            self.contexts.pop()
 
     def visit_ExceptHandler(self, node):
         if node.type is None:
@@ -479,9 +510,12 @@ class BugBearVisitor(ast.NodeVisitor):
                 break
 
     def check_for_b902(self, node):
-        if not isinstance(self.node_stack[-2], ast.ClassDef):
+        if not len(self.contexts) >= 2 or not isinstance(
+            self.contexts[-2].node, ast.ClassDef
+        ):
             return
 
+        cls = self.contexts[-2].node
         decorators = NameFinder()
         decorators.visit(node.decorator_list)
 
@@ -490,7 +524,7 @@ class BugBearVisitor(ast.NodeVisitor):
             # `cls`?
             return
 
-        bases = {b.id for b in self.node_stack[-2].bases if isinstance(b, ast.Name)}
+        bases = {b.id for b in cls.bases if isinstance(b, ast.Name)}
         if "type" in bases:
             if (
                 "classmethod" in decorators.names
