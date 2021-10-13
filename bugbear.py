@@ -6,10 +6,10 @@ import re
 import sys
 from collections import namedtuple
 from contextlib import suppress
+from dataclasses import dataclass, field
 from functools import lru_cache, partial
 from keyword import iskeyword
-
-import attr
+from typing import Any, Dict, List, Optional, Set
 
 import pycodestyle
 
@@ -18,17 +18,17 @@ __version__ = "21.9.2"
 LOG = logging.getLogger("flake8.bugbear")
 
 
-@attr.s(hash=False)
+@dataclass(eq=False)
 class BugBearChecker:
     name = "flake8-bugbear"
     version = __version__
 
-    tree = attr.ib(default=None)
-    filename = attr.ib(default="(none)")
-    lines = attr.ib(default=None)
-    max_line_length = attr.ib(default=79)
-    visitor = attr.ib(init=False, default=attr.Factory(lambda: BugBearVisitor))
-    options = attr.ib(default=None)
+    tree: Optional[ast.AST] = None
+    filename: str = "(none)"
+    lines: Optional[List[str]] = None
+    max_line_length: int = 79
+    visitor: ast.NodeVisitor = field(init=False, default_factory=lambda: BugBearVisitor)
+    options: Any = None
 
     def run(self):
         if not self.tree or not self.lines:
@@ -143,14 +143,14 @@ def _typesafe_issubclass(cls, class_or_tuple):
         return False
 
 
-@attr.s
+@dataclass
 class BugBearVisitor(ast.NodeVisitor):
-    filename = attr.ib()
-    lines = attr.ib()
-    node_stack = attr.ib(default=attr.Factory(list))
-    node_window = attr.ib(default=attr.Factory(list))
-    errors = attr.ib(default=attr.Factory(list))
-    futures = attr.ib(default=attr.Factory(set))
+    filename: str
+    lines: List[str]
+    node_stack: List[ast.AST] = field(default_factory=list)
+    node_window: List[ast.AST] = field(default_factory=list)
+    errors: List[Any] = field(default_factory=list)
+    futures: Set[Any] = field(default_factory=set)
 
     NODE_WINDOW_SIZE = 4
 
@@ -576,7 +576,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.errors.append(B903(node.lineno, node.col_offset))
 
 
-@attr.s
+@dataclass
 class NameFinder(ast.NodeVisitor):
     """Finds a name within a tree of nodes.
 
@@ -584,7 +584,7 @@ class NameFinder(ast.NodeVisitor):
     key is name string, value is the node (useful for location purposes).
     """
 
-    names = attr.ib(default=attr.Factory(dict))
+    names: Dict[str, ast.AST] = field(default_factory=dict)
 
     def visit_Name(self, node):
         self.names.setdefault(node.id, []).append(node)
