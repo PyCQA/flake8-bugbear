@@ -130,6 +130,9 @@ Either assert for a more specific exception (builtin or custom), use
 (``with self.assertRaises(Exception) as ex:``) with an assertion against the
 data available in ``ex``.
 
+**B018**: Useless definition of a string. Either assign the string to a variable or remove it.
+If the string is used as a comment, consider to use "#".
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~

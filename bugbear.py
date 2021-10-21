@@ -278,10 +278,12 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b901(node)
         self.check_for_b902(node)
         self.check_for_b006(node)
+        self.check_for_b018(node)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node):
         self.check_for_b903(node)
+        self.check_for_b018(node)
         self.generic_visit(node)
 
     def visit_Try(self, node):
@@ -575,6 +577,11 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.errors.append(B903(node.lineno, node.col_offset))
 
+    def check_for_b018(self, node):
+        for subnode in node.body[1:]:
+            if isinstance(subnode, ast.Expr) and isinstance(subnode.value, ast.Str):
+                self.errors.append(B018(subnode.lineno, subnode.col_offset))
+
 
 @attr.s
 class NameFinder(ast.NodeVisitor):
@@ -765,6 +772,12 @@ B017 = Error(
         "never executed due to a typo. Either assert for a more specific "
         "exception (builtin or custom), use assertRaisesRegex, or use the "
         "context manager form of assertRaises."
+    )
+)
+B018 = Error(
+    message=(
+        "Useless definition of a string. Either assign the string to a variable or remove it. "
+        "If the string is used as a comment, consider to use '#'."
     )
 )
 
