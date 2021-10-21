@@ -775,7 +775,9 @@ B017 = Error(
     )
 )
 B018 = Error(
-    message="B018 Found useless expression. Either assign it to a variable or remove it."
+    message=(
+        "B018 Found useless expression. Either assign it to a variable or remove it."
+    )
 )
 
 # Warnings disabled by default.
