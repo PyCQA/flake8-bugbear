@@ -775,10 +775,7 @@ B017 = Error(
     )
 )
 B018 = Error(
-    message=(
-        "Useless definition of a string. Either assign the string to a variable or remove it. "
-        "If the string is used as a comment, consider to use '#'."
-    )
+    message="B018 Found useless expression. Either assign it to a variable or remove it."
 )
 
 # Warnings disabled by default.
