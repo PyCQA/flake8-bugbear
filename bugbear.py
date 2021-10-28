@@ -510,7 +510,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 break
 
     def check_for_b902(self, node):
-        if not len(self.contexts) >= 2 or not isinstance(
+        if len(self.contexts) < 2 or not isinstance(
             self.contexts[-2].node, ast.ClassDef
         ):
             return
