@@ -161,7 +161,7 @@ creating additional attributes on instances.
 
 **B904**: Within an ``except`` clause, raise exceptions with ``raise ... from err``
 or ``raise ... from None`` to distinguish them from errors in exception handling.
-See [the exception chaining tutorial](https://docs.python.org/3/tutorial/errors.html#exception-chaining)
+See `the exception chaining tutorial <https://docs.python.org/3/tutorial/errors.html#exception-chaining>`_
 for details.
 
 **B950**: Line too long. This is a pragmatic equivalent of
