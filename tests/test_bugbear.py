@@ -212,13 +212,23 @@ class BugbearTestCase(unittest.TestCase):
         expected = self.errors(B017(22, 8))
         self.assertEqual(errors, expected)
 
-    def test_b018(self):
-        filename = Path(__file__).absolute().parent / "b018.py"
+    def test_b018_functions(self):
+        filename = Path(__file__).absolute().parent / "b018_functions.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(
-            errors, self.errors(B018(14, 4), B018(19, 4), B018(30, 4), B018(35, 4))
-        )
+
+        expected = [B018(line, 4) for line in range(14, 26)]
+        expected.append(B018(30, 4))
+        self.assertEqual(errors, self.errors(*expected))
+
+    def test_b018_classes(self):
+        filename = Path(__file__).absolute().parent / "b018_classes.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+
+        expected = [B018(line, 4) for line in range(15, 27)]
+        expected.append(B018(31, 4))
+        self.assertEqual(errors, self.errors(*expected))
 
     def test_b901(self):
         filename = Path(__file__).absolute().parent / "b901.py"

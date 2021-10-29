@@ -579,7 +579,19 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def check_for_b018(self, node):
         for subnode in node.body[1:]:
-            if isinstance(subnode, ast.Expr) and isinstance(subnode.value, ast.Str):
+            if isinstance(subnode, ast.Expr) and isinstance(
+                subnode.value,
+                (
+                    ast.Str,
+                    ast.Num,
+                    ast.Bytes,
+                    ast.NameConstant,
+                    ast.JoinedStr,
+                    ast.List,
+                    ast.Set,
+                    ast.Dict,
+                ),
+            ):
                 self.errors.append(B018(subnode.lineno, subnode.col_offset))
 
 
