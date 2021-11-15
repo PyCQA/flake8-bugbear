@@ -218,7 +218,8 @@ class BugbearTestCase(unittest.TestCase):
         errors = list(bbc.run())
 
         expected = [B018(line, 4) for line in range(14, 26)]
-        expected.append(B018(30, 4))
+        expected.append(B018(29, 4))
+        expected.append(B018(31, 4))
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b018_classes(self):
@@ -227,7 +228,8 @@ class BugbearTestCase(unittest.TestCase):
         errors = list(bbc.run())
 
         expected = [B018(line, 4) for line in range(15, 27)]
-        expected.append(B018(31, 4))
+        expected.append(B018(30, 4))
+        expected.append(B018(32, 4))
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b901(self):

@@ -1,6 +1,6 @@
 """
 Should emit:
-B018 - on lines 14-25, 30
+B018 - on lines 14-25, 29, 31
 """
 
 
@@ -26,5 +26,6 @@ def foo2():
 
 
 def foo3():
+    123
     a = 2
     "str"
