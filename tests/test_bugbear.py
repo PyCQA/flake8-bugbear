@@ -5,6 +5,7 @@ import site
 import subprocess
 import sys
 import unittest
+from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesmith import from_grammar
@@ -122,6 +123,20 @@ class BugbearTestCase(unittest.TestCase):
                 B007(30, 4, vars=("i",)),
                 B007(30, 12, vars=("k",)),
             ),
+        )
+
+    def test_b008_extended(self):
+        filename = Path(__file__).absolute().parent / "b008_extended.py"
+
+        mock_options = Mock()
+        mock_options.extend_immutable_calls = ["fastapi.Depends", "fastapi.Query"]
+
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        errors = list(bbc.run())
+
+        self.assertEqual(
+            errors,
+            self.errors(B008(15, 66)),
         )
 
     def test_b009_b010(self):

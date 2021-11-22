@@ -33,7 +33,17 @@ class BugBearChecker:
     def run(self):
         if not self.tree or not self.lines:
             self.load_file()
-        visitor = self.visitor(filename=self.filename, lines=self.lines)
+
+        if self.options and hasattr(self.options, "extend_immutable_calls"):
+            b008_extend_immutable_calls = set(self.options.extend_immutable_calls)
+        else:
+            b008_extend_immutable_calls = set()
+
+        visitor = self.visitor(
+            filename=self.filename,
+            lines=self.lines,
+            b008_extend_immutable_calls=b008_extend_immutable_calls,
+        )
         visitor.visit(self.tree)
         for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
             if self.should_warn(e.message[:4]):
@@ -74,6 +84,13 @@ class BugBearChecker:
     def add_options(optmanager):
         """Informs flake8 to ignore B9xx by default."""
         optmanager.extend_default_ignore(disabled_by_default)
+        optmanager.add_option(
+            "--extend-immutable-calls",
+            comma_separated_list=True,
+            parse_from_config=True,
+            default=[],
+            help="Skip B008 test for additional immutable calls.",
+        )
 
     @lru_cache()
     def should_warn(self, code):
@@ -147,6 +164,7 @@ def _typesafe_issubclass(cls, class_or_tuple):
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
     lines = attr.ib()
+    b008_extend_immutable_calls = attr.ib(default=attr.Factory(set))
     node_stack = attr.ib(default=attr.Factory(list))
     node_window = attr.ib(default=attr.Factory(list))
     errors = attr.ib(default=attr.Factory(list))
@@ -340,7 +358,10 @@ class BugBearVisitor(ast.NodeVisitor):
                 call_path = ".".join(self.compose_call_path(default.func))
                 if call_path in B006.mutable_calls:
                     self.errors.append(B006(default.lineno, default.col_offset))
-                elif call_path not in B008.immutable_calls:
+                elif (
+                    call_path
+                    not in B008.immutable_calls | self.b008_extend_immutable_calls
+                ):
                     # Check if function call is actually a float infinity/NaN literal
                     if call_path == "float" and len(default.args) == 1:
                         float_arg = default.args[0]
