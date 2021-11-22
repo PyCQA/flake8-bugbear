@@ -2,8 +2,8 @@
 Should emit:
 B017 - on lines 20
 """
-import unittest
 import asyncio
+import unittest
 
 CONSTANT = True
 

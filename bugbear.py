@@ -10,7 +10,6 @@ from functools import lru_cache, partial
 from keyword import iskeyword
 
 import attr
-
 import pycodestyle
 
 __version__ = "21.9.2"
