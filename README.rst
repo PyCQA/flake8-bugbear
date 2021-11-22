@@ -206,6 +206,14 @@ by default.  Those get enabled as soon as there is an ``ignore =`` line
 in your configuration.  I think this behavior is surprising so Bugbear's
 opinionated warnings require explicit selection.
 
+Configuration
+-------------
+
+The plugin currently has one setting:
+
+``extend-immutable-calls``: Specify a list of additional immutable calls.
+This could be useful, when using other libraries that provide more immutable calls,
+beside those already handled by ``flake8-bugbear``. Calls to these method will no longer raise a ``B008`` warning.
 
 Tests
 -----
