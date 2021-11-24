@@ -178,16 +178,17 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B014(10, 0, vars=("Exception, TypeError", "", "Exception")),
-            B014(16, 0, vars=("OSError, OSError", " as err", "OSError")),
-            B014(27, 0, vars=("MyError, MyError", "", "MyError")),
-            B014(41, 0, vars=("MyError, BaseException", " as e", "BaseException")),
-            B014(48, 0, vars=("re.error, re.error", "", "re.error")),
+            B014(11, 0, vars=("Exception, TypeError", "", "Exception")),
+            B014(17, 0, vars=("OSError, OSError", " as err", "OSError")),
+            B014(28, 0, vars=("MyError, MyError", "", "MyError")),
+            B014(42, 0, vars=("MyError, BaseException", " as e", "BaseException")),
+            B014(49, 0, vars=("re.error, re.error", "", "re.error")),
             B014(
-                55,
+                56,
                 0,
                 vars=("IOError, EnvironmentError, OSError", "", "OSError"),
             ),
+            B014(74, 0, vars=("ValueError, binascii.Error", "", "ValueError")),
         )
         self.assertEqual(errors, expected)
 

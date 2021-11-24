@@ -224,6 +224,12 @@ MIT
 Change Log
 ----------
 
+Unreleased
+~~~~~~~~~~
+
+* Update B014: ``binascii.Error`` is now treated as a subclass of ``ValueError``
+  (#206)
+
 21.9.2
 ~~~~~~~~~~
 

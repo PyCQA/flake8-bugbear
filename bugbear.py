@@ -194,13 +194,12 @@ class BugBearVisitor(ast.NodeVisitor):
                 good = sorted(set(names), key=names.index)
                 if "BaseException" in good:
                     good = ["BaseException"]
-                # Find and remove aliases exceptions and only leave the primary alone
-                primaries = filter(
-                    lambda primary: primary in good, B014.exception_aliases.keys()
-                )
-                for primary in primaries:
-                    aliases = B014.exception_aliases[primary]
-                    good = list(filter(lambda e: e not in aliases, good))
+                # Remove redundant exceptions that the automatic system either handles
+                # poorly (usually aliases) or can't be checked (e.g. it's not an
+                # built-in exception).
+                for primary, equivalents in B014.redundant_exceptions.items():
+                    if primary in good:
+                        good = [g for g in good if g not in equivalents]
 
                 for name, other in itertools.permutations(tuple(good), 2):
                     if _typesafe_issubclass(
@@ -759,15 +758,19 @@ B014 = Error(
         "Write `except {2}{1}:`, which catches exactly the same exceptions."
     )
 )
-B014.exception_aliases = {
+B014.redundant_exceptions = {
     "OSError": {
+        # All of these are actually aliases of OSError since Python 3.3
         "IOError",
         "EnvironmentError",
         "WindowsError",
         "mmap.error",
         "socket.error",
         "select.error",
-    }
+    },
+    "ValueError": {
+        "binascii.Error",
+    },
 }
 B015 = Error(
     message=(
