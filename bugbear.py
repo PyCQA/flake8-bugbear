@@ -181,7 +181,7 @@ class BugBearVisitor(ast.NodeVisitor):
     node_window = attr.ib(default=attr.Factory(list))
     errors = attr.ib(default=attr.Factory(list))
     futures = attr.ib(default=attr.Factory(set))
-    context = attr.ib(default=attr.Factory(list))
+    contexts = attr.ib(default=attr.Factory(list))
 
     NODE_WINDOW_SIZE = 4
 
