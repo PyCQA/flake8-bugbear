@@ -130,6 +130,8 @@ Either assert for a more specific exception (builtin or custom), use
 (``with self.assertRaises(Exception) as ex:``) with an assertion against the
 data available in ``ex``.
 
+**B018**: Found useless expression. Either assign it to a variable or remove it.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -159,7 +161,7 @@ creating additional attributes on instances.
 
 **B904**: Within an ``except`` clause, raise exceptions with ``raise ... from err``
 or ``raise ... from None`` to distinguish them from errors in exception handling.
-See [the exception chaining tutorial](https://docs.python.org/3/tutorial/errors.html#exception-chaining)
+See `the exception chaining tutorial <https://docs.python.org/3/tutorial/errors.html#exception-chaining>`_
 for details.
 
 **B950**: Line too long. This is a pragmatic equivalent of
@@ -204,6 +206,14 @@ by default.  Those get enabled as soon as there is an ``ignore =`` line
 in your configuration.  I think this behavior is surprising so Bugbear's
 opinionated warnings require explicit selection.
 
+Configuration
+-------------
+
+The plugin currently has one setting:
+
+``extend-immutable-calls``: Specify a list of additional immutable calls.
+This could be useful, when using other libraries that provide more immutable calls,
+beside those already handled by ``flake8-bugbear``. Calls to these method will no longer raise a ``B008`` warning.
 
 Tests
 -----
@@ -221,6 +231,12 @@ MIT
 
 Change Log
 ----------
+
+Unreleased
+~~~~~~~~~~
+
+* Update B014: ``binascii.Error`` is now treated as a subclass of ``ValueError``
+  (#206)
 
 21.9.2
 ~~~~~~~~~~

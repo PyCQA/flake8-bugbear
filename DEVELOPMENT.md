@@ -50,10 +50,16 @@ flake8-bugbear uses coverage to run standard unittest tests.
 /path/to/venv/bin/coverage run tests/test_bugbear.py
 ```
 
-## Running black
+## Running linter
 
-We also format with black. Please ensure you `black` format your PR.
+We format the code with `black` and `isort`. You can run those using `pre-commit`.
 
 ```console
-/path/to/venv/bin/black .
+pre-commit run --all-files
+```
+
+Or you install the pre-commit hooks to run on every commit:
+
+```console
+pre-commit install
 ```

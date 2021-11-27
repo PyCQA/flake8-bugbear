@@ -1,8 +1,9 @@
 """
 Should emit:
-B014 - on lines 10, 16, 27, 41, 48, and 55
+B014 - on lines 11, 17, 28, 42, 49, 56, and 74.
 """
 
+import binascii
 import re
 
 try:
@@ -65,4 +66,11 @@ try:
     pass
 except (MyException, NotImplemented):
     # NotImplemented is not an exception, let's not crash on it.
+    pass
+
+
+try:
+    pass
+except (ValueError, binascii.Error):
+    # binascii.Error is a subclass of ValueError.
     pass

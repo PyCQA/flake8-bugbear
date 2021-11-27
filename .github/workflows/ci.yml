@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10-dev"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
         os: [ubuntu-latest]
 
     steps:
@@ -31,7 +31,3 @@ jobs:
       run: |
         coverage run tests/test_bugbear.py
         coverage report -m
-
-    - name: Check formatting
-      run: |
-        black --check --experimental-string-processing .

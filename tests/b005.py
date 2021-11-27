@@ -18,7 +18,7 @@ s.rstrip("e")  # no warning
 s.rstrip("\n\t ")  # no warning
 s.rstrip(r"\n\t ")  # warning
 
-from somewhere import strip, other_type
+from somewhere import other_type, strip
 
 strip("we")  # no warning
 other_type().lstrip()  # no warning

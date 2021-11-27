@@ -10,7 +10,6 @@ from functools import lru_cache, partial
 from keyword import iskeyword
 
 import attr
-
 import pycodestyle
 
 __version__ = "21.9.2"
@@ -46,7 +45,17 @@ class BugBearChecker:
     def run(self):
         if not self.tree or not self.lines:
             self.load_file()
-        visitor = self.visitor(filename=self.filename, lines=self.lines)
+
+        if self.options and hasattr(self.options, "extend_immutable_calls"):
+            b008_extend_immutable_calls = set(self.options.extend_immutable_calls)
+        else:
+            b008_extend_immutable_calls = set()
+
+        visitor = self.visitor(
+            filename=self.filename,
+            lines=self.lines,
+            b008_extend_immutable_calls=b008_extend_immutable_calls,
+        )
         visitor.visit(self.tree)
         for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
             if self.should_warn(e.message[:4]):
@@ -87,6 +96,13 @@ class BugBearChecker:
     def add_options(optmanager):
         """Informs flake8 to ignore B9xx by default."""
         optmanager.extend_default_ignore(disabled_by_default)
+        optmanager.add_option(
+            "--extend-immutable-calls",
+            comma_separated_list=True,
+            parse_from_config=True,
+            default=[],
+            help="Skip B008 test for additional immutable calls.",
+        )
 
     @lru_cache()
     def should_warn(self, code):
@@ -160,7 +176,8 @@ def _typesafe_issubclass(cls, class_or_tuple):
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
     lines = attr.ib()
-    contexts = attr.ib(default=attr.Factory(list))
+    b008_extend_immutable_calls = attr.ib(default=attr.Factory(set))
+    node_stack = attr.ib(default=attr.Factory(list))
     node_window = attr.ib(default=attr.Factory(list))
     errors = attr.ib(default=attr.Factory(list))
     futures = attr.ib(default=attr.Factory(set))
@@ -225,13 +242,12 @@ class BugBearVisitor(ast.NodeVisitor):
                 good = sorted(set(names), key=names.index)
                 if "BaseException" in good:
                     good = ["BaseException"]
-                # Find and remove aliases exceptions and only leave the primary alone
-                primaries = filter(
-                    lambda primary: primary in good, B014.exception_aliases.keys()
-                )
-                for primary in primaries:
-                    aliases = B014.exception_aliases[primary]
-                    good = list(filter(lambda e: e not in aliases, good))
+                # Remove redundant exceptions that the automatic system either handles
+                # poorly (usually aliases) or can't be checked (e.g. it's not an
+                # built-in exception).
+                for primary, equivalents in B014.redundant_exceptions.items():
+                    if primary in good:
+                        good = [g for g in good if g not in equivalents]
 
                 for name, other in itertools.permutations(tuple(good), 2):
                     if _typesafe_issubclass(
@@ -309,10 +325,12 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b901(node)
         self.check_for_b902(node)
         self.check_for_b006(node)
+        self.check_for_b018(node)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node):
         self.check_for_b903(node)
+        self.check_for_b018(node)
         self.generic_visit(node)
 
     def visit_Try(self, node):
@@ -369,7 +387,10 @@ class BugBearVisitor(ast.NodeVisitor):
                 call_path = ".".join(self.compose_call_path(default.func))
                 if call_path in B006.mutable_calls:
                     self.errors.append(B006(default.lineno, default.col_offset))
-                elif call_path not in B008.immutable_calls:
+                elif (
+                    call_path
+                    not in B008.immutable_calls | self.b008_extend_immutable_calls
+                ):
                     # Check if function call is actually a float infinity/NaN literal
                     if call_path == "float" and len(default.args) == 1:
                         float_arg = default.args[0]
@@ -609,6 +630,27 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.errors.append(B903(node.lineno, node.col_offset))
 
+    def check_for_b018(self, node):
+        for index, subnode in enumerate(node.body):
+            if not isinstance(subnode, ast.Expr):
+                continue
+            if index == 0 and isinstance(subnode.value, ast.Str):
+                continue  # most likely a docstring
+            if isinstance(
+                subnode.value,
+                (
+                    ast.Str,
+                    ast.Num,
+                    ast.Bytes,
+                    ast.NameConstant,
+                    ast.JoinedStr,
+                    ast.List,
+                    ast.Set,
+                    ast.Dict,
+                ),
+            ):
+                self.errors.append(B018(subnode.lineno, subnode.col_offset))
+
 
 @attr.s
 class NameFinder(ast.NodeVisitor):
@@ -770,15 +812,19 @@ B014 = Error(
         "Write `except {2}{1}:`, which catches exactly the same exceptions."
     )
 )
-B014.exception_aliases = {
+B014.redundant_exceptions = {
     "OSError": {
+        # All of these are actually aliases of OSError since Python 3.3
         "IOError",
         "EnvironmentError",
         "WindowsError",
         "mmap.error",
         "socket.error",
         "select.error",
-    }
+    },
+    "ValueError": {
+        "binascii.Error",
+    },
 }
 B015 = Error(
     message=(
@@ -799,6 +845,11 @@ B017 = Error(
         "never executed due to a typo. Either assert for a more specific "
         "exception (builtin or custom), use assertRaisesRegex, or use the "
         "context manager form of assertRaises."
+    )
+)
+B018 = Error(
+    message=(
+        "B018 Found useless expression. Either assign it to a variable or remove it."
     )
 )
 

@@ -1,15 +1,15 @@
 import ast
 import os
-from pathlib import Path
 import site
 import subprocess
 import sys
 import unittest
+from pathlib import Path
+from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesmith import from_grammar
 
-from bugbear import BugBearChecker, BugBearVisitor
 from bugbear import (
     B001,
     B002,
@@ -28,11 +28,14 @@ from bugbear import (
     B015,
     B016,
     B017,
-    B904,
+    B018,
     B901,
     B902,
     B903,
+    B904,
     B950,
+    BugBearChecker,
+    BugBearVisitor,
 )
 
 
@@ -63,7 +66,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b003.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B003(10, 0)))
+        self.assertEqual(errors, self.errors(B003(9, 0)))
 
     def test_b004(self):
         filename = Path(__file__).absolute().parent / "b004.py"
@@ -123,6 +126,20 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
+    def test_b008_extended(self):
+        filename = Path(__file__).absolute().parent / "b008_extended.py"
+
+        mock_options = Mock()
+        mock_options.extend_immutable_calls = ["fastapi.Depends", "fastapi.Query"]
+
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        errors = list(bbc.run())
+
+        self.assertEqual(
+            errors,
+            self.errors(B008(15, 66)),
+        )
+
     def test_b009_b010(self):
         filename = Path(__file__).absolute().parent / "b009_b010.py"
         bbc = BugBearChecker(filename=str(filename))
@@ -177,16 +194,17 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B014(10, 0, vars=("Exception, TypeError", "", "Exception")),
-            B014(16, 0, vars=("OSError, OSError", " as err", "OSError")),
-            B014(27, 0, vars=("MyError, MyError", "", "MyError")),
-            B014(41, 0, vars=("MyError, BaseException", " as e", "BaseException")),
-            B014(48, 0, vars=("re.error, re.error", "", "re.error")),
+            B014(11, 0, vars=("Exception, TypeError", "", "Exception")),
+            B014(17, 0, vars=("OSError, OSError", " as err", "OSError")),
+            B014(28, 0, vars=("MyError, MyError", "", "MyError")),
+            B014(42, 0, vars=("MyError, BaseException", " as e", "BaseException")),
+            B014(49, 0, vars=("re.error, re.error", "", "re.error")),
             B014(
-                55,
+                56,
                 0,
                 vars=("IOError, EnvironmentError, OSError", "", "OSError"),
             ),
+            B014(74, 0, vars=("ValueError, binascii.Error", "", "ValueError")),
         )
         self.assertEqual(errors, expected)
 
@@ -210,6 +228,26 @@ class BugbearTestCase(unittest.TestCase):
         errors = list(bbc.run())
         expected = self.errors(B017(22, 8))
         self.assertEqual(errors, expected)
+
+    def test_b018_functions(self):
+        filename = Path(__file__).absolute().parent / "b018_functions.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+
+        expected = [B018(line, 4) for line in range(14, 26)]
+        expected.append(B018(29, 4))
+        expected.append(B018(31, 4))
+        self.assertEqual(errors, self.errors(*expected))
+
+    def test_b018_classes(self):
+        filename = Path(__file__).absolute().parent / "b018_classes.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+
+        expected = [B018(line, 4) for line in range(15, 27)]
+        expected.append(B018(30, 4))
+        expected.append(B018(32, 4))
+        self.assertEqual(errors, self.errors(*expected))
 
     def test_b901(self):
         filename = Path(__file__).absolute().parent / "b901.py"
