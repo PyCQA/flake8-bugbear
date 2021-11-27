@@ -3,9 +3,9 @@
 import ast
 import os
 import re
-from setuptools import setup
 import sys
 
+from setuptools import setup
 
 assert sys.version_info >= (3, 6, 0), "bugbear requires Python 3.6+"
 
@@ -60,6 +60,8 @@ setup(
         "Topic :: Software Development :: Quality Assurance",
     ],
     entry_points={"flake8.extension": ["B = bugbear:BugBearChecker"]},
-    extras_require={"dev": ["coverage", "black", "hypothesis", "hypothesmith"]},
+    extras_require={
+        "dev": ["coverage", "hypothesis", "hypothesmith>=0.2", "pre-commit"]
+    },
     project_urls={"Change Log": "https://github.com/PyCQA/flake8-bugbear#change-log"},
 )

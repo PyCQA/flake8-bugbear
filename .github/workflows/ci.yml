@@ -31,7 +31,3 @@ jobs:
       run: |
         coverage run tests/test_bugbear.py
         coverage report -m
-
-    - name: Check formatting
-      run: |
-        black --check --experimental-string-processing .

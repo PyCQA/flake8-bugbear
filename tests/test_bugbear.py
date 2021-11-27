@@ -1,16 +1,15 @@
 import ast
 import os
-from pathlib import Path
 import site
 import subprocess
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesmith import from_grammar
 
-from bugbear import BugBearChecker, BugBearVisitor
 from bugbear import (
     B001,
     B002,
@@ -30,11 +29,13 @@ from bugbear import (
     B016,
     B017,
     B018,
-    B904,
     B901,
     B902,
     B903,
+    B904,
     B950,
+    BugBearChecker,
+    BugBearVisitor,
 )
 
 
@@ -65,7 +66,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b003.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B003(10, 0)))
+        self.assertEqual(errors, self.errors(B003(9, 0)))
 
     def test_b004(self):
         filename = Path(__file__).absolute().parent / "b004.py"
@@ -233,7 +234,8 @@ class BugbearTestCase(unittest.TestCase):
         errors = list(bbc.run())
 
         expected = [B018(line, 4) for line in range(14, 26)]
-        expected.append(B018(30, 4))
+        expected.append(B018(29, 4))
+        expected.append(B018(31, 4))
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b018_classes(self):
@@ -242,7 +244,8 @@ class BugbearTestCase(unittest.TestCase):
         errors = list(bbc.run())
 
         expected = [B018(line, 4) for line in range(15, 27)]
-        expected.append(B018(31, 4))
+        expected.append(B018(30, 4))
+        expected.append(B018(32, 4))
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b901(self):
