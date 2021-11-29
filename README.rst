@@ -237,6 +237,11 @@ MIT
 Change Log
 ----------
 
+21.11.29
+~~~~~~~~~~
+
+* B018: Disable strings from check for now (#209)
+
 21.11.28
 ~~~~~~~~~~
 
