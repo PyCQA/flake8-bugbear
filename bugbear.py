@@ -639,7 +639,6 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(
                 subnode.value,
                 (
-                    ast.Str,
                     ast.Num,
                     ast.Bytes,
                     ast.NameConstant,

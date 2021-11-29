@@ -1,6 +1,6 @@
 """
 Should emit:
-B018 - on lines 15-26, 30, 32
+B018 - on lines 16-26, 30, 33
 """
 
 
@@ -30,3 +30,4 @@ class Foo3:
     123
     a = 2
     "str"
+    1
