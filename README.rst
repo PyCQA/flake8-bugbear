@@ -173,7 +173,15 @@ significantly violate the line length, you will receive a message that
 states what the actual limit is. This is inspired by Raymond Hettinger's
 `"Beyond PEP 8" talk <https://www.youtube.com/watch?v=wf-BqAjZb8M>`_ and
 highway patrol not stopping you if you drive < 5mph too fast. Disable
-E501 to avoid duplicate warnings.
+E501 to avoid duplicate warnings. Like E501, this error ignores long shebangs
+on the first line and urls or paths that are on their own line::
+
+  #! long shebang ignored
+
+  # https://some-super-long-domain-name.com/with/some/very/long/paths
+  url = (
+      "https://some-super-long-domain-name.com/with/some/very/long/paths"
+  )
 
 
 How to enable opinionated warnings
@@ -236,6 +244,11 @@ MIT
 
 Change Log
 ----------
+
+21.12.0
+~~~~~~~~~~
+
+* B950: Add same special cases as E501 (#213)
 
 21.11.29
 ~~~~~~~~~~

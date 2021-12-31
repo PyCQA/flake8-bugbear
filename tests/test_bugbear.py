@@ -318,7 +318,15 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b950.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B950(6, 92, vars=(92, 79))))
+        self.assertEqual(
+            errors,
+            self.errors(
+                B950(7, 92, vars=(92, 79)),
+                B950(12, 103, vars=(103, 79)),
+                B950(14, 103, vars=(103, 79)),
+                B950(21, 97, vars=(97, 79)),
+            ),
+        )
 
     def test_selfclean_bugbear(self):
         filename = Path(__file__).absolute().parent.parent / "bugbear.py"
