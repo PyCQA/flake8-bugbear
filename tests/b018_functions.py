@@ -30,3 +30,4 @@ def foo3():
     a = 2
     "str"
     3
+    f"should not raise"

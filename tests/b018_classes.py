@@ -31,3 +31,4 @@ class Foo3:
     a = 2
     "str"
     1
+    f"should not raise"

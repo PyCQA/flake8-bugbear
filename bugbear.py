@@ -657,7 +657,7 @@ class BugBearVisitor(ast.NodeVisitor):
         for index, subnode in enumerate(node.body):
             if not isinstance(subnode, ast.Expr):
                 continue
-            if index == 0 and isinstance(subnode.value, ast.Str):
+            if index == 0 and isinstance(subnode.value, (ast.Str, ast.JoinedStr)):
                 continue  # most likely a docstring
             if isinstance(
                 subnode.value,
