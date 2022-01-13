@@ -132,8 +132,11 @@ data available in ``ex``.
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
 
-**B020**: Loop control variable overrides iterable it iterates
+**B019**: Use of ``functools.lru_cache`` or ``functools.cache`` on class methods
+can lead to memory leaks. The cache may retain instance references, preventing
+garbage collection.
 
+**B020**: Loop control variable overrides iterable it iterates
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~

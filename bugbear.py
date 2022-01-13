@@ -350,6 +350,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b902(node)
         self.check_for_b006(node)
         self.check_for_b018(node)
+        self.check_for_b019(node)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node):
@@ -378,6 +379,8 @@ class BugBearVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Attribute):
             yield from self.compose_call_path(node.value)
             yield node.attr
+        elif isinstance(node, ast.Call):
+            yield from self.compose_call_path(node.func)
         elif isinstance(node, ast.Name):
             yield node.id
 
@@ -506,6 +509,24 @@ class BugBearVisitor(ast.NodeVisitor):
             and not item.optional_vars  # noqa W503
         ):
             self.errors.append(B017(node.lineno, node.col_offset))
+
+    def check_for_b019(self, node):
+        if (
+            len(node.decorator_list) == 0
+            or len(self.contexts) < 2
+            or not isinstance(self.contexts[-2].node, ast.ClassDef)
+        ):
+            return
+
+        resolved_decorators = {
+            ".".join(self.compose_call_path(decorator))
+            for decorator in node.decorator_list
+        }
+        if resolved_decorators & {"classmethod", "staticmethod"}:
+            return
+
+        if resolved_decorators & B019.caches:
+            self.errors.append(B019(node.lineno, node.col_offset))
 
     def check_for_b020(self, node):
         targets = NameFinder()
@@ -886,6 +907,19 @@ B018 = Error(
         "B018 Found useless expression. Either assign it to a variable or remove it."
     )
 )
+B019 = Error(
+    message=(
+        "B019 Use of `functools.lru_cache` or `functools.cache` on class methods "
+        "can lead to memory leaks. The cache may retain instance references, "
+        "preventing garbage collection."
+    )
+)
+B019.caches = {
+    "functools.cache",
+    "functools.lru_cache",
+    "cache",
+    "lru_cache",
+}
 B020 = Error(
     message=(
         "B020 Found for loop that reassigns the iterable it is iterating "
