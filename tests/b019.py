@@ -1,6 +1,6 @@
 """
 Should emit:
-B019 - on lines 74, 78, 82, 86, 90, 94, 98, 102
+B019 - on lines 73, 77, 81, 85, 89, 93, 97, 101
 """
 import functools
 from functools import cache, cached_property, lru_cache

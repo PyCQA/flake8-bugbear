@@ -518,15 +518,24 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             return
 
-        resolved_decorators = {
+        # Preserve decorator order so we can get the lineno from the decorator node rather than
+        # the function node (this location definition changes in Python 3.8)
+        resolved_decorators = (
             ".".join(self.compose_call_path(decorator))
             for decorator in node.decorator_list
-        }
-        if resolved_decorators & {"classmethod", "staticmethod"}:
-            return
+        )
+        for idx, decorator in enumerate(resolved_decorators):
+            if decorator in {"classmethod", "staticmethod"}:
+                return
 
-        if resolved_decorators & B019.caches:
-            self.errors.append(B019(node.lineno, node.col_offset))
+            if decorator in B019.caches:
+                self.errors.append(
+                    B019(
+                        node.decorator_list[idx].lineno,
+                        node.decorator_list[idx].col_offset,
+                    )
+                )
+                return
 
     def check_for_b020(self, node):
         targets = NameFinder()
