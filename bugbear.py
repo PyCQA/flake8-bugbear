@@ -333,6 +333,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_For(self, node):
         self.check_for_b007(node)
+        self.check_for_b020(node)
         self.generic_visit(node)
 
     def visit_Assert(self, node):
@@ -505,6 +506,20 @@ class BugBearVisitor(ast.NodeVisitor):
             and not item.optional_vars  # noqa W503
         ):
             self.errors.append(B017(node.lineno, node.col_offset))
+
+    def check_for_b020(self, node):
+        targets = NameFinder()
+        targets.visit(node.target)
+        ctrl_names = set(targets.names)
+
+        iterset = NameFinder()
+        iterset.visit(node.iter)
+        iterset_names = set(iterset.names)
+
+        for name in sorted(ctrl_names):
+            if name in iterset_names:
+                n = targets.names[name][0]
+                self.errors.append(B020(n.lineno, n.col_offset, vars=(name,)))
 
     def check_for_b904(self, node):
         """Checks `raise` without `from` inside an `except` clause.
@@ -870,6 +885,9 @@ B018 = Error(
     message=(
         "B018 Found useless expression. Either assign it to a variable or remove it."
     )
+)
+B020 = Error(
+    message="B020 Found for-loop with each item variable reassigning set variable."
 )
 
 # Warnings disabled by default.
