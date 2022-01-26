@@ -257,8 +257,8 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B020(3, 4, vars=("items",)),
-                B020(16, 9, vars=("values",)),
+                B020(8, 4, vars=("items",)),
+                B020(21, 9, vars=("values",)),
             ),
         )
 
