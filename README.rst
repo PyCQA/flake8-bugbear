@@ -132,7 +132,7 @@ data available in ``ex``.
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
 
-**B020**: Loop control variable overrides iter set.
+**B020**: Loop control variable overrides iterable it iterates
 
 
 Opinionated warnings
