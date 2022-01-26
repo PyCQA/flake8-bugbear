@@ -11,7 +11,7 @@ for item in items:
 values = {"secret": 123}
 
 for key, value in values.items():
-    print(f"{key=}, {value=}")
+    print(f"{key}, {value}")
 
 for key, values in values.items():
-    print(f"{key=}, {values=}")
+    print(f"{key}, {values}")
