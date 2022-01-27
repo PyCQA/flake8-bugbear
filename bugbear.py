@@ -887,7 +887,10 @@ B018 = Error(
     )
 )
 B020 = Error(
-    message="B020 Found for loop that reassigns the iterable it is iterating with each iterable value."
+    message=(
+        "B020 Found for loop that reassigns the iterable it is iterating "
+        + "with each iterable value."
+    )
 )
 
 # Warnings disabled by default.
