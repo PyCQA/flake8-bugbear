@@ -247,6 +247,11 @@ MIT
 Change Log
 ----------
 
+22.1.27
+~~~~~~~~~~
+
+* B020: ensure loop control variable doesn't overrides iterable it iterates (#220)
+
 22.1.11
 ~~~~~~~~~~
 
