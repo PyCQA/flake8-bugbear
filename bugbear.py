@@ -127,7 +127,7 @@ class BugBearChecker:
             help="Skip B008 test for additional immutable calls.",
         )
 
-    @lru_cache()
+    @lru_cache()  # noqa: B019
     def should_warn(self, code):
         """Returns `True` if Bugbear should emit a particular warning.
 

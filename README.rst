@@ -8,7 +8,7 @@ flake8-bugbear
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
-A plugin for Flake8 finding likely bugs and design problems in your
+A plugin for flake8 finding likely bugs and design problems in your
 program.  Contains warnings that don't belong in pyflakes and
 pycodestyle::
 
@@ -192,32 +192,38 @@ on the first line and urls or paths that are on their own line::
 How to enable opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To enable these checks, specify a ``--select`` command-line option or
-``select=`` option in your config file.  As of Flake8 3.0, this option
-is a whitelist (checks not listed are being implicitly disabled), so you
-have to explicitly specify all checks you want enabled. For example::
+To enable these checks, specify a ``--extend-select`` command-line option or
+``extend-select=`` option in your config file (requires flake8 4.0+)::
 
-	[flake8]
-	max-line-length = 80
-	max-complexity = 12
-	...
-	ignore = E501
-	select = C,E,F,W,B,B901
+  [flake8]
+  max-line-length = 80
+  max-complexity = 12
+  ...
+  extend-ignore = E501
+  extend-select = B901
 
-Note that we're enabling the complexity checks, the PEP8 ``pycodestyle``
-errors and warnings, the pyflakes fatals and all default Bugbear checks.
-Finally, we're also specifying B901 as a check that we want enabled.
-Some checks might need other flake8 checks disabled - e.g. E501 must be
-disabled for B950 to be hit.
+Some checks might need other flake8 checks disabled - e.g. E501 must be disabled for
+B950 to be hit.
 
-If you'd like all optional warnings to be enabled for you (future proof
-your config!), say ``B9`` instead of ``B901``. You will need Flake8 3.2+
-for this feature.
+If you'd like all optional warnings to be enabled for you (future proof your config!),
+say ``B9`` instead of ``B901``. You will need flake8 3.2+ for this feature.
 
-Note that ``pycodestyle`` also has a bunch of warnings that are disabled
-by default.  Those get enabled as soon as there is an ``ignore =`` line
-in your configuration.  I think this behavior is surprising so Bugbear's
+For flake8 versions older than 4.0, you will need to use the ``--select`` command-line
+option or ``select=`` option in your config file. As of flake8 3.0, this option is a
+whitelist (checks not listed are implicitly disabled), so you have to explicitly specify
+all checks you want enabled (e.g. ``select = C,E,F,W,B,B901``).
+
+The ``--extend-ignore`` command-line option and ``extend-ignore=`` config file option
+require flake8 3.6+. For older flake8 versions, the ``--ignore`` and ``ignore=`` options
+can be used. Using ``ignore`` will override all codes that are disabled by
+default from all installed linters, so you will need to specify these codes in your
+configuration to silence them. I think this behavior is surprising so Bugbear's
 opinionated warnings require explicit selection.
+
+**Note:** Bugbear's enforcement of explicit opinionated warning selection is deprecated
+and will be removed in a future release. It is recommended to use ``extend-ignore`` and
+``extend-select`` in your flake8 configuration to avoid implicitly altering selected and
+ignored codes.
 
 Configuration
 -------------
@@ -226,7 +232,16 @@ The plugin currently has one setting:
 
 ``extend-immutable-calls``: Specify a list of additional immutable calls.
 This could be useful, when using other libraries that provide more immutable calls,
-beside those already handled by ``flake8-bugbear``. Calls to these method will no longer raise a ``B008`` warning.
+beside those already handled by ``flake8-bugbear``. Calls to these method will no longer
+raise a ``B008`` warning.
+
+For example:
+
+  [flake8]
+  max-line-length = 80
+  max-complexity = 12
+  ...
+  extend-immutable-calls = pathlib.Path, Path
 
 Tests / Lints
 ---------------
