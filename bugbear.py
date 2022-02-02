@@ -138,12 +138,17 @@ class BugBearChecker:
 
         As documented in the README, the user is expected to explicitly select
         the warnings.
+
+        NOTE: This method is deprecated and will be removed in a future release. It is
+        recommended to use `extend-ignore` and `extend-select` in your flake8
+        configuration to avoid implicitly altering selected and ignored codes.
         """
         if code[:2] != "B9":
             # Normal warnings are safe for emission.
             return True
 
         if self.options is None:
+            # Without options configured, Bugbear will emit B9 but Flake8 will ignore
             LOG.info(
                 "Options not provided to Bugbear, optional warning %s selected.", code
             )
@@ -151,6 +156,13 @@ class BugBearChecker:
 
         for i in range(2, len(code) + 1):
             if code[:i] in self.options.select:
+                return True
+
+            # flake8 4.0+: Also check for codes in extend_select
+            if (
+                hasattr(self.options, "extend_select")
+                and code[:i] in self.options.extend_select
+            ):
                 return True
 
         LOG.info(

@@ -235,7 +235,7 @@ This could be useful, when using other libraries that provide more immutable cal
 beside those already handled by ``flake8-bugbear``. Calls to these method will no longer
 raise a ``B008`` warning.
 
-For example:
+For example::
 
   [flake8]
   max-line-length = 80

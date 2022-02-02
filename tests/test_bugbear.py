@@ -4,8 +4,8 @@ import site
 import subprocess
 import sys
 import unittest
+from argparse import Namespace
 from pathlib import Path
-from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesmith import from_grammar
@@ -131,8 +131,9 @@ class BugbearTestCase(unittest.TestCase):
     def test_b008_extended(self):
         filename = Path(__file__).absolute().parent / "b008_extended.py"
 
-        mock_options = Mock()
-        mock_options.extend_immutable_calls = ["fastapi.Depends", "fastapi.Query"]
+        mock_options = Namespace(
+            extend_immutable_calls=["fastapi.Depends", "fastapi.Query"]
+        )
 
         bbc = BugBearChecker(filename=str(filename), options=mock_options)
         errors = list(bbc.run())
@@ -255,17 +256,20 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b019.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
+
+        # Decorator location changes in the AST in 3.7
+        col = 5 if sys.version_info > (3, 6) else 4
         self.assertEqual(
             errors,
             self.errors(
-                B019(73, 5),
-                B019(77, 5),
-                B019(81, 5),
-                B019(85, 5),
-                B019(89, 5),
-                B019(93, 5),
-                B019(97, 5),
-                B019(101, 5),
+                B019(73, col),
+                B019(77, col),
+                B019(81, col),
+                B019(85, col),
+                B019(89, col),
+                B019(93, col),
+                B019(97, col),
+                B019(101, col),
             ),
         )
 
@@ -349,6 +353,40 @@ class BugbearTestCase(unittest.TestCase):
     def test_b950(self):
         filename = Path(__file__).absolute().parent / "b950.py"
         bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        self.assertEqual(
+            errors,
+            self.errors(
+                B950(7, 92, vars=(92, 79)),
+                B950(12, 103, vars=(103, 79)),
+                B950(14, 103, vars=(103, 79)),
+                B950(21, 97, vars=(97, 79)),
+            ),
+        )
+
+    def test_b9_select(self):
+        filename = Path(__file__).absolute().parent / "b950.py"
+
+        mock_options = Namespace(select=["B950"])
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        errors = list(bbc.run())
+        self.assertEqual(
+            errors,
+            self.errors(
+                B950(7, 92, vars=(92, 79)),
+                B950(12, 103, vars=(103, 79)),
+                B950(14, 103, vars=(103, 79)),
+                B950(21, 97, vars=(97, 79)),
+            ),
+        )
+
+    def test_b9_extend_select(self):
+        filename = Path(__file__).absolute().parent / "b950.py"
+
+        # select is always going to have a value, usually the default codes, but can
+        # also be empty
+        mock_options = Namespace(select=[], extend_select=["B950"])
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
         errors = list(bbc.run())
         self.assertEqual(
             errors,
