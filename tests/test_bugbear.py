@@ -257,17 +257,17 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
 
-        # Decorator location changes in the AST in 3.7
-        col = 5 if sys.version_info > (3, 6) else 4
+        # AST Decorator column location for callable decorators changes in 3.7
+        col = 5 if sys.version_info >= (3, 7) else 4
         self.assertEqual(
             errors,
             self.errors(
-                B019(73, col),
-                B019(77, col),
+                B019(73, 5),
+                B019(77, 5),
                 B019(81, col),
                 B019(85, col),
-                B019(89, col),
-                B019(93, col),
+                B019(89, 5),
+                B019(93, 5),
                 B019(97, col),
                 B019(101, col),
             ),

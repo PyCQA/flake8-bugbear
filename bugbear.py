@@ -148,7 +148,7 @@ class BugBearChecker:
             return True
 
         if self.options is None:
-            # Without options configured, Bugbear will emit B9 but Flake8 will ignore
+            # Without options configured, Bugbear will emit B9 but flake8 will ignore
             LOG.info(
                 "Options not provided to Bugbear, optional warning %s selected.", code
             )
@@ -158,7 +158,7 @@ class BugBearChecker:
             if code[:i] in self.options.select:
                 return True
 
-            # flake8 4.0+: Also check for codes in extend_select
+            # flake8 >=4.0: Also check for codes in extend_select
             if (
                 hasattr(self.options, "extend_select")
                 and code[:i] in self.options.extend_select
@@ -530,8 +530,8 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             return
 
-        # Preserve decorator order so we can get the lineno from the decorator node rather than
-        # the function node (this location definition changes in Python 3.8)
+        # Preserve decorator order so we can get the lineno from the decorator node
+        # rather than the function node (this location definition changes in Python 3.8)
         resolved_decorators = (
             ".".join(self.compose_call_path(decorator))
             for decorator in node.decorator_list

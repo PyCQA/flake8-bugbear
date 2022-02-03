@@ -8,9 +8,9 @@ flake8-bugbear
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
-A plugin for flake8 finding likely bugs and design problems in your
-program.  Contains warnings that don't belong in pyflakes and
-pycodestyle::
+A plugin for ``flake8`` finding likely bugs and design problems in your
+program.  Contains warnings that don't belong in ``pyflakes`` and
+``pycodestyle``::
 
     bug·bear  (bŭg′bâr′)
     n.
@@ -57,7 +57,7 @@ List of warnings
 **B001**: Do not use bare ``except:``, it also catches unexpected events
 like memory errors, interrupts, system exit, and so on.  Prefer ``except
 Exception:``.  If you're sure what you're doing, be explicit and write
-``except BaseException:``.  Disable E722 to avoid duplicate warnings.
+``except BaseException:``.  Disable ``E722`` to avoid duplicate warnings.
 
 **B002**: Python does not support the unary prefix increment. Writing
 ``++n`` is equivalent to ``+(+(n))``, which equals ``n``. You meant ``n
@@ -170,7 +170,7 @@ See `the exception chaining tutorial <https://docs.python.org/3/tutorial/errors.
 for details.
 
 **B950**: Line too long. This is a pragmatic equivalent of
-``pycodestyle``'s E501: it considers "max-line-length" but only triggers
+``pycodestyle``'s ``E501``: it considers "max-line-length" but only triggers
 when the value has been exceeded by **more than 10%**. You will no
 longer be forced to reformat code due to the closing parenthesis being
 one character too far to satisfy the linter. At the same time, if you do
@@ -178,7 +178,7 @@ significantly violate the line length, you will receive a message that
 states what the actual limit is. This is inspired by Raymond Hettinger's
 `"Beyond PEP 8" talk <https://www.youtube.com/watch?v=wf-BqAjZb8M>`_ and
 highway patrol not stopping you if you drive < 5mph too fast. Disable
-E501 to avoid duplicate warnings. Like E501, this error ignores long shebangs
+``E501`` to avoid duplicate warnings. Like ``E501``, this error ignores long shebangs
 on the first line and urls or paths that are on their own line::
 
   #! long shebang ignored
@@ -192,38 +192,39 @@ on the first line and urls or paths that are on their own line::
 How to enable opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To enable these checks, specify a ``--extend-select`` command-line option or
-``extend-select=`` option in your config file (requires flake8 4.0+)::
+To enable Bugbear's opinionated checks (``B9xx``), specify an ``--extend-select``
+command-line option or ``extend-select=`` option in your config file
+(requires ``flake8 >=4.0``)::
 
   [flake8]
   max-line-length = 80
   max-complexity = 12
   ...
   extend-ignore = E501
-  extend-select = B901
+  extend-select = B950
 
-Some checks might need other flake8 checks disabled - e.g. E501 must be disabled for
-B950 to be hit.
+Some of Bugbear's checks require other ``flake8`` checks disabled - e.g. ``E501`` must
+be disabled when enabling ``B950``.
 
 If you'd like all optional warnings to be enabled for you (future proof your config!),
-say ``B9`` instead of ``B901``. You will need flake8 3.2+ for this feature.
+say ``B9`` instead of ``B950``. You will need ``flake8 >=3.2`` for this feature.
 
-For flake8 versions older than 4.0, you will need to use the ``--select`` command-line
-option or ``select=`` option in your config file. As of flake8 3.0, this option is a
-whitelist (checks not listed are implicitly disabled), so you have to explicitly specify
-all checks you want enabled (e.g. ``select = C,E,F,W,B,B901``).
+For ``flake8 <=4.0``, you will need to use the ``--select`` command-line option or
+``select=`` option in your config file. For ``flake8 >=3.0``, this option is a whitelist
+(checks not listed are implicitly disabled), so you have to explicitly specify all
+checks you want enabled (e.g. ``select = C,E,F,W,B,B950``).
 
 The ``--extend-ignore`` command-line option and ``extend-ignore=`` config file option
-require flake8 3.6+. For older flake8 versions, the ``--ignore`` and ``ignore=`` options
-can be used. Using ``ignore`` will override all codes that are disabled by
-default from all installed linters, so you will need to specify these codes in your
-configuration to silence them. I think this behavior is surprising so Bugbear's
+require ``flake8 >=3.6``. For older ``flake8`` versions, the ``--ignore`` and
+``ignore=`` options can be used. Using ``ignore`` will override all codes that are
+disabled by default from all installed linters, so you will need to specify these codes
+in your configuration to silence them. I think this behavior is surprising so Bugbear's
 opinionated warnings require explicit selection.
 
 **Note:** Bugbear's enforcement of explicit opinionated warning selection is deprecated
 and will be removed in a future release. It is recommended to use ``extend-ignore`` and
-``extend-select`` in your flake8 configuration to avoid implicitly altering selected and
-ignored codes.
+``extend-select`` in your ``flake8`` configuration to avoid implicitly altering selected
+and/or ignored codes.
 
 Configuration
 -------------
