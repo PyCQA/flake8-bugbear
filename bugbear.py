@@ -72,7 +72,7 @@ class BugBearChecker:
                 continue
 
             length = len(line) - 1
-            if length > 1.1 * self.max_line_length:
+            if length > 1.1 * self.max_line_length and line.strip():
                 # Special case long URLS and paths to follow pycodestyle.
                 # Would use the `pycodestyle.maximum_line_length` directly but
                 # need to supply it arguments that are not available so chose
