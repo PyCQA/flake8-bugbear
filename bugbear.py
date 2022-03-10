@@ -258,7 +258,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 #    (MyError, BaseException)  # everything derives from the Base
                 #    (Exception, TypeError)  # builtins where one subclasses another
                 #    (IOError, OSError)  # IOError is an alias of OSError since Python3.3
-                # but note that other cases are impractical to hande from the AST.
+                # but note that other cases are impractical to handle from the AST.
                 # We expect this is mostly useful for users who do not have the
                 # builtin exception hierarchy memorised, and include a 'shadowed'
                 # subtype without realising that it's redundant.
