@@ -134,7 +134,7 @@ data available in ``ex``.
 
 **B020**: Loop control variable overrides iterable it iterates
 
-**B022**: B022 No arguments passed to `contextlib.suppress`.
+**B022**: No arguments passed to `contextlib.suppress`.
 No exceptions will be suppressed and therefore this context manager is redundant.
 
 
