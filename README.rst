@@ -134,6 +134,9 @@ data available in ``ex``.
 
 **B020**: Loop control variable overrides iterable it iterates
 
+**B021**: f-string used as docstring. This will be interpreted by python
+as a joined string rather than a docstring.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
