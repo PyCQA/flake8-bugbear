@@ -303,21 +303,21 @@ class BugBearVisitor(ast.NodeVisitor):
             with suppress(AttributeError, IndexError):
                 if (
                     node.func.id in ("getattr", "hasattr")
-                    and node.args[1].s == "__call__"  # noqa: W503
+                    and node.args[1].s == "__call__"
                 ):
                     self.errors.append(B004(node.lineno, node.col_offset))
                 if (
                     node.func.id == "getattr"
-                    and len(node.args) == 2  # noqa: W503
-                    and _is_identifier(node.args[1])  # noqa: W503
-                    and not iskeyword(node.args[1].s)  # noqa: W503
+                    and len(node.args) == 2
+                    and _is_identifier(node.args[1])
+                    and not iskeyword(node.args[1].s)
                 ):
                     self.errors.append(B009(node.lineno, node.col_offset))
                 elif (
                     node.func.id == "setattr"
-                    and len(node.args) == 3  # noqa: W503
-                    and _is_identifier(node.args[1])  # noqa: W503
-                    and not iskeyword(node.args[1].s)  # noqa: W503
+                    and len(node.args) == 3
+                    and _is_identifier(node.args[1])
+                    and not iskeyword(node.args[1].s)
                 ):
                     self.errors.append(B010(node.lineno, node.col_offset))
 
@@ -498,12 +498,12 @@ class BugBearVisitor(ast.NodeVisitor):
         item_context = item.context_expr
         if (
             hasattr(item_context, "func")
-            and hasattr(item_context.func, "attr")  # noqa W503
-            and item_context.func.attr == "assertRaises"  # noqa W503
-            and len(item_context.args) == 1  # noqa W503
-            and isinstance(item_context.args[0], ast.Name)  # noqa W503
-            and item_context.args[0].id == "Exception"  # noqa W503
-            and not item.optional_vars  # noqa W503
+            and hasattr(item_context.func, "attr")
+            and item_context.func.attr == "assertRaises"
+            and len(item_context.args) == 1
+            and isinstance(item_context.args[0], ast.Name)
+            and item_context.args[0].id == "Exception"
+            and not item.optional_vars
         ):
             self.errors.append(B017(node.lineno, node.col_offset))
 
@@ -587,7 +587,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if "type" in bases:
             if (
                 "classmethod" in decorators.names
-                or node.name in B902.implicit_classmethods  # noqa: W503
+                or node.name in B902.implicit_classmethods
             ):
                 expected_first_args = B902.metacls
                 kind = "metaclass class"
@@ -597,7 +597,7 @@ class BugBearVisitor(ast.NodeVisitor):
         else:
             if (
                 "classmethod" in decorators.names
-                or node.name in B902.implicit_classmethods  # noqa: W503
+                or node.name in B902.implicit_classmethods
             ):
                 expected_first_args = B902.cls
                 kind = "class"
@@ -642,16 +642,16 @@ class BugBearVisitor(ast.NodeVisitor):
         body = node.body
         if (
             body
-            and isinstance(body[0], ast.Expr)  # noqa: W503
-            and isinstance(body[0].value, ast.Str)  # noqa: W503
+            and isinstance(body[0], ast.Expr)
+            and isinstance(body[0].value, ast.Str)
         ):
             # Ignore the docstring
             body = body[1:]
 
         if (
             len(body) != 1
-            or not isinstance(body[0], ast.FunctionDef)  # noqa: W503
-            or body[0].name != "__init__"  # noqa: W503
+            or not isinstance(body[0], ast.FunctionDef)
+            or body[0].name != "__init__"
         ):
             # only classes with *just* an __init__ method are interesting
             return
