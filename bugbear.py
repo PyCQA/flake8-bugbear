@@ -372,6 +372,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_With(self, node):
         self.check_for_b017(node)
+        self.check_for_b022(node)
         self.generic_visit(node)
 
     def compose_call_path(self, node):
@@ -685,6 +686,20 @@ class BugBearVisitor(ast.NodeVisitor):
             ):
                 self.errors.append(B018(subnode.lineno, subnode.col_offset))
 
+    def check_for_b022(self, node):
+        item = node.items[0]
+        item_context = item.context_expr
+        if (
+            hasattr(item_context, "func")
+            and hasattr(item_context.func, "value")
+            and hasattr(item_context.func.value, "id")
+            and item_context.func.value.id == "contextlib"
+            and hasattr(item_context.func, "attr")
+            and item_context.func.attr == "suppress"
+            and len(item_context.args) == 0
+        ):
+            self.errors.append(B022(node.lineno, node.col_offset))
+
 
 @attr.s
 class NameFinder(ast.NodeVisitor):
@@ -890,6 +905,13 @@ B020 = Error(
     message=(
         "B020 Found for loop that reassigns the iterable it is iterating "
         + "with each iterable value."
+    )
+)
+B022 = Error(
+    message=(
+        "B022 No arguments passed to `contextlib.suppress`."
+        "No exceptions will be suppressed and therefore this"
+        "context manager is redundant."
     )
 )
 
