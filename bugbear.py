@@ -692,10 +692,6 @@ class BugBearVisitor(ast.NodeVisitor):
             node.body
             and isinstance(node.body[0], ast.Expr)
             and isinstance(node.body[0].value, ast.JoinedStr)
-            and ast.get_source_segment(
-                "".join(self.lines),
-                node.body[0].value,
-            ).startswith(('f"', "f'"))
         ):
             self.errors.append(
                 B021(node.body[0].value.lineno, node.body[0].value.col_offset)
