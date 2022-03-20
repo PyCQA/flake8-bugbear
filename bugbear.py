@@ -127,7 +127,7 @@ class BugBearChecker:
             help="Skip B008 test for additional immutable calls.",
         )
 
-    @lru_cache()
+    @lru_cache()  # noqa: B019
     def should_warn(self, code):
         """Returns `True` if Bugbear should emit a particular warning.
 
@@ -138,12 +138,17 @@ class BugBearChecker:
 
         As documented in the README, the user is expected to explicitly select
         the warnings.
+
+        NOTE: This method is deprecated and will be removed in a future release. It is
+        recommended to use `extend-ignore` and `extend-select` in your flake8
+        configuration to avoid implicitly altering selected and ignored codes.
         """
         if code[:2] != "B9":
             # Normal warnings are safe for emission.
             return True
 
         if self.options is None:
+            # Without options configured, Bugbear will emit B9 but flake8 will ignore
             LOG.info(
                 "Options not provided to Bugbear, optional warning %s selected.", code
             )
@@ -151,6 +156,13 @@ class BugBearChecker:
 
         for i in range(2, len(code) + 1):
             if code[:i] in self.options.select:
+                return True
+
+            # flake8 >=4.0: Also check for codes in extend_select
+            if (
+                hasattr(self.options, "extend_select")
+                and code[:i] in self.options.extend_select
+            ):
                 return True
 
         LOG.info(
@@ -350,6 +362,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b902(node)
         self.check_for_b006(node)
         self.check_for_b018(node)
+        self.check_for_b019(node)
         self.check_for_b021(node)
         self.generic_visit(node)
 
@@ -381,6 +394,8 @@ class BugBearVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Attribute):
             yield from self.compose_call_path(node.value)
             yield node.attr
+        elif isinstance(node, ast.Call):
+            yield from self.compose_call_path(node.func)
         elif isinstance(node, ast.Name):
             yield node.id
 
@@ -509,6 +524,33 @@ class BugBearVisitor(ast.NodeVisitor):
             and not item.optional_vars
         ):
             self.errors.append(B017(node.lineno, node.col_offset))
+
+    def check_for_b019(self, node):
+        if (
+            len(node.decorator_list) == 0
+            or len(self.contexts) < 2
+            or not isinstance(self.contexts[-2].node, ast.ClassDef)
+        ):
+            return
+
+        # Preserve decorator order so we can get the lineno from the decorator node
+        # rather than the function node (this location definition changes in Python 3.8)
+        resolved_decorators = (
+            ".".join(self.compose_call_path(decorator))
+            for decorator in node.decorator_list
+        )
+        for idx, decorator in enumerate(resolved_decorators):
+            if decorator in {"classmethod", "staticmethod"}:
+                return
+
+            if decorator in B019.caches:
+                self.errors.append(
+                    B019(
+                        node.decorator_list[idx].lineno,
+                        node.decorator_list[idx].col_offset,
+                    )
+                )
+                return
 
     def check_for_b020(self, node):
         targets = NameFinder()
@@ -913,6 +955,19 @@ B018 = Error(
         "B018 Found useless expression. Either assign it to a variable or remove it."
     )
 )
+B019 = Error(
+    message=(
+        "B019 Use of `functools.lru_cache` or `functools.cache` on class methods "
+        "can lead to memory leaks. The cache may retain instance references, "
+        "preventing garbage collection."
+    )
+)
+B019.caches = {
+    "functools.cache",
+    "functools.lru_cache",
+    "cache",
+    "lru_cache",
+}
 B020 = Error(
     message=(
         "B020 Found for loop that reassigns the iterable it is iterating "
