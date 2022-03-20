@@ -275,10 +275,14 @@ MIT
 Change Log
 ----------
 
-Unreleased
+22.3.20
 ~~~~~~~~~~
 
+* B022: No arguments passed to contextlib.suppress (#231)
+* B021: f-string used as docstring. (#230)
 * B020: ensure loop control variable doesn't overrides iterable it iterates (#220)
+* B019: check to find cache decorators on class methods (#218)
+* Fix crash on long empty string (#223)
 
 22.1.11
 ~~~~~~~~~~
