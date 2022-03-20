@@ -143,6 +143,8 @@ as a joined string rather than a docstring.
 
 **B022**: No arguments passed to `contextlib.suppress`.
 No exceptions will be suppressed and therefore this context manager is redundant.
+N.B. this rule currently does not flag `suppress` calls to avoid potential false
+positives due to similarly named user-defined functions.
 
 
 Opinionated warnings
