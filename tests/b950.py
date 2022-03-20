@@ -19,3 +19,8 @@
 
 # This
 #                                                                      almost_empty_line_too_long
+
+# Long empty line
+"""
+                                                                                                                                                                
+"""
