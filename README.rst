@@ -134,6 +134,9 @@ data available in ``ex``.
 
 **B020**: Loop control variable overrides iterable it iterates
 
+**B021**: f-string used as docstring. This will be interpreted by python
+as a joined string rather than a docstring.
+
 **B022**: No arguments passed to `contextlib.suppress`.
 No exceptions will be suppressed and therefore this context manager is redundant.
 
