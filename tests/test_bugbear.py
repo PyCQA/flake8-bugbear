@@ -280,7 +280,7 @@ class BugbearTestCase(unittest.TestCase):
             B021(74, 4),
         )
         self.assertEqual(errors, expected)
-        
+
     def test_b022(self):
         filename = Path(__file__).absolute().parent / "b022.py"
         bbc = BugBearChecker(filename=str(filename))
