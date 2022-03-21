@@ -957,7 +957,7 @@ B018 = Error(
 )
 B019 = Error(
     message=(
-        "B019 Use of `functools.lru_cache` or `functools.cache` on class methods "
+        "B019 Use of `functools.lru_cache` or `functools.cache` on methods "
         "can lead to memory leaks. The cache may retain instance references, "
         "preventing garbage collection."
     )
