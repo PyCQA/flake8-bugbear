@@ -2,8 +2,8 @@
 flake8-bugbear
 ==============
 
-.. image:: https://travis-ci.org/PyCQA/flake8-bugbear.svg?branch=master
-    :target: https://travis-ci.org/PyCQA/flake8-bugbear
+.. image:: https://github.com/PyCQA/flake8-bugbear/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/PyCQA/flake8-bugbear/actions/workflows/ci.yml
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
