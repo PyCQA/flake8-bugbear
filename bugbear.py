@@ -791,6 +791,11 @@ class FuntionDefDefaultsVisitor(ast.NodeVisitor):
         # Check for nested functions.
         self.generic_visit(node)
 
+    def visit_Lambda(self, node):
+        # Don't recurse into lambda expressions
+        # as they are evaluated at call time.
+        pass
+
     def visit(self, node):
         """Like super-visit but supports iteration over lists."""
         self.arg_depth += 1

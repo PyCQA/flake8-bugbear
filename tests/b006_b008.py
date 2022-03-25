@@ -180,3 +180,8 @@ def no_nested_b006(a=map(lambda s: s.upper(), ["a", "b", "c"])):
 # B008-ception.
 def nested_b008(a=random.randint(0, dt.datetime.now().year)):
     pass
+
+
+# Ignore lambda contents since they are evaluated at call time.
+def foo(f=lambda x: print(x)):
+    f(1)
