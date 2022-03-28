@@ -1,6 +1,6 @@
 """
 Should emit:
-B009 - Line 17, 18, 19
+B009 - Line 17, 18, 19, 44
 B010 - Line 28, 29, 30
 """
 
@@ -28,3 +28,20 @@ setattr(foo, "except", None)
 setattr(foo, "bar", None)
 setattr(foo, "_123abc", None)
 setattr(foo, "abc123", None)
+
+# Allow use of setattr within lambda expression
+# since assignment is not valid in this context.
+c = lambda x: setattr(x, "some_attr", 1)
+
+
+class FakeCookieStore:
+    def __init__(self, has_setter):
+        self.cookie_filter = None
+        if has_setter:
+            self.setCookieFilter = lambda func: setattr(self, "cookie_filter", func)
+
+
+# getattr is still flagged within lambda though
+c = lambda x: getattr(x, "some_attr")
+# should be replaced with
+c = lambda x: x.some_attr

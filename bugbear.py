@@ -326,7 +326,8 @@ class BugBearVisitor(ast.NodeVisitor):
                 ):
                     self.errors.append(B009(node.lineno, node.col_offset))
                 elif (
-                    node.func.id == "setattr"
+                    not any(isinstance(n, ast.Lambda) for n in self.node_stack)
+                    and node.func.id == "setattr"
                     and len(node.args) == 3
                     and _is_identifier(node.args[1])
                     and not iskeyword(node.args[1].s)
