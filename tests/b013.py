@@ -13,7 +13,7 @@ except (ValueError,):
 
 try:
     pass
-except ValueError:
+except (ValueError):
     # not using a tuple means it's OK (if odd)
     pass
 
