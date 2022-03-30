@@ -204,7 +204,7 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B013(10, 0, vars=("ValueError",)), B013(28, 0, vars=("re.error",))
+            B013(10, 0, vars=("ValueError",)), B013(32, 0, vars=("re.error",))
         )
         self.assertEqual(errors, expected)
 
