@@ -11,11 +11,15 @@ except (ValueError,):
     # pointless use of tuple
     pass
 
+# fmt: off
+# Turn off black to keep brackets around
+# single exception for testing purposes.
 try:
     pass
 except (ValueError):
     # not using a tuple means it's OK (if odd)
     pass
+# fmt: on
 
 try:
     pass
