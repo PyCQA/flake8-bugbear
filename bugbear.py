@@ -1023,14 +1023,14 @@ B020 = Error(
 )
 B021 = Error(
     message=(
-        "B021 f-string used as docstring."
+        "B021 f-string used as docstring. "
         "This will be interpreted by python as a joined string rather than a docstring."
     )
 )
 B022 = Error(
     message=(
-        "B022 No arguments passed to `contextlib.suppress`."
-        "No exceptions will be suppressed and therefore this"
+        "B022 No arguments passed to `contextlib.suppress`. "
+        "No exceptions will be suppressed and therefore this "
         "context manager is redundant."
     )
 )
