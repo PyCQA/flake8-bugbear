@@ -375,6 +375,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Try(self, node):
         self.check_for_b012(node)
+        self.check_for_b023(node)
         self.generic_visit(node)
 
     def visit_Compare(self, node):
@@ -707,6 +708,20 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B022(node.lineno, node.col_offset))
 
+    def check_for_b023(self, node):
+        seen = []
+        for handler in node.handlers:
+            if isinstance(handler.type, (ast.Name, ast.Attribute)):
+                name = ".".join(compose_call_path(handler.type))
+                seen.append(name)
+            elif isinstance(handler.type, ast.Tuple):
+                for entry in handler.type.elts:
+                    name = ".".join(compose_call_path(entry))
+                    seen.append(name)
+        duplicates = {x for x in seen if seen.count(x) > 1}
+        for duplicate in duplicates:
+            self.errors.append(B023(node.lineno, node.col_offset, vars=(duplicate,)))
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -1032,6 +1047,12 @@ B022 = Error(
         "B022 No arguments passed to `contextlib.suppress`. "
         "No exceptions will be suppressed and therefore this "
         "context manager is redundant."
+    )
+)
+B023 = Error(
+    message=(
+        "B023 Exception `{0}` is catched multiple times. "
+        "Only the first except will be considered and all other usages can be removed."
     )
 )
 

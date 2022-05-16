@@ -150,6 +150,11 @@ No exceptions will be suppressed and therefore this context manager is redundant
 N.B. this rule currently does not flag `suppress` calls to avoid potential false
 positives due to similarly named user-defined functions.
 
+**B023**: Try with duplicate exceptions caught.
+If a exception is specified multiple times in the same or other except clauses in the same
+try-except statement, only the first specification is considered.
+All others can be removed.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
