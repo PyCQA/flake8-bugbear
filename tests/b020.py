@@ -35,3 +35,6 @@ for k, v in {k: v for k, v in zip(range(10), range(10, 20))}.items():
 # However we still call out reassigning the iterable in the comprehension.
 for vars in [i for i in vars]:
     print(vars)
+
+for var in sorted(range(10), key=lambda var: var.real):
+    print(var)

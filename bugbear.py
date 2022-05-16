@@ -824,6 +824,9 @@ class B020NameFinder(NameFinder):
     def visit_comprehension(self, node):
         self.visit(node.iter)
 
+    def visit_Attribute(self, node):
+        ...   # Ignore "variable.attribute" expression
+
 
 error = namedtuple("error", "lineno col message type vars")
 Error = partial(partial, error, type=BugBearChecker, vars=())
