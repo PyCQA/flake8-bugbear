@@ -438,6 +438,16 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
+    def test_b9_flake8_next_default_options(self):
+        filename = Path(__file__).absolute().parent / "b950.py"
+
+        # in flake8 next, unset select / extend_select will be `None` to
+        # signify the default values
+        mock_options = Namespace(select=None, extend_select=None)
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        errors = list(bbc.run())
+        self.assertEqual(errors, [])
+
     def test_selfclean_bugbear(self):
         filename = Path(__file__).absolute().parent.parent / "bugbear.py"
         proc = subprocess.run(

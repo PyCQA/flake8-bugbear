@@ -155,12 +155,13 @@ class BugBearChecker:
             return True
 
         for i in range(2, len(code) + 1):
-            if code[:i] in self.options.select:
+            if self.options.select and code[:i] in self.options.select:
                 return True
 
             # flake8 >=4.0: Also check for codes in extend_select
             if (
                 hasattr(self.options, "extend_select")
+                and self.options.extend_select
                 and code[:i] in self.options.extend_select
             ):
                 return True
