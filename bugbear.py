@@ -26,6 +26,7 @@ CONTEXTFUL_NODES = (
     ast.DictComp,
     ast.GeneratorExp,
 )
+FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
 
 Context = namedtuple("Context", ["node", "stack"])
 
@@ -198,6 +199,21 @@ def _to_name_str(node):
         return _to_name_str(node.value)
 
 
+def names_from_assignments(node):
+    for name in ast.walk(node):
+        if isinstance(name, ast.Name):
+            yield name.id
+        elif isinstance(name, ast.arg):
+            yield name.arg
+
+
+def children_in_scope(node):
+    yield node
+    if not isinstance(node, FUNCTION_NODES):
+        for child in ast.iter_child_nodes(node):
+            yield from children_in_scope(child)
+
+
 def _typesafe_issubclass(cls, class_or_tuple):
     try:
         return issubclass(cls, class_or_tuple)
@@ -348,6 +364,31 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_For(self, node):
         self.check_for_b007(node)
         self.check_for_b020(node)
+        self.check_for_b023(node)
+        self.generic_visit(node)
+
+    def visit_AsyncFor(self, node):
+        self.check_for_b023(node)
+        self.generic_visit(node)
+
+    def visit_While(self, node):
+        self.check_for_b023(node)
+        self.generic_visit(node)
+
+    def visit_ListComp(self, node):
+        self.check_for_b023(node)
+        self.generic_visit(node)
+
+    def visit_SetComp(self, node):
+        self.check_for_b023(node)
+        self.generic_visit(node)
+
+    def visit_DictComp(self, node):
+        self.check_for_b023(node)
+        self.generic_visit(node)
+
+    def visit_GeneratorExp(self, node):
+        self.check_for_b023(node)
         self.generic_visit(node)
 
     def visit_Assert(self, node):
@@ -519,6 +560,47 @@ class BugBearVisitor(ast.NodeVisitor):
             if name in iterset_names:
                 n = targets.names[name][0]
                 self.errors.append(B020(n.lineno, n.col_offset, vars=(name,)))
+
+    def check_for_b023(self, loop_node):
+        """Check that functions (including lambdas) do not use loop variables.
+
+        https://docs.python-guide.org/writing/gotchas/#late-binding-closures from
+        functions - usually but not always lambdas - defined inside a loop are a
+        classic source of bugs.
+
+        For each use of a variable inside a function defined inside a loop, we
+        emit a warning if that variable is reassigned on each loop iteration
+        (outside the function).  This includes but is not limited to explicit
+        loop variables like the `x` in `for x in range(3):`.
+        """
+        # Because most loops don't contain functions, it's most efficient to
+        # implement this "backwards": first we find all the candidate variable
+        # uses, and then if there are any we check for assignment of those names
+        # inside the loop body.
+        suspicious_variables = []
+        for node in ast.walk(loop_node):
+            if isinstance(node, FUNCTION_NODES):
+                argnames = set(names_from_assignments(node.args))
+                for name in ast.walk(node):
+                    if isinstance(name, ast.Name) and name.id not in argnames:
+                        err = B023(name.lineno, name.col_offset, vars=(name.id,))
+                        suspicious_variables.append(err)
+
+        if suspicious_variables:
+            reassigned_in_loop = set(self._get_assigned_names(loop_node))
+
+        for err in sorted(suspicious_variables):
+            if reassigned_in_loop.issuperset(err.vars):
+                self.errors.append(err)
+
+    def _get_assigned_names(self, loop_node):
+        loop_targets = (ast.For, ast.AsyncFor, ast.comprehension)
+        for node in children_in_scope(loop_node):
+            if isinstance(node, (ast.Assign)):
+                for child in node.targets:
+                    yield from names_from_assignments(child)
+            if isinstance(node, loop_targets + (ast.AnnAssign, ast.AugAssign)):
+                yield from names_from_assignments(node.target)
 
     def check_for_b904(self, node):
         """Checks `raise` without `from` inside an `except` clause.
@@ -1038,6 +1120,15 @@ B022 = Error(
         "B022 No arguments passed to `contextlib.suppress`. "
         "No exceptions will be suppressed and therefore this "
         "context manager is redundant."
+    )
+)
+
+B023 = Error(
+    message=(
+        "B023 Function definition does not bind loop variable {!r}.  "
+        "This means that invoking functions defined inside the loop will "
+        "always use the value of this variable from the last iteration.  See "
+        "https://docs.python-guide.org/writing/gotchas/#late-binding-closures"
     )
 )
 

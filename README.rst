@@ -150,6 +150,9 @@ No exceptions will be suppressed and therefore this context manager is redundant
 N.B. this rule currently does not flag `suppress` calls to avoid potential false
 positives due to similarly named user-defined functions.
 
+**B023**: Functions defined inside a loop must not use variables redefined in
+the loop, because `late-binding closures are a classic gotcha
+<https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
