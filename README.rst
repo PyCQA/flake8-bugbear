@@ -279,6 +279,14 @@ MIT
 Change Log
 ----------
 
+22.6.22
+~~~~~~~~~~
+
+* Don't crash when select / extend_select are None (#261)
+* Ignore lambda arguments for B020 (#259)
+* Fix missing space typos in B021, B022 error messages (#257)
+
+
 22.4.25
 ~~~~~~~~~~
 
