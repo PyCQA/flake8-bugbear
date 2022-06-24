@@ -1,6 +1,6 @@
 """
 Should emit:
-B023 - on lines 12, 13, 16, 28, 29, 30, 31, 40, 42, 50, 51, 52, 53, 61.
+B023 - on lines 12, 13, 16, 28, 29, 30, 31, 40, 42, 50, 51, 52, 53, 61, 68.
 """
 
 functions = []
@@ -59,3 +59,10 @@ while True:
 for j in range(2):
     for k in range(3):
         lambda: j * k
+
+
+for j, k, l in [(1, 2, 3)]:
+
+    def f():
+        j = None  # OK because it's an assignment
+        [l for k in range(2)]  # error for l, not for k

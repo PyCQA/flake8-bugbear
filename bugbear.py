@@ -583,7 +583,11 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(node, FUNCTION_NODES):
                 argnames = set(names_from_assignments(node.args))
                 for name in ast.walk(node):
-                    if isinstance(name, ast.Name) and name.id not in argnames:
+                    if (
+                        isinstance(name, ast.Name)
+                        and name.id not in argnames
+                        and isinstance(name.ctx, ast.Load)
+                    ):
                         err = B023(name.lineno, name.col_offset, vars=(name.id,))
                         if err not in self._b023_seen:
                             self._b023_seen.add(err)  # dedupe across nested loops
