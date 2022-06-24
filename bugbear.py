@@ -586,7 +586,11 @@ class BugBearVisitor(ast.NodeVisitor):
                 argnames = {
                     arg.arg for arg in ast.walk(node.args) if isinstance(arg, ast.arg)
                 }
-                for name in ast.walk(node):
+                if isinstance(node, ast.Lambda):
+                    body_nodes = ast.walk(node.body)
+                else:
+                    body_nodes = itertools.chain.from_iterable(map(ast.walk, node.body))
+                for name in body_nodes:
                     if (
                         isinstance(name, ast.Name)
                         and name.id not in argnames

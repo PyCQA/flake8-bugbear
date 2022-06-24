@@ -71,3 +71,8 @@ for j, k, l in [(1, 2, 3)]:
 
     a.attribute = 1  # modifying an attribute doesn't make it a loop variable
     functions[0] = lambda: None  # same for an element
+
+for var in range(2):
+
+    def explicit_capture(captured=var):
+        return captured
