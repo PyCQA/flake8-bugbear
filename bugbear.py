@@ -199,12 +199,14 @@ def _to_name_str(node):
         return _to_name_str(node.value)
 
 
-def names_from_assignments(node):
-    for name in ast.walk(node):
-        if isinstance(name, ast.Name):
-            yield name.id
-        elif isinstance(name, ast.arg):
-            yield name.arg
+def names_from_assignments(assign_target):
+    if isinstance(assign_target, ast.Name):
+        yield assign_target.id
+    elif isinstance(assign_target, ast.Starred):
+        yield from names_from_assignments(assign_target.value)
+    elif isinstance(assign_target, (ast.List, ast.Tuple)):
+        for child in assign_target.elts:
+            yield from names_from_assignments(child)
 
 
 def children_in_scope(node):
@@ -581,7 +583,9 @@ class BugBearVisitor(ast.NodeVisitor):
         suspicious_variables = []
         for node in ast.walk(loop_node):
             if isinstance(node, FUNCTION_NODES):
-                argnames = set(names_from_assignments(node.args))
+                argnames = {
+                    arg.arg for arg in ast.walk(node.args) if isinstance(arg, ast.arg)
+                }
                 for name in ast.walk(node):
                     if (
                         isinstance(name, ast.Name)

@@ -66,3 +66,8 @@ for j, k, l in [(1, 2, 3)]:
     def f():
         j = None  # OK because it's an assignment
         [l for k in range(2)]  # error for l, not for k
+
+        assert a and functions
+
+    a.attribute = 1  # modifying an attribute doesn't make it a loop variable
+    functions[0] = lambda: None  # same for an element
