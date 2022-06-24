@@ -236,6 +236,7 @@ class BugBearVisitor(ast.NodeVisitor):
     contexts = attr.ib(default=attr.Factory(list))
 
     NODE_WINDOW_SIZE = 4
+    _b023_seen = attr.ib(factory=set, init=False)
 
     if False:
         # Useful for tracing what the hell is going on.
@@ -584,7 +585,9 @@ class BugBearVisitor(ast.NodeVisitor):
                 for name in ast.walk(node):
                     if isinstance(name, ast.Name) and name.id not in argnames:
                         err = B023(name.lineno, name.col_offset, vars=(name.id,))
-                        suspicious_variables.append(err)
+                        if err not in self._b023_seen:
+                            self._b023_seen.add(err)  # dedupe across nested loops
+                            suspicious_variables.append(err)
 
         if suspicious_variables:
             reassigned_in_loop = set(self._get_assigned_names(loop_node))
@@ -1123,14 +1126,7 @@ B022 = Error(
     )
 )
 
-B023 = Error(
-    message=(
-        "B023 Function definition does not bind loop variable {!r}.  "
-        "This means that invoking functions defined inside the loop will "
-        "always use the value of this variable from the last iteration.  See "
-        "https://docs.python-guide.org/writing/gotchas/#late-binding-closures"
-    )
-)
+B023 = Error(message="B023 Function definition does not bind loop variable {!r}.")
 
 # Warnings disabled by default.
 B901 = Error(

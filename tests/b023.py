@@ -1,6 +1,6 @@
 """
 Should emit:
-B023 - on lines 12, 13, 16, 28, 29, 30, 31, 40, 42, 50, 51, 52, 53.
+B023 - on lines 12, 13, 16, 28, 29, 30, 31, 40, 42, 50, 51, 52, 53, 61.
 """
 
 functions = []
@@ -54,3 +54,8 @@ while True:
     c: bool = a > 3
     if not c:
         break
+
+# Nested loops should not duplicate reports
+for j in range(2):
+    for k in range(3):
+        lambda: j * k
