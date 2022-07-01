@@ -286,8 +286,8 @@ Change Log
 ~~~~~~~~~~
 
 * Implement late-binding loop check (#265)
-  * `late-binding closures are a classic gotcha
- <https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
+
+  * `late-binding closures are a classic gotcha <https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
 
 22.6.22
 ~~~~~~~~~~
