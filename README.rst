@@ -282,6 +282,13 @@ MIT
 Change Log
 ----------
 
+22.7.1
+~~~~~~~~~~
+
+* Implement late-binding loop check (#265)
+  * `late-binding closures are a classic gotcha
+ <https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
+
 22.6.22
 ~~~~~~~~~~
 
