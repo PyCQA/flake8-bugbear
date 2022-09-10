@@ -35,6 +35,7 @@ from bugbear import (
     B022,
     B023,
     B024,
+    B025,
     B901,
     B902,
     B903,
@@ -365,6 +366,20 @@ class BugbearTestCase(unittest.TestCase):
             B024(89, 0, vars=("multi_super_2",)),
         )
         self.assertEqual(errors, expected)
+
+    def test_b025(self):
+        filename = Path(__file__).absolute().parent / "b025.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        self.assertEqual(
+            errors,
+            self.errors(
+                B025(15, 0, vars=("ValueError",)),
+                B025(22, 0, vars=("pickle.PickleError",)),
+                B025(31, 0, vars=("TypeError",)),
+                B025(31, 0, vars=("ValueError",)),
+            ),
+        )
 
     def test_b901(self):
         filename = Path(__file__).absolute().parent / "b901.py"

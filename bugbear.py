@@ -421,6 +421,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Try(self, node):
         self.check_for_b012(node)
+        self.check_for_b025(node)
         self.generic_visit(node)
 
     def visit_Compare(self, node):
@@ -837,6 +838,23 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B022(node.lineno, node.col_offset))
 
+    def check_for_b025(self, node):
+        seen = []
+        for handler in node.handlers:
+            if isinstance(handler.type, (ast.Name, ast.Attribute)):
+                name = ".".join(compose_call_path(handler.type))
+                seen.append(name)
+            elif isinstance(handler.type, ast.Tuple):
+                # to avoid checking the same as B014, remove duplicates per except
+                uniques = set()
+                for entry in handler.type.elts:
+                    name = ".".join(compose_call_path(entry))
+                    uniques.add(name)
+                seen.extend(uniques)
+        duplicates = {x for x in seen if seen.count(x) > 1}
+        for duplicate in duplicates:
+            self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -1176,6 +1194,12 @@ B024 = Error(
         "B024 {} is an abstract base class, but it has no abstract methods. Remember to"
         " use @abstractmethod, @abstractclassmethod and/or @abstractproperty"
         " decorators."
+    )
+)
+B025 = Error(
+    message=(
+        "B025 Exception `{0}` has been caught multiple times. Only the first except"
+        " will be considered and all other except catches can be safely removed."
     )
 )
 

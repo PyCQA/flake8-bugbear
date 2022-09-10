@@ -156,6 +156,10 @@ the loop, because `late-binding closures are a classic gotcha
 
 **B024**: Abstract base class with no abstract method. Remember to use @abstractmethod, @abstractclassmethod, and/or @abstractproperty decorators.
 
+**B025**: ``try-except`` block with duplicate exceptions found.
+This check identifies exception types that are specified in multiple ``except``
+clauses. The first specification is the only one ever considered, so all others can be removed.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
