@@ -851,7 +851,8 @@ class BugBearVisitor(ast.NodeVisitor):
                     name = ".".join(compose_call_path(entry))
                     uniques.add(name)
                 seen.extend(uniques)
-        duplicates = {x for x in seen if seen.count(x) > 1}
+        # sort to have a deterministic output
+        duplicates = sorted(set(x for x in seen if seen.count(x) > 1))
         for duplicate in duplicates:
             self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
 
