@@ -160,6 +160,8 @@ the loop, because `late-binding closures are a classic gotcha
 This check identifies exception types that are specified in multiple ``except``
 clauses. The first specification is the only one ever considered, so all others can be removed.
 
+**B026**: Argument unpacking after keyword argument.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 

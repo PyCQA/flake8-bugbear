@@ -354,6 +354,8 @@ class BugBearVisitor(ast.NodeVisitor):
                 ):
                     self.errors.append(B010(node.lineno, node.col_offset))
 
+            self.check_for_b026(node)
+
         self.generic_visit(node)
 
     def visit_Assign(self, node):
@@ -640,6 +642,19 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
 
         self.errors.append(B024(node.lineno, node.col_offset, vars=(node.name,)))
+
+    def check_for_b026(self, call: ast.Call):
+        try:
+            starred = next(starred for starred in call.args if isinstance(starred, ast.Starred))
+        except StopIteration:
+            return
+
+        if any(
+                (keyword.value.lineno, keyword.value.col_offset) < (
+                starred.lineno, starred.col_offset)
+                for keyword in call.keywords
+        ):
+            self.errors.append(B026(call.lineno, call.col_offset))
 
     def _get_assigned_names(self, loop_node):
         loop_targets = (ast.For, ast.AsyncFor, ast.comprehension)
@@ -1203,6 +1218,7 @@ B025 = Error(
         " will be considered and all other except catches can be safely removed."
     )
 )
+B026 = Error(message="B026 Argument unpacking after keyword argument.")
 
 # Warnings disabled by default.
 B901 = Error(
