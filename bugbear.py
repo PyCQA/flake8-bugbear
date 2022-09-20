@@ -645,14 +645,14 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def check_for_b026(self, call: ast.Call):
         try:
-            starred = next(starred for starred in call.args if isinstance(starred, ast.Starred))
+            starred = next(arg for arg in call.args if isinstance(arg, ast.Starred))
         except StopIteration:
             return
 
         if any(
-                (keyword.value.lineno, keyword.value.col_offset) < (
-                starred.lineno, starred.col_offset)
-                for keyword in call.keywords
+            (keyword.value.lineno, keyword.value.col_offset)
+            < (starred.lineno, starred.col_offset)
+            for keyword in call.keywords
         ):
             self.errors.append(B026(call.lineno, call.col_offset))
 
