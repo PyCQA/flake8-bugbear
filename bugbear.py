@@ -644,17 +644,20 @@ class BugBearVisitor(ast.NodeVisitor):
         self.errors.append(B024(node.lineno, node.col_offset, vars=(node.name,)))
 
     def check_for_b026(self, call: ast.Call):
-        try:
-            starred = next(arg for arg in call.args if isinstance(arg, ast.Starred))
-        except StopIteration:
+        if not call.keywords:
             return
 
-        if any(
-            (keyword.value.lineno, keyword.value.col_offset)
-            < (starred.lineno, starred.col_offset)
-            for keyword in call.keywords
-        ):
-            self.errors.append(B026(call.lineno, call.col_offset))
+        starreds = [arg for arg in call.args if isinstance(arg, ast.Starred)]
+        if not starreds:
+            return
+
+        first_keyword = call.keywords[0].value
+        for starred in starreds:
+            if (starred.lineno, starred.col_offset) > (
+                first_keyword.lineno,
+                first_keyword.col_offset,
+            ):
+                self.errors.append(B026(starred.lineno, starred.col_offset))
 
     def _get_assigned_names(self, loop_node):
         loop_targets = (ast.For, ast.AsyncFor, ast.comprehension)
