@@ -160,7 +160,12 @@ the loop, because `late-binding closures are a classic gotcha
 This check identifies exception types that are specified in multiple ``except``
 clauses. The first specification is the only one ever considered, so all others can be removed.
 
-**B026**: Argument unpacking after keyword argument.
+**B026**: Star-arg unpacking after a keyword argument is strongly discouraged, because
+it only works when the keyword parameter is declared after all parameters supplied by
+the unpacked sequence, and this change of ordering can surprise and mislead readers.
+There was `cpython discussion of disallowing this syntax
+<https://github.com/python/cpython/issues/82741>`_, but legacy usage and parser
+limitations make it difficult.
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~

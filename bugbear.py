@@ -1221,7 +1221,14 @@ B025 = Error(
         " will be considered and all other except catches can be safely removed."
     )
 )
-B026 = Error(message="B026 Argument unpacking after keyword argument.")
+B026 = Error(
+    message=(
+        "B026 Star-arg unpacking after a keyword argument is strongly discouraged, "
+        "because it only works when the keyword parameter is declared after all "
+        "parameters supplied by the unpacked sequence, and this change of ordering can "
+        "surprise and mislead readers."
+    )
+)
 
 # Warnings disabled by default.
 B901 = Error(
