@@ -1,2 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flake8-bugbear"
+authors = [{name = "Łukasz Langa", email = "lukasz@langa.pl"}]
+license = {text = "MIT"}
+description = "A plugin for flake8 finding likely bugs and design problems in your program. Contains warnings that don't belong in pyflakes and pycodestyle."
+keywords = [
+    "flake8",
+    "bugbear",
+    "bugs",
+    "pyflakes",
+    "pylint",
+    "linter",
+    "qa",
+]
+readme = "README.rst"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Framework :: Flake8",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+]
+requires-python = ">=3.6"
+dependencies = ["flake8 >= 3.0.0", "attrs>=19.2.0"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/PyCQA/flake8-bugbear"
+"Change Log" = "https://github.com/PyCQA/flake8-bugbear#change-log"
+
+[project.entry-points]
+"flake8.extension" = {B = "bugbear:BugBearChecker"}
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
+    "hypothesis",
+    "hypothesmith>=0.2",
+    "pre-commit",
+]
+
+[tool.setuptools]
+py-modules = ["bugbear"]
+zip-safe = false
+# test-suite = "tests.test_bugbear"  # Deprecated since setuptools v41.5.0
+license-files = ["LICENSE"]
+include-package-data = false
+
+[tool.setuptools.dynamic]
+version = {attr = "bugbear.__version__"}
+
 [tool.isort]
 profile = "black"
