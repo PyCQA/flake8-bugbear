@@ -10,7 +10,7 @@ We use GitHub. To get started I'd suggest visiting https://guides.github.com/
 
 Please make sure you system has the following:
 
-- Python 3.6.0 or greater
+- Python 3.7.0 or greater
 - git cli client
 
 Also ensure you can authenticate with GitHub via SSH Keys or HTTPS.
