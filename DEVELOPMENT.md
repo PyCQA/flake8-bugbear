@@ -50,6 +50,17 @@ flake8-bugbear uses coverage to run standard unittest tests.
 /path/to/venv/bin/coverage run tests/test_bugbear.py
 ```
 
+You can also use [tox](https://tox.wiki/en/latest/index.html) to test with multiple different python versions, emulating what the CI does.
+
+```console
+/path/to/venv/bin/tox
+```
+will by default run all tests on python versions 3.7 through 3.11. If you only want to test a specific version you can specify the environment with `-e`
+
+```console
+/path/to/venv/bin/tox -e py38
+```
+
 ## Running linter
 
 We format the code with `black` and `isort`. You can run those using `pre-commit`.
