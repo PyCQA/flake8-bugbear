@@ -47,6 +47,7 @@ Homepage = "https://github.com/PyCQA/flake8-bugbear"
 
 [project.optional-dependencies]
 dev = [
+    "tox",
     "coverage",
     "hypothesis",
     "hypothesmith>=0.2",

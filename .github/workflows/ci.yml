@@ -1,3 +1,4 @@
+# Uses https://github.com/ymyzk/tox-gh-actions
 name: ci
 
 on: [push, pull_request]
@@ -8,7 +9,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", '3.11.0-rc - 3.11']
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11.0-rc - 3.11"]
 
         os: [ubuntu-latest]
 
@@ -20,15 +21,14 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Update pip, setuptools + wheel
+    - name: Update pip and setuptools
       run: |
-        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install --upgrade pip setuptools
 
-    - name: Install flake8-bugbear w/dev extra install
+    - name: Install tox and tox-gh-actions
       run: |
-        python -m pip install .[dev]
+        python -m pip install tox tox-gh-actions
 
-    - name: Run Unittests
+    - name: Run tox
       run: |
-        coverage run tests/test_bugbear.py
-        coverage report -m
+        tox
