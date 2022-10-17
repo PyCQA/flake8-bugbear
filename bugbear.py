@@ -594,16 +594,19 @@ class BugBearVisitor(ast.NodeVisitor):
                     body_nodes = ast.walk(node.body)
                 else:
                     body_nodes = itertools.chain.from_iterable(map(ast.walk, node.body))
+                errors = []
                 for name in body_nodes:
-                    if (
-                        isinstance(name, ast.Name)
-                        and name.id not in argnames
-                        and isinstance(name.ctx, ast.Load)
-                    ):
-                        err = B023(name.lineno, name.col_offset, vars=(name.id,))
-                        if err not in self._b023_seen:
-                            self._b023_seen.add(err)  # dedupe across nested loops
-                            suspicious_variables.append(err)
+                    if isinstance(name, ast.Name) and name.id not in argnames:
+                        if isinstance(name.ctx, ast.Load):
+                            errors.append(
+                                B023(name.lineno, name.col_offset, vars=(name.id,))
+                            )
+                        elif isinstance(name.ctx, ast.Store):
+                            argnames.add(name.id)
+                for err in errors:
+                    if err.vars[0] not in argnames and err not in self._b023_seen:
+                        self._b023_seen.add(err)  # dedupe across nested loops
+                        suspicious_variables.append(err)
 
         if suspicious_variables:
             reassigned_in_loop = set(self._get_assigned_names(loop_node))

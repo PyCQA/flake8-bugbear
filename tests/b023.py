@@ -76,3 +76,31 @@ for var in range(2):
 
     def explicit_capture(captured=var):
         return captured
+
+
+# `query` is defined in the function, so also defining it in the loop should be OK.
+for name in ["a", "b"]:
+    query = name
+
+    def myfunc(x):
+        query = x
+        query_post = x
+        _ = query
+        _ = query_post
+
+    query_post = name  # in case iteration order matters
+
+
+# Bug here because two dict comprehensions reference `name`, one of which is inside
+# the lambda.  This should be totally fine, of course.
+_ = {
+    k: v
+    for k, v in reduce(
+        lambda data, event: merge_mappings(
+            [data, {name: f(caches, data, event) for name, f in xx}]
+        ),
+        events,
+        {name: getattr(group, name) for name in yy},
+    ).items()
+    if k in backfill_fields
+}
