@@ -1213,7 +1213,7 @@ B017 = Error(
 )
 B018 = Error(
     message=(
-        "B018 Found useless expression. Consider either assigning it to a"
+        "B018 Found useless expression. Consider either assigning it to a "
         "variable or removing it."
     )
 )
