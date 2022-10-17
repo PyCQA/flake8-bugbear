@@ -115,3 +115,33 @@ for x in range(2):
     any(filter(bool, [None, lambda: x]))
     list(filter(bool, [None, lambda: x]))
     all(reduce(bool, [None, lambda: x]))
+
+    # But all these ones should be OK:
+    min(range(3), key=lambda y: x * y)
+    max(range(3), key=lambda y: x * y)
+    sorted(range(3), key=lambda y: x * y)
+
+    any(filter(lambda y: x < y, range(3)))
+    all(filter(lambda y: x < y, range(3)))
+    set(filter(lambda y: x < y, range(3)))
+    list(filter(lambda y: x < y, range(3)))
+    tuple(filter(lambda y: x < y, range(3)))
+    sorted(filter(lambda y: x < y, range(3)))
+    frozenset(filter(lambda y: x < y, range(3)))
+
+    any(reduce(lambda y: x | y, range(3)))
+    all(reduce(lambda y: x | y, range(3)))
+    set(reduce(lambda y: x | y, range(3)))
+    list(reduce(lambda y: x | y, range(3)))
+    tuple(reduce(lambda y: x | y, range(3)))
+    sorted(reduce(lambda y: x | y, range(3)))
+    frozenset(reduce(lambda y: x | y, range(3)))
+
+
+# OK because the lambda which references a loop variable is defined in a `return`
+# statement, and after we return the loop variable can't be redefined.
+# In principle we could do something fancy with `break`, but it's not worth it.
+def iter_f(names):
+    for name in names:
+        if exists(name):
+            return lambda: name if exists(name) else None
