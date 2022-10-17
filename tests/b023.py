@@ -2,10 +2,10 @@
 Should emit:
 B023 - on lines 12, 13, 16, 28, 29, 30, 31, 40, 42, 50, 51, 52, 53, 61, 68.
 """
+from functools import reduce
 
 functions = []
 z = 0
-
 for x in range(3):
     y = x + 1
     # Subject to late-binding problems
@@ -104,3 +104,14 @@ _ = {
     ).items()
     if k in backfill_fields
 }
+
+
+# OK to define lambdas if they're immediately consumed, typically as the `key=`
+# argument or in a consumed `filter()` (even if a comprehension is better style)
+for x in range(2):
+    # It's not a complete get-out-of-linting-free construct - these should fail:
+    min([None, lambda: x], key=repr)
+    sorted([None, lambda: x], key=repr)
+    any(filter(bool, [None, lambda: x]))
+    list(filter(bool, [None, lambda: x]))
+    all(reduce(bool, [None, lambda: x]))
