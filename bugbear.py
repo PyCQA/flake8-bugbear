@@ -280,7 +280,7 @@ class BugBearVisitor(ast.NodeVisitor):
             names = [_to_name_str(e) for e in node.type.elts]
             as_ = " as " + node.name if node.name is not None else ""
             if len(names) == 0:
-                vs = ("`except (){}:`".format(as_),)
+                vs = (f"`except (){as_}:`",)
                 self.errors.append(B001(node.lineno, node.col_offset, vars=vs))
             elif len(names) == 1:
                 self.errors.append(B013(node.lineno, node.col_offset, vars=names))
@@ -912,7 +912,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     uniques.add(name)
                 seen.extend(uniques)
         # sort to have a deterministic output
-        duplicates = sorted(set(x for x in seen if seen.count(x) > 1))
+        duplicates = sorted({x for x in seen if seen.count(x) > 1})
         for duplicate in duplicates:
             self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
 
