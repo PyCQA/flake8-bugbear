@@ -1192,8 +1192,8 @@ B014.redundant_exceptions = {
 }
 B015 = Error(
     message=(
-        "B015 Pointless comparison. This comparison does nothing but waste "
-        "CPU instructions. Either prepend `assert` or remove it."
+        "B015 Result of comparison is not used. This line doesn't do"
+        "anything. Did you intend to prepend it with assert?"
     )
 )
 B016 = Error(
@@ -1213,7 +1213,8 @@ B017 = Error(
 )
 B018 = Error(
     message=(
-        "B018 Found useless expression. Either assign it to a variable or remove it."
+        "B018 Found useless expression. Consider either assigning it to a"
+        "variable or removing it."
     )
 )
 B019 = Error(
