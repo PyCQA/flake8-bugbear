@@ -568,7 +568,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 n = targets.names[name][0]
                 self.errors.append(B020(n.lineno, n.col_offset, vars=(name,)))
 
-    def check_for_b023(self, loop_node):
+    def check_for_b023(self, loop_node):  # noqa: C901
         """Check that functions (including lambdas) do not use loop variables.
 
         https://docs.python-guide.org/writing/gotchas/#late-binding-closures from
@@ -584,9 +584,38 @@ class BugBearVisitor(ast.NodeVisitor):
         # implement this "backwards": first we find all the candidate variable
         # uses, and then if there are any we check for assignment of those names
         # inside the loop body.
+        safe_functions = []
         suspicious_variables = []
         for node in ast.walk(loop_node):
-            if isinstance(node, FUNCTION_NODES):
+            # check if function is immediately consumed to avoid false alarm
+            if isinstance(node, ast.Call):
+                # check for filter&reduce
+                if (
+                    isinstance(node.func, ast.Name)
+                    and node.func.id in ("filter", "reduce")
+                ) or (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "reduce"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "functools"
+                ):
+                    for arg in node.args:
+                        if isinstance(arg, FUNCTION_NODES):
+                            safe_functions.append(arg)
+
+                # check for key=
+                for keyword in node.keywords:
+                    if keyword.arg == "key" and isinstance(
+                        keyword.value, FUNCTION_NODES
+                    ):
+                        safe_functions.append(keyword.value)
+
+            if isinstance(node, ast.Return):
+                if isinstance(node.value, FUNCTION_NODES):
+                    safe_functions.append(node.value)
+                # TODO: ast.walk(node) and mark all child nodes safe?
+
+            if isinstance(node, FUNCTION_NODES) and node not in safe_functions:
                 argnames = {
                     arg.arg for arg in ast.walk(node.args) if isinstance(arg, ast.arg)
                 }

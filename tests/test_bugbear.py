@@ -356,6 +356,8 @@ class BugbearTestCase(unittest.TestCase):
             B023(115, 36, vars=("x",)),
             B023(116, 37, vars=("x",)),
             B023(117, 36, vars=("x",)),
+            B023(159, 28, vars=("name",)),  # false alarm?
+            B023(162, 28, vars=("i",)),
         )
         self.assertEqual(errors, expected)
 
