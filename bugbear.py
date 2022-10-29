@@ -1239,7 +1239,7 @@ B014.redundant_exceptions = {
 }
 B015 = Error(
     message=(
-        "B015 Result of comparison is not used. This line doesn't do"
+        "B015 Result of comparison is not used. This line doesn't do "
         "anything. Did you intend to prepend it with assert?"
     )
 )
