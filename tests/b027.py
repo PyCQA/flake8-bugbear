@@ -60,7 +60,10 @@ class NonAbstractClass:
 
 
 # ignore @overload, fixes issue #304
+# ignore overload with other imports, fixes #308
 import typing
+import typing as t
+import typing as anything
 from typing import Union, overload
 
 
@@ -73,6 +76,14 @@ class AstractClass(ABC):
     def empty_1(self, foo: int):
         ...
 
+    @t.overload
+    def empty_1(self, foo: list):
+        ...
+
+    @anything.overload
+    def empty_1(self, foo: float):
+        ...
+
     @abstractmethod
-    def empty_1(self, foo: Union[str, int]):
+    def empty_1(self, foo: Union[str, int, list, float]):
         ...

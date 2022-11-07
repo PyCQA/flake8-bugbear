@@ -297,6 +297,10 @@ MIT
 Change Log
 ----------
 
+Future
+~~~~~~~~~
+* B027: ignore @overload when typing is import with other names
+
 22.10.27
 ~~~~~~~~~
 

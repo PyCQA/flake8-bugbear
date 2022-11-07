@@ -671,10 +671,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
         def is_overload(expr):
             return (isinstance(expr, ast.Name) and expr.id == "overload") or (
-                isinstance(expr, ast.Attribute)
-                and isinstance(expr.value, ast.Name)
-                and expr.value.id == "typing"
-                and expr.attr == "overload"
+                isinstance(expr, ast.Attribute) and expr.attr == "overload"
             )
 
         def empty_body(body) -> bool:
