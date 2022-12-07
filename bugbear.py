@@ -413,6 +413,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b018(node)
         self.check_for_b019(node)
         self.check_for_b021(node)
+        self.check_for_b906(node)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node):
@@ -969,6 +970,27 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B905(node.lineno, node.col_offset))
 
+    def check_for_b906(self, node: ast.FunctionDef):
+        if not node.name.startswith("visit_"):
+            return
+
+        # extract what's visited, only error if it's a valid ast subclass
+        # with a non-empty _fields attribute - which is what's iterated over in
+        # ast.NodeVisitor.generic_visit
+        class_name = node.name[len("visit_") :]
+        class_type = getattr(ast, class_name, None)
+        if class_type is None or not getattr(class_type, "_fields", None):
+            return
+
+        for n in itertools.chain.from_iterable(ast.walk(nn) for nn in node.body):
+            if isinstance(n, ast.Call) and (
+                (isinstance(n.func, ast.Attribute) and "visit" in n.func.attr)
+                or (isinstance(n.func, ast.Name) and "visit" in n.func.id)
+            ):
+                break
+        else:
+            self.errors.append(B906(node.lineno, node.col_offset))
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -990,7 +1012,7 @@ class NameFinder(ast.NodeVisitor):
 
     names = attr.ib(default=attr.Factory(dict))
 
-    def visit_Name(self, node):
+    def visit_Name(self, node):  # noqa: B906 # names don't contain other names
         self.names.setdefault(node.id, []).append(node)
 
     def visit(self, node):
@@ -1054,7 +1076,7 @@ class FuntionDefDefaultsVisitor(ast.NodeVisitor):
         # Check for nested functions.
         self.generic_visit(node)
 
-    def visit_Lambda(self, node):
+    def visit_Lambda(self, node):  # noqa: B906
         # Don't recurse into lambda expressions
         # as they are evaluated at call time.
         pass
@@ -1371,6 +1393,14 @@ B904 = Error(
 
 B905 = Error(message="B905 `zip()` without an explicit `strict=` parameter.")
 
+B906 = Error(
+    message=(
+        "B906 `visit_` function with no further calls to a visit function, which might"
+        " prevent the `ast` visitor from properly visiting all nodes."
+        " Consider adding a call to `self.generic_visit(node)`."
+    )
+)
+
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
-disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B950"]
+disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B950"]
