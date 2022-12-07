@@ -274,6 +274,14 @@ class BugbearTestCase(unittest.TestCase):
         expected.append(B018(33, 4))
         self.assertEqual(errors, self.errors(*expected))
 
+    def test_b018_modules(self):
+        filename = Path(__file__).absolute().parent / "b018_modules.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+
+        expected = [B018(line, 0) for line in range(9, 19)]
+        self.assertEqual(errors, self.errors(*expected))
+
     def test_b019(self):
         filename = Path(__file__).absolute().parent / "b019.py"
         bbc = BugBearChecker(filename=str(filename))

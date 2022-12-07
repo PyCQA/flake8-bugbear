@@ -359,6 +359,10 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b905(node)
         self.generic_visit(node)
 
+    def visit_Module(self, node):
+        self.check_for_b018(node)
+        self.generic_visit(node)
+
     def visit_Assign(self, node):
         if len(node.targets) == 1:
             t = node.targets[0]
@@ -1094,7 +1098,6 @@ class B020NameFinder(NameFinder):
 
 error = namedtuple("error", "lineno col message type vars")
 Error = partial(partial, error, type=BugBearChecker, vars=())
-
 
 B001 = Error(
     message=(
