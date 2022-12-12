@@ -494,20 +494,23 @@ class BugbearTestCase(unittest.TestCase):
         ]
         self.assertEqual(errors, self.errors(*expected))
 
-    @unittest.skipIf(sys.version_info < (3, 10), "requires 3.10+")
     def test_b905(self):
-        filename = Path(__file__).absolute().parent / "b905_py310.py"
+        filename = Path(__file__).absolute().parent / "b905.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        expected = [
-            B905(1, 0),
-            B905(2, 0),
-            B905(3, 0),
-            B905(4, 0),
-            B905(4, 15),
-            B905(5, 4),
-            B905(6, 0),
-        ]
+        expected = (
+            [
+                B905(1, 0),
+                B905(2, 0),
+                B905(3, 0),
+                B905(4, 0),
+                B905(4, 15),
+                B905(5, 4),
+                B905(6, 0),
+            ]
+            if sys.version_info >= (3, 10)
+            else []
+        )
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b906(self):

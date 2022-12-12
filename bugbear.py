@@ -4,6 +4,7 @@ import itertools
 import logging
 import math
 import re
+import sys
 from collections import namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
@@ -980,7 +981,8 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def check_for_b905(self, node):
         if (
-            isinstance(node.func, ast.Name)
+            sys.version_info >= (3, 10)
+            and isinstance(node.func, ast.Name)
             and node.func.id == "zip"
             and not any(kw.arg == "strict" for kw in node.keywords)
         ):

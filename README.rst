@@ -202,7 +202,7 @@ for details.
 
 **B905**: ``zip()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
 to raise a ``ValueError`` if the arguments are exhausted at differing lengths. The ``strict=`` argument
-was added in Python 3.10, so don't enable this flag for code that should work on <3.10.
+was added in Python 3.10, so the check is disabled when running on python <3.10.
 For more information: https://peps.python.org/pep-0618/
 
 **B906**: ``visit_`` function with no further call to a ``visit`` function. This is often an error, and will stop the visitor from recursing into the subnodes of a visited node. Consider adding a call ``self.generic_visit(node)`` at the end of the function.
