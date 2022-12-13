@@ -168,8 +168,10 @@ class BugBearChecker:
                 return True
 
         LOG.info(
-            "Optional warning %s not present in selected warnings: %r. Not "
-            "firing it at all.",
+            (
+                "Optional warning %s not present in selected warnings: %r. Not "
+                "firing it at all."
+            ),
             code,
             self.options.select,
         )

@@ -155,6 +155,7 @@ for x in range(2):
     sorted(functools.reduce(lambda y: x | y, range(3)))
     frozenset(functools.reduce(lambda y: x | y, range(3)))
 
+
 # OK because the lambda which references a loop variable is defined in a `return`
 # statement, and after we return the loop variable can't be redefined.
 # In principle we could do something fancy with `break`, but it's not worth it.
