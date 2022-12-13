@@ -307,7 +307,7 @@ class BugbearTestCase(unittest.TestCase):
     def test_b020(self):
         filename = Path(__file__).absolute().parent / "b020.py"
         bbc = BugBearChecker(filename=str(filename))
-        errors = list(e for e in bbc.run() if e[2][:4] == "B020")
+        errors = [e for e in bbc.run() if e[2][:4] == "B020"]
         self.assertEqual(
             errors,
             self.errors(
@@ -366,8 +366,8 @@ class BugbearTestCase(unittest.TestCase):
             B023(115, 36, vars=("x",)),
             B023(116, 37, vars=("x",)),
             B023(117, 36, vars=("x",)),
-            B023(167, 28, vars=("name",)),  # known false alarm
-            B023(170, 28, vars=("i",)),
+            B023(168, 28, vars=("name",)),  # known false alarm
+            B023(171, 28, vars=("i",)),
         )
         self.assertEqual(errors, expected)
 
@@ -515,7 +515,7 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = [
-            B906(8, 0),
+            B906(9, 0),
         ]
         self.assertEqual(errors, self.errors(*expected))
 
