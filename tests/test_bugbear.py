@@ -39,13 +39,13 @@ from bugbear import (
     B025,
     B026,
     B027,
-    B028,
     B901,
     B902,
     B903,
     B904,
     B905,
     B906,
+    B907,
     B950,
     BugBearChecker,
     BugBearVisitor,
@@ -432,47 +432,47 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(errors, expected)
 
     @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
-    def test_b028(self):
-        filename = Path(__file__).absolute().parent / "b028.py"
+    def test_b907(self):
+        filename = Path(__file__).absolute().parent / "b907.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B028(8, 0, vars=("var",)),
-            B028(9, 0, vars=("var",)),
-            B028(10, 0, vars=("var",)),
-            B028(12, 0, vars=("var",)),
-            B028(13, 0, vars=("var",)),
-            B028(14, 0, vars=("var",)),
-            B028(16, 0, vars=("'hello'",)),
-            B028(17, 0, vars=("foo()",)),
-            B028(20, 5, vars=("var",)),
-            B028(25, 5, vars=("var",)),
-            B028(31, 0, vars=("var",)),
-            B028(32, 0, vars=("var",)),
-            B028(33, 0, vars=("var",)),
-            B028(33, 0, vars=("var2",)),
-            B028(34, 0, vars=("var",)),
-            B028(34, 0, vars=("var2",)),
-            B028(35, 0, vars=("var",)),
-            B028(35, 0, vars=("var2",)),
-            B028(38, 0, vars=("var2",)),
-            B028(41, 0, vars=("var",)),
-            B028(42, 0, vars=("var.__str__",)),
-            B028(43, 0, vars=("var.__str__.__repr__",)),
-            B028(44, 0, vars=("3 + 5" if sys.version_info >= (3, 9) else "BinOp",)),
-            B028(45, 0, vars=("foo()",)),
-            B028(46, 0, vars=("None",)),
-            B028(47, 0, vars=("..." if sys.version_info >= (3, 9) else "Ellipsis",)),
-            B028(48, 0, vars=("True",)),
-            B028(51, 0, vars=("var",)),
-            B028(52, 0, vars=("var",)),
-            B028(53, 0, vars=("var",)),
-            B028(54, 0, vars=("var",)),
-            B028(57, 0, vars=("var",)),
-            B028(60, 0, vars=("var",)),
-            B028(64, 0, vars=("var",)),
-            B028(66, 0, vars=("var",)),
-            B028(68, 0, vars=("var",)),
+            B907(8, 0, vars=("var",)),
+            B907(9, 0, vars=("var",)),
+            B907(10, 0, vars=("var",)),
+            B907(12, 0, vars=("var",)),
+            B907(13, 0, vars=("var",)),
+            B907(14, 0, vars=("var",)),
+            B907(16, 0, vars=("'hello'",)),
+            B907(17, 0, vars=("foo()",)),
+            B907(20, 5, vars=("var",)),
+            B907(25, 5, vars=("var",)),
+            B907(31, 0, vars=("var",)),
+            B907(32, 0, vars=("var",)),
+            B907(33, 0, vars=("var",)),
+            B907(33, 0, vars=("var2",)),
+            B907(34, 0, vars=("var",)),
+            B907(34, 0, vars=("var2",)),
+            B907(35, 0, vars=("var",)),
+            B907(35, 0, vars=("var2",)),
+            B907(38, 0, vars=("var2",)),
+            B907(41, 0, vars=("var",)),
+            B907(42, 0, vars=("var.__str__",)),
+            B907(43, 0, vars=("var.__str__.__repr__",)),
+            B907(44, 0, vars=("3 + 5" if sys.version_info >= (3, 9) else "BinOp",)),
+            B907(45, 0, vars=("foo()",)),
+            B907(46, 0, vars=("None",)),
+            B907(47, 0, vars=("..." if sys.version_info >= (3, 9) else "Ellipsis",)),
+            B907(48, 0, vars=("True",)),
+            B907(51, 0, vars=("var",)),
+            B907(52, 0, vars=("var",)),
+            B907(53, 0, vars=("var",)),
+            B907(54, 0, vars=("var",)),
+            B907(57, 0, vars=("var",)),
+            B907(60, 0, vars=("var",)),
+            B907(64, 0, vars=("var",)),
+            B907(66, 0, vars=("var",)),
+            B907(68, 0, vars=("var",)),
         )
         self.assertEqual(errors, expected)
 
@@ -480,7 +480,7 @@ class BugbearTestCase(unittest.TestCase):
     # see format spec at
     # https://docs.python.org/3/library/string.html#format-specification-mini-language
     @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
-    def test_b028_format_specifier_permutations(self):
+    def test_b907_format_specifier_permutations(self):
         visitor = BugBearVisitor(filename="", lines="")
 
         for fields in itertools.product(
@@ -509,27 +509,27 @@ class BugbearTestCase(unittest.TestCase):
             except ValueError:
                 assert (
                     visitor.errors == []
-                ), f"b028 raised for {format_spec!r} not valid for string"
+                ), f"b907 raised for {format_spec!r} not valid for string"
                 continue
 
             new = ("{!r:" + format_spec + "}").format("hello")
 
             # Preceding the width field by 0 in >=3.10 is valid, but does nothing.
             # The presence of it means likely numeric variable though.
-            # A width shorter than the string will look the same, but should not give b028.
+            # A width shorter than the string will look the same, but should not give b907.
             if fields[5] == "0" or fields[6] == "1":
                 assert (
                     visitor.errors == []
-                ), f"b028 should not raise on questionable case {format_spec}"
+                ), f"b907 should not raise on questionable case {format_spec}"
             elif old == new:
                 assert visitor.errors, (
-                    f"b028 not raised for {format_spec} that would look identical"
+                    f"b907 not raised for {format_spec} that would look identical"
                     " with !r"
                 )
             else:
                 assert (
                     visitor.errors == []
-                ), f"b028 raised for {format_spec} that would look different with !r"
+                ), f"b907 raised for {format_spec} that would look different with !r"
 
     def test_b901(self):
         filename = Path(__file__).absolute().parent / "b901.py"

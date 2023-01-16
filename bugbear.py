@@ -450,7 +450,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_JoinedStr(self, node):
-        self.check_for_b028(node)
+        self.check_for_b907(node)
         self.generic_visit(node)
 
     def check_for_b005(self, node):
@@ -1014,7 +1014,7 @@ class BugBearVisitor(ast.NodeVisitor):
         else:
             self.errors.append(B906(node.lineno, node.col_offset))
 
-    def check_for_b028(self, node: ast.JoinedStr):  # noqa: C901
+    def check_for_b907(self, node: ast.JoinedStr):  # noqa: C901
         # AST structure of strings in f-strings in 3.7 is different enough this
         # implementation doesn't work
         if sys.version_info <= (3, 7):
@@ -1048,7 +1048,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 and value.value[0] == current_mark
             ):
                 self.errors.append(
-                    B028(
+                    B907(
                         variable.lineno,
                         variable.col_offset,
                         vars=(myunparse(variable.value),),
@@ -1485,12 +1485,6 @@ B027 = Error(
         " decorator. Consider adding @abstractmethod."
     )
 )
-B028 = Error(
-    message=(
-        "B028 {!r} is manually surrounded by quotes, consider using the `!r` conversion"
-        " flag."
-    )
-)
 
 # Warnings disabled by default.
 B901 = Error(
@@ -1536,6 +1530,13 @@ B906 = Error(
         "B906 `visit_` function with no further calls to a visit function, which might"
         " prevent the `ast` visitor from properly visiting all nodes."
         " Consider adding a call to `self.generic_visit(node)`."
+    )
+)
+
+B907 = Error(
+    message=(
+        "B907 {!r} is manually surrounded by quotes, consider using the `!r` conversion"
+        " flag."
     )
 )
 

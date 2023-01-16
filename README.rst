@@ -169,8 +169,6 @@ limitations make it difficult.
 
 **B027**: Empty method in abstract base class, but has no abstract decorator. Consider adding @abstractmethod.
 
-**B028**: Consider replacing ``f"'{foo}'"`` with ``f"{foo!r}"`` which is both easier to read and will escape quotes inside ``foo`` if that would appear. The check tries to filter out any format specs that are invalid together with ``!r``. If you're using other conversion flags then e.g. ``f"'{foo!a}'"`` can be replaced with ``f"{ascii(foo)!r}"``. Not currently implemented for python<3.8 or ``str.format()`` calls.
-
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -210,6 +208,8 @@ For more information: https://peps.python.org/pep-0618/
 **B906**: ``visit_`` function with no further call to a ``visit`` function. This is often an error, and will stop the visitor from recursing into the subnodes of a visited node. Consider adding a call ``self.generic_visit(node)`` at the end of the function.
 Will only trigger on function names where the part after ``visit_`` is a valid ``ast`` type with a non-empty ``_fields`` attribute.
 This is meant to be enabled by developers writing visitors using the ``ast`` module, such as flake8 plugin writers.
+
+**B907**: Consider replacing ``f"'{foo}'"`` with ``f"{foo!r}"`` which is both easier to read and will escape quotes inside ``foo`` if that would appear. The check tries to filter out any format specs that are invalid together with ``!r``. If you're using other conversion flags then e.g. ``f"'{foo!a}'"`` can be replaced with ``f"{ascii(foo)!r}"``. Not currently implemented for python<3.8 or ``str.format()`` calls.
 
 **B950**: Line too long. This is a pragmatic equivalent of
 ``pycodestyle``'s ``E501``: it considers "max-line-length" but only triggers
@@ -307,6 +307,10 @@ MIT
 
 Change Log
 ----------
+
+Future
+~~~~~~~~~
+* Rename B028 to B907, making it optional/opinionated.
 
 23.1.14
 ~~~~~~~~~

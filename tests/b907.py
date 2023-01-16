@@ -104,7 +104,7 @@ f'"{var:e%}"'
 # alignment specifier invalid for strings
 f'"{var:=}"'
 
-# other types and combinations are tested in test_b028_format_specifier_permutations
+# other types and combinations are tested in test_b907_format_specifier_permutations
 
 # don't attempt to parse complex format specs
 f'"{var:{var}}"'
