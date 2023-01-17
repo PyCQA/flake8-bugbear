@@ -54,3 +54,33 @@ def a():
 
 def visit_():
     ...
+
+
+# Check exceptions for ast types that only contain ADSL builtin types
+# i.e. don't contain any ast.AST subnodes and therefore don't need a generic_visit
+def visit_alias():
+    ...
+
+
+def visit_Constant():
+    ...
+
+
+def visit_Global():
+    ...
+
+
+def visit_MatchSingleton():
+    ...
+
+
+def visit_MatchStar():
+    ...
+
+
+def visit_Nonlocal():
+    ...
+
+
+def visit_TypeIgnore():
+    ...

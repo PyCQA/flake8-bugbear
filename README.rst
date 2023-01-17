@@ -308,6 +308,11 @@ MIT
 Change Log
 ----------
 
+Future
+~~~~~~~~~
+
+* B906: Ignore ``visit_`` functions with a ``_fields`` attribute that can't contain ast.AST subnodes. (#330)
+
 23.1.17
 ~~~~~~~~~
 

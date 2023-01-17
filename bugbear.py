@@ -997,12 +997,29 @@ class BugBearVisitor(ast.NodeVisitor):
         if not node.name.startswith("visit_"):
             return
 
-        # extract what's visited, only error if it's a valid ast subclass
-        # with a non-empty _fields attribute - which is what's iterated over in
-        # ast.NodeVisitor.generic_visit
+        # extract what's visited
         class_name = node.name[len("visit_") :]
         class_type = getattr(ast, class_name, None)
-        if class_type is None or not getattr(class_type, "_fields", None):
+
+        if (
+            # not a valid ast subclass
+            class_type is None
+            # doesn't have a non-empty '_fields' attribute - which is what's
+            # iterated over in ast.NodeVisitor.generic_visit
+            or not getattr(class_type, "_fields", None)
+            # or can't contain any ast subnodes that could be visited
+            # See https://docs.python.org/3/library/ast.html#abstract-grammar
+            or class_type.__name__
+            in (
+                "alias",
+                "Constant",
+                "Global",
+                "MatchSingleton",
+                "MatchStar",
+                "Nonlocal",
+                "TypeIgnore",
+            )
+        ):
             return
 
         for n in itertools.chain.from_iterable(ast.walk(nn) for nn in node.body):
