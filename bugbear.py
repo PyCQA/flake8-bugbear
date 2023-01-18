@@ -723,6 +723,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if not any(map(is_abc_class, (*node.bases, *node.keywords))):
             return
 
+        has_method = False
         has_abstract_method = False
 
         for stmt in node.body:
@@ -735,6 +736,7 @@ class BugBearVisitor(ast.NodeVisitor):
             # only check function defs
             if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
+            has_method = True
 
             has_abstract_decorator = any(
                 map(is_abstract_decorator, stmt.decorator_list)
@@ -751,7 +753,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     B027(stmt.lineno, stmt.col_offset, vars=(stmt.name,))
                 )
 
-        if not has_abstract_method:
+        if has_method and not has_abstract_method:
             self.errors.append(B024(node.lineno, node.col_offset, vars=(node.name,)))
 
     def check_for_b026(self, call: ast.Call):
@@ -1477,9 +1479,10 @@ B022 = Error(
 B023 = Error(message="B023 Function definition does not bind loop variable {!r}.")
 B024 = Error(
     message=(
-        "B024 {} is an abstract base class, but it has no abstract methods. Remember to"
-        " use the @abstractmethod decorator, potentially in conjunction with"
-        " @classmethod, @property and/or @staticmethod."
+        "B024 {} is an abstract base class, but none of them are abstract. This is "
+        "not necessarily an error, but you might have forgotten to add "
+        "the @abstractmethod decorator, potentially in conjunction with "
+        "@classmethod, @property and/or @staticmethod."
     )
 )
 B025 = Error(

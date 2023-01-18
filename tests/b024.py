@@ -125,5 +125,14 @@ class abc_set_class_variable_3(ABC):  # safe
 
 
 # this doesn't actually declare a class variable, it's just an expression
-class abc_set_class_variable_4(ABC):  # error
+# this is now filtered out by not having a method
+class abc_set_class_variable_4(ABC):
     foo
+
+
+class abc_class_no_method_1(ABC):
+    pass
+
+
+class abc_class_no_method_2(ABC):
+    foo()

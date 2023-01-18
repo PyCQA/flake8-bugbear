@@ -154,7 +154,9 @@ positives due to similarly named user-defined functions.
 the loop, because `late-binding closures are a classic gotcha
 <https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
 
-**B024**: Abstract base class with no abstract method. You might have forgotten to add @abstractmethod.
+**B024**: Abstract base class has methods, but none of them are abstract. This
+is not necessarily an error, but you might have forgotten to add the @abstractmethod
+decorator, potentially in conjunction with @classmethod, @property and/or @staticmethod.
 
 **B025**: ``try-except`` block with duplicate exceptions found.
 This check identifies exception types that are specified in multiple ``except``
@@ -311,6 +313,7 @@ Change Log
 Future
 ~~~~~~~~~
 
+* B024: now ignores classes without any methods.
 * B906: Ignore ``visit_`` functions with a ``_fields`` attribute that can't contain ast.AST subnodes. (#330)
 
 23.1.17
