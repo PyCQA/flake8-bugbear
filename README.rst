@@ -127,12 +127,13 @@ waste CPU instructions. Either prepend ``assert`` or remove it.
 **B016**: Cannot raise a literal. Did you intend to return it or raise
 an Exception?
 
-**B017**: ``self.assertRaises(Exception):`` should be considered evil. It can lead
-to your test passing even if the code being tested is never executed due to a typo.
-Either assert for a more specific exception (builtin or custom), use
-``assertRaisesRegex``, or use the context manager form of assertRaises
-(``with self.assertRaises(Exception) as ex:``) with an assertion against the
-data available in ``ex``.
+**B017**: ``assertRaises(Exception)`` and ``pytest.raises(Exception)`` should
+be considered evil. They can lead to your test passing even if the
+code being tested is never executed due to a typo. Assert for a more
+specific exception (builtin or custom), or use ``assertRaisesRegex``
+(if using ``assertRaises``), or add the ``match`` keyword argument (if
+using ``pytest.raises``), or use the context manager form with a target
+(e.g. ``with self.assertRaises(Exception) as ex:``).
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
 
@@ -312,6 +313,7 @@ Future
 ~~~~~~~~~
 
 * B906: Ignore ``visit_`` functions with a ``_fields`` attribute that can't contain ast.AST subnodes. (#330)
+* B017: Don't warn when ``pytest.raises()`` has a ``match`` argument. (#334)
 
 23.1.17
 ~~~~~~~~~

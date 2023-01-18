@@ -534,16 +534,14 @@ class BugBearVisitor(ast.NodeVisitor):
 
         if (
             hasattr(item_context, "func")
+            and isinstance(item_context.func, ast.Attribute)
             and (
-                (
-                    hasattr(item_context.func, "attr")
-                    and item_context.func.attr == "assertRaises"
-                )
+                item_context.func.attr == "assertRaises"
                 or (
-                    isinstance(item_context.func, ast.Attribute)
-                    and item_context.func.attr == "raises"
+                    item_context.func.attr == "raises"
                     and isinstance(item_context.func.value, ast.Name)
                     and item_context.func.value.id == "pytest"
+                    and "match" not in [kwd.arg for kwd in item_context.keywords]
                 )
             )
             and len(item_context.args) == 1
@@ -1428,11 +1426,12 @@ B016 = Error(
 )
 B017 = Error(
     message=(
-        "B017 assertRaises(Exception): or pytest.raises(Exception) should "
-        "be considered evil. It can lead to your test passing even if the "
-        "code being tested is never executed due to a typo. Either assert "
-        "for a more specific exception (builtin or custom), use "
-        "assertRaisesRegex, or use the context manager form of assertRaises."
+        "B017 `assertRaises(Exception)` and `pytest.raises(Exception)` should "
+        "be considered evil. They can lead to your test passing even if the "
+        "code being tested is never executed due to a typo. Assert for a more "
+        "specific exception (builtin or custom), or use `assertRaisesRegex` "
+        "(if using `assertRaises`), or add the `match` keyword argument (if "
+        "using `pytest.raises`), or use the context manager form with a target."
     )
 )
 B018 = Error(

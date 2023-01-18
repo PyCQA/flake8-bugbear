@@ -1,6 +1,6 @@
 """
 Should emit:
-B017 - on lines 24 and 26.
+B017 - on lines 24, 26, 28, 31 and 32.
 """
 import asyncio
 import unittest
@@ -23,8 +23,13 @@ class Foobar(unittest.TestCase):
     def evil_raises(self) -> None:
         with self.assertRaises(Exception):
             raise Exception("Evil I say!")
+        with self.assertRaises(Exception, msg="Generic exception"):
+            raise Exception("Evil I say!")
         with pytest.raises(Exception):
             raise Exception("Evil I say!")
+        # These are evil as well but we are only testing inside a with statement
+        self.assertRaises(Exception, lambda x, y: x / y, 1, y=0)
+        pytest.raises(Exception, lambda x, y: x / y, 1, y=0)
 
     def context_manager_raises(self) -> None:
         with self.assertRaises(Exception) as ex:
@@ -33,13 +38,17 @@ class Foobar(unittest.TestCase):
             raise Exception("Context manager is good")
 
         self.assertEqual("Context manager is good", str(ex.exception))
-        self.assertEqual("Context manager is good", str(pyt_ex.exception))
+        self.assertEqual("Context manager is good", str(pyt_ex.value))
 
     def regex_raises(self) -> None:
         with self.assertRaisesRegex(Exception, "Regex is good"):
             raise Exception("Regex is good")
-        with pytest.raises(Exception, "Regex is good"):
+        with pytest.raises(Exception, match="Regex is good"):
             raise Exception("Regex is good")
+
+    def non_context_manager_raises(self) -> None:
+        self.assertRaises(ZeroDivisionError, lambda x, y: x / y, 1, y=0)
+        pytest.raises(ZeroDivisionError, lambda x, y: x / y, 1, y=0)
 
     def raises_with_absolute_reference(self):
         with self.assertRaises(asyncio.CancelledError):
