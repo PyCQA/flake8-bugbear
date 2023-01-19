@@ -1479,7 +1479,7 @@ B022 = Error(
 B023 = Error(message="B023 Function definition does not bind loop variable {!r}.")
 B024 = Error(
     message=(
-        "B024 {} is an abstract base class, but none of them are abstract. This is "
+        "B024 {} is an abstract base class, but none of the methods it defines are abstract. This is "
         "not necessarily an error, but you might have forgotten to add "
         "the @abstractmethod decorator, potentially in conjunction with "
         "@classmethod, @property and/or @staticmethod."
