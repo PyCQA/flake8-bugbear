@@ -311,6 +311,14 @@ MIT
 Change Log
 ----------
 
+Future
+~~~~~~~~~
+
+* B906: Add ``visit_Bytes``, ``visit_Num`` and ``visit_Str`` to the list of ``visit_*``
+  functions that are ignored by the B906 check. The ``ast.Bytes``, ``ast.Num`` and
+  ``ast.Str`` nodes are all deprecated, but may still be used by some codebases in
+  order to maintain backwards compatibility with Python 3.7.
+
 23.1.20
 ~~~~~~~~~
 

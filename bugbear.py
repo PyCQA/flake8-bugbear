@@ -1018,6 +1018,11 @@ class BugBearVisitor(ast.NodeVisitor):
                 "MatchStar",
                 "Nonlocal",
                 "TypeIgnore",
+                # These ast nodes are deprecated, but some codebases may still use them
+                # for backwards-compatibility with Python 3.7
+                "Bytes",
+                "Num",
+                "Str",
             )
         ):
             return

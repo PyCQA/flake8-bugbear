@@ -84,3 +84,17 @@ def visit_Nonlocal():
 
 def visit_TypeIgnore():
     ...
+
+
+# These nodes are deprecated, but some codebases may still use them
+# for backwards-compatibility with Python 3.7
+def visit_Bytes():
+    ...
+
+
+def visit_Num():
+    ...
+
+
+def visit_Str():
+    ...
