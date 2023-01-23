@@ -1306,7 +1306,8 @@ B005 = Error(
         "B005 Using .strip() with multi-character strings is misleading "
         "the reader. It looks like stripping a substring. Move your "
         "character set to a constant if this is deliberate. Use "
-        ".replace() or regular expressions to remove string fragments."
+        ".replace(), .removeprefix(), .removesuffix(), or regular "
+        "expressions to remove string fragments."
     )
 )
 B005.methods = {"lstrip", "rstrip", "strip"}
