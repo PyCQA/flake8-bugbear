@@ -319,6 +319,7 @@ Future
   functions that are ignored by the B906 check. The ``ast.Bytes``, ``ast.Num`` and
   ``ast.Str`` nodes are all deprecated, but may still be used by some codebases in
   order to maintain backwards compatibility with Python 3.7.
+* B016: Warn when raising f-strings.
 
 23.1.20
 ~~~~~~~~~

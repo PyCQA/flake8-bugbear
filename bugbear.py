@@ -516,7 +516,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B015(node.lineno, node.col_offset))
 
     def check_for_b016(self, node):
-        if isinstance(node.exc, (ast.NameConstant, ast.Num, ast.Str)):
+        if isinstance(node.exc, (ast.NameConstant, ast.Num, ast.Str, ast.JoinedStr)):
             self.errors.append(B016(node.lineno, node.col_offset))
 
     def check_for_b017(self, node):
