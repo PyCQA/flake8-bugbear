@@ -360,6 +360,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.check_for_b026(node)
 
         self.check_for_b905(node)
+        self.check_for_b028(node)
         self.generic_visit(node)
 
     def visit_Module(self, node):
@@ -985,6 +986,16 @@ class BugBearVisitor(ast.NodeVisitor):
         for duplicate in duplicates:
             self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
 
+    def check_for_b028(self, node):
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "warn"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "warnings"
+            and not any(kw.arg == "stacklevel" for kw in node.keywords)
+        ):
+            self.errors.append(B028(node.lineno, node.col_offset))
+
     def check_for_b905(self, node):
         if (
             isinstance(node.func, ast.Name)
@@ -1508,6 +1519,16 @@ B027 = Error(
     message=(
         "B027 {} is an empty method in an abstract base class, but has no abstract"
         " decorator. Consider adding @abstractmethod."
+    )
+)
+B028 = Error(
+    message=(
+        "B028 No explicit stacklevel keyword argument found. The warn method from the"
+        " warnings module uses a stacklevel of 1 by default. This will only show a"
+        " stack trace for the line on which the warn method is called."
+        " It is therefore recommended to use a stacklevel of 2 or"
+        " greater to provide more information to the user. This warning can be disabled"
+        " by explicitly setting a stacklevel."
     )
 )
 

@@ -173,6 +173,11 @@ limitations make it difficult.
 
 **B027**: Empty method in abstract base class, but has no abstract decorator. Consider adding @abstractmethod.
 
+**BO28**: No explicit stacklevel keyword argument found. The warn method from the warnings module uses a stacklevel of 1 by default.
+This will only show a stack trace for the line on which the warn method is called.
+It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
+This warning can be disabled by explicitly setting a stacklevel."
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -320,6 +325,7 @@ Future
   ``ast.Str`` nodes are all deprecated, but may still be used by some codebases in
   order to maintain backwards compatibility with Python 3.7.
 * B016: Warn when raising f-strings.
+* Add B028: Check for an explicit stacklevel keyword argument on the warn method from the warnings module.
 
 23.1.20
 ~~~~~~~~~

@@ -39,6 +39,7 @@ from bugbear import (
     B025,
     B026,
     B027,
+    B028,
     B901,
     B902,
     B903,
@@ -428,6 +429,13 @@ class BugbearTestCase(unittest.TestCase):
             B027(23, 4, vars=("empty_4",)),
             B027(31 if sys.version_info >= (3, 8) else 30, 4, vars=("empty_5",)),
         )
+        self.assertEqual(errors, expected)
+
+    def test_b028(self):
+        filename = Path(__file__).absolute().parent / "b028.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(B028(8, 0), B028(9, 0))
         self.assertEqual(errors, expected)
 
     @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
