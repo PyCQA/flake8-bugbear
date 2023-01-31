@@ -986,16 +986,6 @@ class BugBearVisitor(ast.NodeVisitor):
         for duplicate in duplicates:
             self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
 
-    def check_for_b028(self, node):
-        if (
-            isinstance(node.func, ast.Attribute)
-            and node.func.attr == "warn"
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "warnings"
-            and not any(kw.arg == "stacklevel" for kw in node.keywords)
-        ):
-            self.errors.append(B028(node.lineno, node.col_offset))
-
     def check_for_b905(self, node):
         if (
             isinstance(node.func, ast.Name)
@@ -1156,6 +1146,16 @@ class BugBearVisitor(ast.NodeVisitor):
 
             # if no pre-mark or variable detected, reset state
             current_mark = variable = None
+
+    def check_for_b028(self, node):
+        if (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "warn"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "warnings"
+            and not any(kw.arg == "stacklevel" for kw in node.keywords)
+        ):
+            self.errors.append(B028(node.lineno, node.col_offset))
 
 
 def compose_call_path(node):
