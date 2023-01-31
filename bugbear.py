@@ -1527,8 +1527,7 @@ B028 = Error(
         " warnings module uses a stacklevel of 1 by default. This will only show a"
         " stack trace for the line on which the warn method is called."
         " It is therefore recommended to use a stacklevel of 2 or"
-        " greater to provide more information to the user. This warning can be disabled"
-        " by explicitly setting a stacklevel."
+        " greater to provide more information to the user."
     )
 )
 
