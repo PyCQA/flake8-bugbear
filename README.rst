@@ -173,7 +173,7 @@ limitations make it difficult.
 
 **B027**: Empty method in abstract base class, but has no abstract decorator. Consider adding @abstractmethod.
 
-**BO28**: No explicit stacklevel keyword argument found. The warn method from the warnings module uses a
+**B028**: No explicit stacklevel keyword argument found. The warn method from the warnings module uses a
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
 
