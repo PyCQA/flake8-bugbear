@@ -1,6 +1,6 @@
 """
 Should emit:
-B001 - on lines 8, 40, and 54
+B001 - on lines 8 and 40
 """
 
 try:
@@ -40,10 +40,3 @@ def func(**kwargs):
     except:
         # should be except KeyError:
         return
-
-
-try:
-    pass
-except ():
-    # Literal empty tuple is just like bare except:
-    pass

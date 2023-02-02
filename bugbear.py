@@ -276,15 +276,12 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_ExceptHandler(self, node):
         if node.type is None:
-            self.errors.append(
-                B001(node.lineno, node.col_offset, vars=("bare `except:`",))
-            )
+            self.errors.append(B001(node.lineno, node.col_offset))
         elif isinstance(node.type, ast.Tuple):
             names = [_to_name_str(e) for e in node.type.elts]
             as_ = " as " + node.name if node.name is not None else ""
             if len(names) == 0:
-                vs = (f"`except (){as_}:`",)
-                self.errors.append(B001(node.lineno, node.col_offset, vars=vs))
+                self.errors.append(B029(node.lineno, node.col_offset))
             elif len(names) == 1:
                 self.errors.append(B013(node.lineno, node.col_offset, vars=names))
             else:
@@ -1285,7 +1282,7 @@ Error = partial(partial, error, type=BugBearChecker, vars=())
 
 B001 = Error(
     message=(
-        "B001 Do not use {}, it also catches unexpected "
+        "B001 Do not use bare `except:`, it also catches unexpected "
         "events like memory errors, interrupts, system exit, and so on.  "
         "Prefer `except Exception:`.  If you're sure what you're doing, "
         "be explicit and write `except BaseException:`."
@@ -1528,6 +1525,12 @@ B028 = Error(
         " stack trace for the line on which the warn method is called."
         " It is therefore recommended to use a stacklevel of 2 or"
         " greater to provide more information to the user."
+    )
+)
+B029 = Error(
+    message=(
+        "B029 Using `except` with an empty tuple does not handle anything. "
+        "Add exceptions to handle instead."
     )
 )
 
