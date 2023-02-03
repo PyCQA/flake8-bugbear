@@ -1558,7 +1558,7 @@ B029 = Error(
         "anything. Add exceptions to handle."
     )
 )
-B030 = Error(message=("B030 Except handlers should only be names of exception classes"))
+B030 = Error(message="B030 Except handlers should only be names of exception classes")
 
 # Warnings disabled by default.
 B901 = Error(
