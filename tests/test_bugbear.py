@@ -41,6 +41,7 @@ from bugbear import (
     B027,
     B028,
     B029,
+    B030,
     B901,
     B902,
     B903,
@@ -453,8 +454,8 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B029(8, 0),
-            B029(13, 0),
+            B030(8, 0),
+            B030(13, 0),
         )
         self.assertEqual(errors, expected)
 
