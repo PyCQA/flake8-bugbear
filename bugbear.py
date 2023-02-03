@@ -322,7 +322,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_ExceptHandler(self, node):
         if node.type is None:
             self.errors.append(
-                B001(node.lineno, node.col_offset, vars=("bare `except:`",))
+                B001(node.lineno, node.col_offset)
             )
             self.generic_visit(node)
             return
@@ -335,12 +335,10 @@ class BugBearVisitor(ast.NodeVisitor):
             else:
                 bad_handlers.append(handler)
         if bad_handlers:
-            self.errors.append(B029(node.lineno, node.col_offset))
+            self.errors.append(B030(node.lineno, node.col_offset))
         names = [_to_name_str(e) for e in good_handlers]
         if len(names) == 0 and not bad_handlers:
-            as_ = " as " + node.name if node.name is not None else ""
-            vs = (f"`except (){as_}:`",)
-            self.errors.append(B001(node.lineno, node.col_offset, vars=vs))
+            self.errors.append(B029(node.lineno, node.col_offset))
         elif len(names) == 1 and not bad_handlers and isinstance(node.type, ast.Tuple):
             self.errors.append(B013(node.lineno, node.col_offset, vars=names))
         else:
@@ -1310,7 +1308,7 @@ Error = partial(partial, error, type=BugBearChecker, vars=())
 
 B001 = Error(
     message=(
-        "B001 Do not use {}, it also catches unexpected "
+        "B001 Do not use bare `except:`, it also catches unexpected "
         "events like memory errors, interrupts, system exit, and so on.  "
         "Prefer `except Exception:`.  If you're sure what you're doing, "
         "be explicit and write `except BaseException:`."
@@ -1557,7 +1555,13 @@ B028 = Error(
 )
 B029 = Error(
     message=(
-        "B029 Except handlers should only be names of exception classes"
+        "B029 Using `except: ()` with an empty tuple does not handle/catch "
+        "anything. Add exceptions to handle."
+    )
+)
+B030 = Error(
+    message=(
+        "B030 Except handlers should only be names of exception classes"
     )
 )
 

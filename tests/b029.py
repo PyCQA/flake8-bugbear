@@ -1,14 +1,14 @@
+"""
+Should emit:
+B029 - on lines 8 and 13
+"""
+
 try:
     pass
-except (ValueError, (RuntimeError, (KeyError, TypeError))):  # ok
+except ():
     pass
 
 try:
     pass
-except 1:  # error
-    pass
-
-try:
-    pass
-except (1, ValueError):  # error
+except () as e:
     pass
