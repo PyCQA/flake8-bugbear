@@ -189,6 +189,50 @@ def _is_identifier(arg):
     return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg.s) is not None
 
 
+def _flatten_excepthandler(node):
+    if isinstance(node, ast.Tuple):
+        for elt in node.elts:
+            yield from _flatten_excepthandler(elt)
+    else:
+        yield node
+
+
+def _check_redundant_excepthandlers(names, node):
+    # See if any of the given exception names could be removed, e.g. from:
+    #    (MyError, MyError)  # duplicate names
+    #    (MyError, BaseException)  # everything derives from the Base
+    #    (Exception, TypeError)  # builtins where one subclasses another
+    #    (IOError, OSError)  # IOError is an alias of OSError since Python3.3
+    # but note that other cases are impractical to handle from the AST.
+    # We expect this is mostly useful for users who do not have the
+    # builtin exception hierarchy memorised, and include a 'shadowed'
+    # subtype without realising that it's redundant.
+    good = sorted(set(names), key=names.index)
+    if "BaseException" in good:
+        good = ["BaseException"]
+    # Remove redundant exceptions that the automatic system either handles
+    # poorly (usually aliases) or can't be checked (e.g. it's not an
+    # built-in exception).
+    for primary, equivalents in B014.redundant_exceptions.items():
+        if primary in good:
+            good = [g for g in good if g not in equivalents]
+
+    for name, other in itertools.permutations(tuple(good), 2):
+        if _typesafe_issubclass(
+            getattr(builtins, name, type), getattr(builtins, other, ())
+        ):
+            if name in good:
+                good.remove(name)
+    if good != names:
+        desc = good[0] if len(good) == 1 else "({})".format(", ".join(good))
+        as_ = " as " + node.name if node.name is not None else ""
+        return B014(
+            node.lineno,
+            node.col_offset,
+            vars=(", ".join(names), as_, desc),
+        )
+    return None
+
 def _to_name_str(node):
     # Turn Name and Attribute nodes to strings, e.g "ValueError" or
     # "pkg.mod.error", handling any depth of attribute accesses.
@@ -196,6 +240,7 @@ def _to_name_str(node):
         return node.id
     if isinstance(node, ast.Call):
         return _to_name_str(node.func)
+    assert isinstance(node, ast.Attribute), f"Unexpected node type: {type(node)}"
     try:
         return _to_name_str(node.value) + "." + node.attr
     except AttributeError:
@@ -279,49 +324,29 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(
                 B001(node.lineno, node.col_offset, vars=("bare `except:`",))
             )
-        elif isinstance(node.type, ast.Tuple):
-            names = [_to_name_str(e) for e in node.type.elts]
-            as_ = " as " + node.name if node.name is not None else ""
-            if len(names) == 0:
-                vs = (f"`except (){as_}:`",)
-                self.errors.append(B001(node.lineno, node.col_offset, vars=vs))
-            elif len(names) == 1:
-                self.errors.append(B013(node.lineno, node.col_offset, vars=names))
+            self.generic_visit(node)
+            return
+        handlers = _flatten_excepthandler(node.type)
+        good_handlers = []
+        bad_handlers = []
+        for handler in handlers:
+            if isinstance(handler, (ast.Name, ast.Attribute)):
+                good_handlers.append(handler)
             else:
-                # See if any of the given exception names could be removed, e.g. from:
-                #    (MyError, MyError)  # duplicate names
-                #    (MyError, BaseException)  # everything derives from the Base
-                #    (Exception, TypeError)  # builtins where one subclasses another
-                #    (IOError, OSError)  # IOError is an alias of OSError since Python3.3
-                # but note that other cases are impractical to handle from the AST.
-                # We expect this is mostly useful for users who do not have the
-                # builtin exception hierarchy memorised, and include a 'shadowed'
-                # subtype without realising that it's redundant.
-                good = sorted(set(names), key=names.index)
-                if "BaseException" in good:
-                    good = ["BaseException"]
-                # Remove redundant exceptions that the automatic system either handles
-                # poorly (usually aliases) or can't be checked (e.g. it's not an
-                # built-in exception).
-                for primary, equivalents in B014.redundant_exceptions.items():
-                    if primary in good:
-                        good = [g for g in good if g not in equivalents]
-
-                for name, other in itertools.permutations(tuple(good), 2):
-                    if _typesafe_issubclass(
-                        getattr(builtins, name, type), getattr(builtins, other, ())
-                    ):
-                        if name in good:
-                            good.remove(name)
-                if good != names:
-                    desc = good[0] if len(good) == 1 else "({})".format(", ".join(good))
-                    self.errors.append(
-                        B014(
-                            node.lineno,
-                            node.col_offset,
-                            vars=(", ".join(names), as_, desc),
-                        )
-                    )
+                bad_handlers.append(handler)
+        if bad_handlers:
+            self.errors.append(B029(node.lineno, node.col_offset))
+        names = [_to_name_str(e) for e in good_handlers]
+        if len(names) == 0 and not bad_handlers:
+            as_ = " as " + node.name if node.name is not None else ""
+            vs = (f"`except (){as_}:`",)
+            self.errors.append(B001(node.lineno, node.col_offset, vars=vs))
+        elif len(names) == 1 and not bad_handlers and isinstance(node.type, ast.Tuple):
+            self.errors.append(B013(node.lineno, node.col_offset, vars=names))
+        else:
+            maybe_error = _check_redundant_excepthandlers(names, node)
+            if maybe_error is not None:
+                self.errors.append(maybe_error)
         self.generic_visit(node)
 
     def visit_UAdd(self, node):
@@ -1528,6 +1553,11 @@ B028 = Error(
         " stack trace for the line on which the warn method is called."
         " It is therefore recommended to use a stacklevel of 2 or"
         " greater to provide more information to the user."
+    )
+)
+B029 = Error(
+    message=(
+        "B029 Except handlers should only be names of exception classes"
     )
 )
 

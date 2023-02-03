@@ -177,6 +177,8 @@ limitations make it difficult.
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
 
+**B029**: Except handlers should only be exception classes or tuples of exception classes.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
