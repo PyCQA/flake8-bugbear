@@ -233,6 +233,7 @@ def _check_redundant_excepthandlers(names, node):
         )
     return None
 
+
 def _to_name_str(node):
     # Turn Name and Attribute nodes to strings, e.g "ValueError" or
     # "pkg.mod.error", handling any depth of attribute accesses.
@@ -321,9 +322,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_ExceptHandler(self, node):
         if node.type is None:
-            self.errors.append(
-                B001(node.lineno, node.col_offset)
-            )
+            self.errors.append(B001(node.lineno, node.col_offset))
             self.generic_visit(node)
             return
         handlers = _flatten_excepthandler(node.type)
@@ -1559,11 +1558,7 @@ B029 = Error(
         "anything. Add exceptions to handle."
     )
 )
-B030 = Error(
-    message=(
-        "B030 Except handlers should only be names of exception classes"
-    )
-)
+B030 = Error(message=("B030 Except handlers should only be names of exception classes"))
 
 # Warnings disabled by default.
 B901 = Error(
