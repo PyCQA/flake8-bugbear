@@ -327,7 +327,7 @@ Future
   order to maintain backwards compatibility with Python 3.7.
 * B016: Warn when raising f-strings.
 * Add B028: Check for an explicit stacklevel keyword argument on the warn method from the warnings module.
-* Add B029: Check when trying to use ``except`` with an empty tuple.
+* Add B029: Check when trying to use ``except`` with an empty tuple i.e. ``except: ()``.
 
 23.1.20
 ~~~~~~~~~
