@@ -1529,8 +1529,8 @@ B028 = Error(
 )
 B029 = Error(
     message=(
-        "B029 Using `except` with an empty tuple does not handle anything. "
-        "Add exceptions to handle instead."
+        "B029 Using `except: ()` with an empty tuple does not handle/catch "
+        "anything. Add exceptions to handle."
     )
 )
 
