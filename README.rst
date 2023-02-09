@@ -184,6 +184,8 @@ It is therefore recommended to use a stacklevel of 2 or greater to provide more 
 **B031**: Using the generator returned from `itertools.groupby()` more than once will do nothing on the
 second usage. Save the result to a list if the result is needed multiple times.
 
+**B032**: Possible unintentional type annotation (using ``:``). Did you mean to assign (using ``=``)?
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -333,6 +335,7 @@ Future
 * B016: Warn when raising f-strings.
 * Add B028: Check for an explicit stacklevel keyword argument on the warn method from the warnings module.
 * Add B029: Check when trying to use ``except`` with an empty tuple i.e. ``except: ()``.
+* Add B032: Check for possible unintentional type annotations instead of assignments.
 
 23.1.20
 ~~~~~~~~~

@@ -43,6 +43,7 @@ from bugbear import (
     B029,
     B030,
     B031,
+    B032,
     B901,
     B902,
     B903,
@@ -468,6 +469,22 @@ class BugbearTestCase(unittest.TestCase):
             B031(30, 36, vars=("section_items",)),
             B031(34, 30, vars=("section_items",)),
             B031(43, 36, vars=("section_items",)),
+        )
+        self.assertEqual(errors, expected)
+
+    def test_b032(self):
+        filename = Path(__file__).absolute().parent / "b032.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B032(9, 0),
+            B032(10, 0),
+            B032(12, 0),
+            B032(13, 0),
+            B032(16, 0),
+            B032(17, 0),
+            B032(18, 0),
+            B032(19, 0),
         )
         self.assertEqual(errors, expected)
 

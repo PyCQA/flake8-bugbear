@@ -482,6 +482,10 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b907(node)
         self.generic_visit(node)
 
+    def visit_AnnAssign(self, node):
+        self.check_for_b032(node)
+        self.generic_visit(node)
+
     def check_for_b005(self, node):
         if node.func.attr not in B005.methods:
             return  # method name doesn't match
@@ -1235,6 +1239,21 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B028(node.lineno, node.col_offset))
 
+    def check_for_b032(self, node):
+        if (
+            node.value is None
+            and hasattr(node.target, "value")
+            and isinstance(node.target.value, ast.Name)
+            and (
+                isinstance(node.target, ast.Subscript)
+                or (
+                    isinstance(node.target, ast.Attribute)
+                    and node.target.value.id != "self"
+                )
+            )
+        ):
+            self.errors.append(B032(node.lineno, node.col_offset))
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -1622,6 +1641,13 @@ B031 = Error(
         "B031 Using the generator returned from `itertools.groupby()` more than once"
         " will do nothing on the second usage. Save the result to a list, if the"
         " result is needed multiple times."
+    )
+)
+
+B032 = Error(
+    message=(
+        "B032 Possible unintentional type annotation (using `:`). Did you mean to"
+        " assign (using `=`)?"
     )
 )
 
