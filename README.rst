@@ -335,6 +335,9 @@ Change Log
 * B016: Warn when raising f-strings.
 * Add B028: Check for an explicit stacklevel keyword argument on the warn method from the warnings module.
 * Add B029: Check when trying to use ``except`` with an empty tuple i.e. ``except: ()``.
+* Add B030: Check that except handlers only use exception classes or tuples of exception classes.
+  Fixes crash on some rare except handlers.
+* Add B031: Check that ``itertools.groupby()`` is not used multiple times.
 * Add B032: Check for possible unintentional type annotations instead of assignments.
 
 23.1.20
