@@ -177,7 +177,7 @@ limitations make it difficult.
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
 
-**B029**: Using ``except: ()`` with an empty tuple does not handle/catch anything. Add exceptions to handle.
+**B029**: Using ``except ():`` with an empty tuple does not handle/catch anything. Add exceptions to handle.
 
 **B030**: Except handlers should only be exception classes or tuples of exception classes.
 
@@ -334,7 +334,7 @@ Change Log
   order to maintain backwards compatibility with Python 3.7.
 * B016: Warn when raising f-strings.
 * Add B028: Check for an explicit stacklevel keyword argument on the warn method from the warnings module.
-* Add B029: Check when trying to use ``except`` with an empty tuple i.e. ``except: ()``.
+* Add B029: Check when trying to use ``except`` with an empty tuple i.e. ``except ():``.
 * Add B030: Check that except handlers only use exception classes or tuples of exception classes.
   Fixes crash on some rare except handlers.
 * Add B031: Check that ``itertools.groupby()`` is not used multiple times.
