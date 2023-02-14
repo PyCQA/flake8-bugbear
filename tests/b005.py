@@ -24,3 +24,12 @@ strip("we")  # no warning
 other_type().lstrip()  # no warning
 other_type().rstrip(["a", "b", "c"])  # no warning
 other_type().strip("a", "b")  # no warning
+
+import test
+
+import test2
+import test_as as test3
+
+test.strip("test")  # no warning
+test2.strip("test")  # no warning
+test3.strip("test")  # no warning

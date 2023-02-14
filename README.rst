@@ -325,6 +325,11 @@ MIT
 Change Log
 ----------
 
+Future
+~~~~~~~~~
+
+* B005: Do not flag when using the ``strip()`` method on an imported module.
+
 23.2.13
 ~~~~~~~~~
 

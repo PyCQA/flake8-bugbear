@@ -293,6 +293,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     NODE_WINDOW_SIZE = 4
     _b023_seen = attr.ib(factory=set, init=False)
+    _b005_imports = attr.ib(factory=set, init=False)
 
     if False:
         # Useful for tracing what the hell is going on.
@@ -486,25 +487,39 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b032(node)
         self.generic_visit(node)
 
+    def visit_Import(self, node):
+        self.check_for_b005(node)
+        self.generic_visit(node)
+
     def check_for_b005(self, node):
-        if node.func.attr not in B005.methods:
-            return  # method name doesn't match
+        if isinstance(node, ast.Import):
+            for name in node.names:
+                self._b005_imports.add(name.asname or name.name)
+        elif isinstance(node, ast.Call):
+            if node.func.attr not in B005.methods:
+                return  # method name doesn't match
 
-        if len(node.args) != 1 or not isinstance(node.args[0], ast.Str):
-            return  # used arguments don't match the builtin strip
+            if (
+                isinstance(node.func.value, ast.Name)
+                and node.func.value.id in self._b005_imports
+            ):
+                return  # method is being run on an imported module
 
-        call_path = ".".join(compose_call_path(node.func.value))
-        if call_path in B005.valid_paths:
-            return  # path is exempt
+            if len(node.args) != 1 or not isinstance(node.args[0], ast.Str):
+                return  # used arguments don't match the builtin strip
 
-        s = node.args[0].s
-        if len(s) == 1:
-            return  # stripping just one character
+            call_path = ".".join(compose_call_path(node.func.value))
+            if call_path in B005.valid_paths:
+                return  # path is exempt
 
-        if len(s) == len(set(s)):
-            return  # no characters appear more than once
+            s = node.args[0].s
+            if len(s) == 1:
+                return  # stripping just one character
 
-        self.errors.append(B005(node.lineno, node.col_offset))
+            if len(s) == len(set(s)):
+                return  # no characters appear more than once
+
+            self.errors.append(B005(node.lineno, node.col_offset))
 
     def check_for_b006_and_b008(self, node):
         visitor = FuntionDefDefaultsVisitor(self.b008_extend_immutable_calls)
