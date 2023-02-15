@@ -325,6 +325,11 @@ MIT
 Change Log
 ----------
 
+Unreleased
+~~~~~~~~~~
+
+* B030: Allow calls and starred expressions in except handlers.
+
 23.2.13
 ~~~~~~~~~
 

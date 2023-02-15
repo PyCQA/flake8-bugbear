@@ -333,17 +333,25 @@ class BugBearVisitor(ast.NodeVisitor):
         handlers = _flatten_excepthandler(node.type)
         good_handlers = []
         bad_handlers = []
+        ignored_handlers = []
         for handler in handlers:
             if isinstance(handler, (ast.Name, ast.Attribute)):
                 good_handlers.append(handler)
+            elif isinstance(handler, (ast.Call, ast.Starred)):
+                ignored_handlers.append(handler)
             else:
                 bad_handlers.append(handler)
         if bad_handlers:
             self.errors.append(B030(node.lineno, node.col_offset))
         names = [_to_name_str(e) for e in good_handlers]
-        if len(names) == 0 and not bad_handlers:
+        if len(names) == 0 and not bad_handlers and not ignored_handlers:
             self.errors.append(B029(node.lineno, node.col_offset))
-        elif len(names) == 1 and not bad_handlers and isinstance(node.type, ast.Tuple):
+        elif (
+            len(names) == 1
+            and not bad_handlers
+            and not ignored_handlers
+            and isinstance(node.type, ast.Tuple)
+        ):
             self.errors.append(B013(node.lineno, node.col_offset, vars=names))
         else:
             maybe_error = _check_redundant_excepthandlers(names, node)
