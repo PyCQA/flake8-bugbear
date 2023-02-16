@@ -328,7 +328,7 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
-* B905: Do not flag when using the ``strip()`` method on an imported module.
+* B005: Do not flag when using the ``strip()`` method on an imported module.
 * B030: Allow calls and starred expressions in except handlers.
 
 23.2.13
