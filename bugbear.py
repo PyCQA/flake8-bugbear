@@ -68,10 +68,14 @@ class BugBearChecker:
 
         The following simple checks are based on the raw lines, not the AST.
         """
+        noqa_type_ignore_regex = re.compile(r"\s*#\s*(noqa:|type:\s*ignore).*$")
         for lineno, line in enumerate(self.lines, start=1):
             # Special case: ignore long shebang (following pycodestyle).
             if lineno == 1 and line.startswith("#!"):
                 continue
+
+            # At first, removing noqa and type: ignore trailing comments"
+            line = noqa_type_ignore_regex.sub("", line)
 
             length = len(line) - 1
             if length > 1.1 * self.max_line_length and line.strip():
