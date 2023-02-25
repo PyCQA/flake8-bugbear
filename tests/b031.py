@@ -1,6 +1,6 @@
 """
 Should emit:
-B030 - on lines 29, 33, 43
+B031 - on lines 30, 34, 43
 """
 import itertools
 from itertools import groupby
