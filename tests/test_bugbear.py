@@ -456,8 +456,9 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B030(8, 0),
+            B030(3, 0),
             B030(13, 0),
+            B030(18, 0),
         )
         self.assertEqual(errors, expected)
 

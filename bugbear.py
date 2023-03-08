@@ -190,11 +190,17 @@ def _is_identifier(arg):
 
 
 def _flatten_excepthandler(node):
-    if isinstance(node, ast.Tuple):
-        for elt in node.elts:
-            yield from _flatten_excepthandler(elt)
-    else:
+    if not isinstance(node, ast.Tuple):
         yield node
+        return
+    exprs_to_flatten = [node.elts]
+    while len(exprs_to_flatten):
+        exprs = exprs_to_flatten.pop()
+        for expr in exprs:
+            if isinstance(expr, ast.Starred) and isinstance(expr.value, (ast.List, ast.Tuple)):
+                exprs_to_flatten.append(expr.value.elts)
+                continue
+            yield expr
 
 
 def _check_redundant_excepthandlers(names, node):

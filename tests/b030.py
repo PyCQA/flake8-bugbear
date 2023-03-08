@@ -1,6 +1,11 @@
 try:
     pass
-except (ValueError, (RuntimeError, (KeyError, TypeError))):  # ok
+except (ValueError, (RuntimeError, (KeyError, TypeError))):  # error
+    pass
+
+try:
+    pass
+except (ValueError, *(RuntimeError, *(KeyError, TypeError))):  # ok
     pass
 
 try:
