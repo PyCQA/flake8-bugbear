@@ -196,7 +196,9 @@ def _flatten_excepthandler(node):
     expr_list = node.elts.copy()
     while len(expr_list):
         expr = expr_list.pop(0)
-        if isinstance(expr, ast.Starred) and isinstance(expr.value, (ast.List, ast.Tuple)):
+        if isinstance(expr, ast.Starred) and isinstance(
+            expr.value, (ast.List, ast.Tuple)
+        ):
             expr_list.extend(expr.value.elts)
             continue
         yield expr
