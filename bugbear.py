@@ -68,28 +68,29 @@ class BugBearChecker:
 
         The following simple checks are based on the raw lines, not the AST.
         """
-        noqa_type_ignore_regex = re.compile(r"\s*#\s*(noqa:|type:\s*ignore).*$")
+        noqa_type_ignore_regex = re.compile(r"#\s*(noqa|type:\s*ignore)[^#\r\n]*$")
         for lineno, line in enumerate(self.lines, start=1):
             # Special case: ignore long shebang (following pycodestyle).
             if lineno == 1 and line.startswith("#!"):
                 continue
 
             # At first, removing noqa and type: ignore trailing comments"
-            line = noqa_type_ignore_regex.sub("", line)
+            line_without_first_comment = noqa_type_ignore_regex.sub("", line)
+            no_comment_line = noqa_type_ignore_regex.sub("", line_without_first_comment)
 
-            length = len(line) - 1
-            if length > 1.1 * self.max_line_length and line.strip():
+            length = len(no_comment_line) - 1
+            if length > 1.1 * self.max_line_length and no_comment_line.strip():
                 # Special case long URLS and paths to follow pycodestyle.
                 # Would use the `pycodestyle.maximum_line_length` directly but
                 # need to supply it arguments that are not available so chose
                 # to replicate instead.
-                chunks = line.split()
+                chunks = no_comment_line.split()
 
                 is_line_comment_url_path = len(chunks) == 2 and chunks[0] == "#"
 
                 just_long_url_path = len(chunks) == 1
 
-                num_leading_whitespaces = len(line) - len(chunks[-1])
+                num_leading_whitespaces = len(no_comment_line) - len(chunks[-1])
                 too_many_leading_white_spaces = (
                     num_leading_whitespaces >= self.max_line_length - 7
                 )

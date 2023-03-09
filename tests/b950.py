@@ -24,9 +24,13 @@
 """
                                                                                                                                                                 
 """
+"https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # noqa"
+"https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # type: ignore"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # noqa: F401"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com#noqa:F401, B950"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # type: ignore[some-code]"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com # type: ignore[some-code]"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com # type: ignore[some-code] # noqa: F401"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # noqa: F401 # type:ignore[some-code]"
+"NOT OK: https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # noqa"
+"NOT OK: https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # type: ignore"
