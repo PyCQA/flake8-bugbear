@@ -707,6 +707,8 @@ class BugbearTestCase(unittest.TestCase):
                 B950(12, 103, vars=(103, 79)),
                 B950(14, 103, vars=(103, 79)),
                 B950(21, 97, vars=(97, 79)),
+                B950(35, 104, vars=(104, 79)),
+                B950(36, 104, vars=(104, 79)),
             ),
         )
 
@@ -725,6 +727,8 @@ class BugbearTestCase(unittest.TestCase):
                 B950(12, 103, vars=(103, 79)),
                 B950(14, 103, vars=(103, 79)),
                 B950(21, 97, vars=(97, 79)),
+                B950(35, 104, vars=(104, 79)),
+                B950(36, 104, vars=(104, 79)),
             ),
         )
 

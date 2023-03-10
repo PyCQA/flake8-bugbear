@@ -75,8 +75,9 @@ class BugBearChecker:
                 continue
 
             # At first, removing noqa and type: ignore trailing comments"
-            line_without_first_comment = noqa_type_ignore_regex.sub("", line)
-            no_comment_line = noqa_type_ignore_regex.sub("", line_without_first_comment)
+            no_comment_line = noqa_type_ignore_regex.sub("", line)
+            if no_comment_line != line:
+                no_comment_line = noqa_type_ignore_regex.sub("", no_comment_line)
 
             length = len(no_comment_line) - 1
             if length > 1.1 * self.max_line_length and no_comment_line.strip():
