@@ -189,7 +189,7 @@ def _is_identifier(arg):
     # Return True if arg is a valid identifier, per
     # https://docs.python.org/2/reference/lexical_analysis.html#identifiers
 
-    if not isinstance(arg, ast.Str):
+    if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
         return False
 
     return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg.s) is not None
@@ -526,7 +526,11 @@ class BugBearVisitor(ast.NodeVisitor):
             ):
                 return  # method is being run on an imported module
 
-            if len(node.args) != 1 or not isinstance(node.args[0], ast.Str):
+            if (
+                len(node.args) != 1
+                or not isinstance(node.args[0], ast.Constant)
+                or not isinstance(node.args[0].value, str)
+            ):
                 return  # used arguments don't match the builtin strip
 
             call_path = ".".join(compose_call_path(node.func.value))
@@ -560,7 +564,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B007(n.lineno, n.col_offset, vars=(name,)))
 
     def check_for_b011(self, node):
-        if isinstance(node.test, ast.NameConstant) and node.test.value is False:
+        if isinstance(node.test, ast.Constant) and node.test.value is False:
             self.errors.append(B011(node.lineno, node.col_offset))
 
     def check_for_b012(self, node):
@@ -585,7 +589,13 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B015(node.lineno, node.col_offset))
 
     def check_for_b016(self, node):
-        if isinstance(node.exc, (ast.NameConstant, ast.Num, ast.Str, ast.JoinedStr)):
+        if isinstance(node.exc, ast.JoinedStr) or (
+            isinstance(node.exc, ast.Constant)
+            and (
+                isinstance(node.exc.value, (int, float, complex, str, bool))
+                or node.exc.value is None
+            )
+        ):
             self.errors.append(B016(node.lineno, node.col_offset))
 
     def check_for_b017(self, node):
@@ -768,10 +778,8 @@ class BugBearVisitor(ast.NodeVisitor):
 
         def empty_body(body) -> bool:
             def is_str_or_ellipsis(node):
-                # ast.Ellipsis and ast.Str used in python<3.8
-                return isinstance(node, (ast.Ellipsis, ast.Str)) or (
-                    isinstance(node, ast.Constant)
-                    and (node.value is Ellipsis or isinstance(node.value, str))
+                return isinstance(node, ast.Constant) and (
+                    node.value is Ellipsis or isinstance(node.value, str)
                 )
 
             # Function body consist solely of `pass`, `...`, and/or (doc)string literals
@@ -1020,7 +1028,8 @@ class BugBearVisitor(ast.NodeVisitor):
         if (
             body
             and isinstance(body[0], ast.Expr)
-            and isinstance(body[0].value, ast.Str)
+            and isinstance(body[0].value, ast.Constant)
+            and isinstance(body[0].value.value, str)
         ):
             # Ignore the docstring
             body = body[1:]
@@ -1052,13 +1061,16 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(
                 subnode.value,
                 (
-                    ast.Num,
-                    ast.Bytes,
-                    ast.NameConstant,
                     ast.List,
                     ast.Set,
                     ast.Dict,
                 ),
+            ) or (
+                isinstance(subnode.value, ast.Constant)
+                and (
+                    isinstance(subnode.value.value, (int, float, complex, bytes, bool))
+                    or subnode.value.value is None
+                )
             ):
                 self.errors.append(B018(subnode.lineno, subnode.col_offset))
 
