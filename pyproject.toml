@@ -34,7 +34,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Quality Assurance",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.8.1"
 dependencies = ["flake8 >= 3.0.0", "attrs>=19.2.0"]
 dynamic = ["version"]
 

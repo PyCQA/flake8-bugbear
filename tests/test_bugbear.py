@@ -747,8 +747,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent.parent / "bugbear.py"
         proc = subprocess.run(
             ["flake8", str(filename)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=60,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout.decode("utf8"))
@@ -759,8 +758,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute()
         proc = subprocess.run(
             ["flake8", str(filename)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=60,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout.decode("utf8"))
