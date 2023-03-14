@@ -10,7 +10,7 @@ We use GitHub. To get started I'd suggest visiting https://guides.github.com/
 
 Please make sure you system has the following:
 
-- Python 3.7.0 or greater
+- Python 3.8.0 or greater
 - git cli client
 
 Also ensure you can authenticate with GitHub via SSH Keys or HTTPS.
@@ -55,7 +55,7 @@ You can also use [tox](https://tox.wiki/en/latest/index.html) to test with multi
 ```console
 /path/to/venv/bin/tox
 ```
-will by default run all tests on python versions 3.7 through 3.11. If you only want to test a specific version you can specify the environment with `-e`
+will by default run all tests on python versions 3.8 through 3.11. If you only want to test a specific version you can specify the environment with `-e`
 
 ```console
 /path/to/venv/bin/tox -e py38
