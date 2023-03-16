@@ -250,15 +250,18 @@ def _check_redundant_excepthandlers(names, node):
 def _to_name_str(node):
     # Turn Name and Attribute nodes to strings, e.g "ValueError" or
     # "pkg.mod.error", handling any depth of attribute accesses.
+    # Return None for unrecognized nodes.
     if isinstance(node, ast.Name):
         return node.id
     if isinstance(node, ast.Call):
         return _to_name_str(node.func)
-    assert isinstance(node, ast.Attribute), f"Unexpected node type: {type(node)}"
-    try:
-        return _to_name_str(node.value) + "." + node.attr
-    except AttributeError:
-        return _to_name_str(node.value)
+    elif isinstance(node, ast.Attribute):
+        inner = _to_name_str(node.value)
+        if inner is None:
+            return None
+        return f"{inner}.{node.attr}"
+    else:
+        return None
 
 
 def names_from_assignments(assign_target):
@@ -345,19 +348,22 @@ class BugBearVisitor(ast.NodeVisitor):
             self.generic_visit(node)
             return
         handlers = _flatten_excepthandler(node.type)
-        good_handlers = []
+        names = []
         bad_handlers = []
         ignored_handlers = []
         for handler in handlers:
             if isinstance(handler, (ast.Name, ast.Attribute)):
-                good_handlers.append(handler)
+                name = _to_name_str(handler)
+                if name is None:
+                    ignored_handlers.append(handler)
+                else:
+                    names.append(name)
             elif isinstance(handler, (ast.Call, ast.Starred)):
                 ignored_handlers.append(handler)
             else:
                 bad_handlers.append(handler)
         if bad_handlers:
             self.errors.append(B030(node.lineno, node.col_offset))
-        names = [_to_name_str(e) for e in good_handlers]
         if len(names) == 0 and not bad_handlers and not ignored_handlers:
             self.errors.append(B029(node.lineno, node.col_offset))
         elif (

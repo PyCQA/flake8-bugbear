@@ -325,6 +325,11 @@ MIT
 Change Log
 ----------
 
+Unreleased
+~~~~~~~~~~
+
+* B030: Fix crash on certain unusual except handlers (e.g. ``except a[0].b:``)
+
 23.3.12
 ~~~~~~~~
 

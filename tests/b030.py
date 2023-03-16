@@ -32,3 +32,9 @@ try:
     pass
 except what_to_catch():  # ok
     pass
+
+
+try:
+    pass
+except a.b[1].c:  # ok
+    pass
