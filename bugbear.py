@@ -310,7 +310,6 @@ class BugBearVisitor(ast.NodeVisitor):
     NODE_WINDOW_SIZE = 4
     _b023_seen = attr.ib(factory=set, init=False)
     _b005_imports = attr.ib(factory=set, init=False)
-    _b033_seen = attr.ib(factory=set, init=False)
 
     if False:
         # Useful for tracing what the hell is going on.
@@ -1314,12 +1313,12 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B032(node.lineno, node.col_offset))
 
     def check_for_b033(self, node):
-        self._b033_seen.clear()
-        for item in filter(lambda x: isinstance(x, ast.Constant), node.elts):
-            if item.value in self._b033_seen:
-                self.errors.append(B033(node.lineno, node.col_offset))
-                break
-            self._b033_seen.add(item.value)
+        constants = [
+            item.value
+            for item in filter(lambda x: isinstance(x, ast.Constant), node.elts)
+        ]
+        if len(constants) != len(set(constants)):
+            self.errors.append(B033(node.lineno, node.col_offset))
 
 
 def compose_call_path(node):
