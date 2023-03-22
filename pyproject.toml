@@ -35,7 +35,7 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 requires-python = ">=3.8.1"
-dependencies = ["flake8 >= 3.0.0", "attrs>=19.2.0"]
+dependencies = ["flake8>=6.0.0", "attrs>=19.2.0"]
 dynamic = ["version"]
 
 [project.urls]
