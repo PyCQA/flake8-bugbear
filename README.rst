@@ -186,6 +186,8 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B032**: Possible unintentional type annotation (using ``:``). Did you mean to assign (using ``=``)?
 
+**B033**: Sets should not contain duplicate items. Duplicate items will be replaced with a single item at runtime.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -329,6 +331,7 @@ Unreleased
 ~~~~~~~~~~
 
 * B030: Fix crash on certain unusual except handlers (e.g. ``except a[0].b:``)
+* Add B033: Check for duplicate items in sets.
 
 23.3.12
 ~~~~~~~~

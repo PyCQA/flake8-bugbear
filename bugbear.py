@@ -310,6 +310,7 @@ class BugBearVisitor(ast.NodeVisitor):
     NODE_WINDOW_SIZE = 4
     _b023_seen = attr.ib(factory=set, init=False)
     _b005_imports = attr.ib(factory=set, init=False)
+    _b033_seen = attr.ib(factory=set, init=False)
 
     if False:
         # Useful for tracing what the hell is going on.
@@ -516,6 +517,10 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Import(self, node):
         self.check_for_b005(node)
+        self.generic_visit(node)
+
+    def visit_Set(self, node):
+        self.check_for_b033(node)
         self.generic_visit(node)
 
     def check_for_b005(self, node):
@@ -1308,6 +1313,14 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B032(node.lineno, node.col_offset))
 
+    def check_for_b033(self, node):
+        self._b033_seen.clear()
+        for item in filter(lambda x: isinstance(x, ast.Constant), node.elts):
+            if item.value in self._b033_seen:
+                self.errors.append(B033(node.lineno, node.col_offset))
+                break
+            self._b033_seen.add(item.value)
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -1702,6 +1715,13 @@ B032 = Error(
     message=(
         "B032 Possible unintentional type annotation (using `:`). Did you mean to"
         " assign (using `=`)?"
+    )
+)
+
+B033 = Error(
+    message=(
+        "B033 Sets should not contain duplicate items. Duplicate items will be replaced"
+        " with a single item at runtime."
     )
 )
 
