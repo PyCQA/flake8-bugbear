@@ -1290,6 +1290,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "warnings"
             and not any(kw.arg == "stacklevel" for kw in node.keywords)
+            and len(node.args) < 3
         ):
             self.errors.append(B028(node.lineno, node.col_offset))
 
@@ -1674,7 +1675,7 @@ B027 = Error(
 )
 B028 = Error(
     message=(
-        "B028 No explicit stacklevel keyword argument found. The warn method from the"
+        "B028 No explicit stacklevel argument found. The warn method from the"
         " warnings module uses a stacklevel of 1 by default. This will only show a"
         " stack trace for the line on which the warn method is called."
         " It is therefore recommended to use a stacklevel of 2 or"
