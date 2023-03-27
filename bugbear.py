@@ -1174,11 +1174,6 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B906(node.lineno, node.col_offset))
 
     def check_for_b907(self, node: ast.JoinedStr):  # noqa: C901
-        # AST structure of strings in f-strings in 3.7 is different enough this
-        # implementation doesn't work
-        if sys.version_info <= (3, 7):
-            return  # pragma: no cover
-
         def myunparse(node: ast.AST) -> str:  # pragma: no cover
             if sys.version_info >= (3, 9):
                 return ast.unparse(node)
