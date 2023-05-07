@@ -504,6 +504,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_With(self, node):
         self.check_for_b017(node)
         self.check_for_b022(node)
+        self.check_for_b908(node)
         self.generic_visit(node)
 
     def visit_JoinedStr(self, node):
@@ -1103,6 +1104,29 @@ class BugBearVisitor(ast.NodeVisitor):
             and len(item_context.args) == 0
         ):
             self.errors.append(B022(node.lineno, node.col_offset))
+
+    def check_for_b908(self, node: ast.With):
+        has_multiline_body = len(node.body) > 1
+        for node_item in node.items:
+            if (
+                not hasattr(node_item.context_expr, "func")
+                or not hasattr(node_item.context_expr.func, "value")
+                or not hasattr(node_item.context_expr.func.value, "id")
+            ):
+                continue
+            if (
+                # pytest form
+                node_item.context_expr.func.value.id == "pytest"
+                and node_item.context_expr.func.attr == "raises"
+            ) or (
+                # unittest form
+                node_item.context_expr.func.value.id == "self"
+                # to catch all variants like
+                # 'assertRaises', 'assertRaisesRegex', 'assertRaisesRegexp'
+                and node_item.context_expr.func.attr.startswith("assert")
+            ):
+                if has_multiline_body:
+                    self.errors.append(B908(node.lineno, node.col_offset))
 
     def check_for_b025(self, node):
         seen = []
@@ -1759,7 +1783,12 @@ B907 = Error(
         " flag."
     )
 )
-
+B908 = Error(
+    message=(
+        "B908 assertRaises-type context should not contains more than one top-level"
+        " statement."
+    )
+)
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
-disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B950"]
+disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B908", "B950"]
