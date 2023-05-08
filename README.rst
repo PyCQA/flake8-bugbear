@@ -228,7 +228,7 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 
 **B907**: Consider replacing ``f"'{foo}'"`` with ``f"{foo!r}"`` which is both easier to read and will escape quotes inside ``foo`` if that would appear. The check tries to filter out any format specs that are invalid together with ``!r``. If you're using other conversion flags then e.g. ``f"'{foo!a}'"`` can be replaced with ``f"{ascii(foo)!r}"``. Not currently implemented for python<3.8 or ``str.format()`` calls.
 
-**B908**: Contexts with exceptions assertions like ``with self.assertRaises`` or ``with pytest.raises`` should have not multiple top-level statements. Each statement should be in its own context.
+**B908**: Contexts with exceptions assertions like ``with self.assertRaises`` or ``with pytest.raises`` should have not multiple top-level statements. Each statement should be in its own context. That way, the test ensures that the exception is raised only in the exact statement where you expect it.
 
 **B950**: Line too long. This is a pragmatic equivalent of
 ``pycodestyle``'s ``E501``: it considers "max-line-length" but only triggers
