@@ -1137,9 +1137,11 @@ class BugBearVisitor(ast.NodeVisitor):
                 # to catch all variants like
                 and node.context_expr.func.attr in B908_unittest_methods
             )
+        else:
+            return False
 
     def check_for_b908(self, node: ast.With):
-        if not len(node.body) > 1:
+        if len(node.body) < 2:
             return
         for node_item in node.items:
             if self._is_assertRaises_like(node_item):
