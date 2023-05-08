@@ -35,6 +35,7 @@ B908_unittest_methods = {
     "assertRaisesRegexp",
     "assertWarns",
     "assertWarnsRegex",
+    "assertWarnsRegexp",
 }
 
 Context = namedtuple("Context", ["node", "stack"])
