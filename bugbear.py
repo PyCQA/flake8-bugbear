@@ -28,6 +28,14 @@ CONTEXTFUL_NODES = (
     ast.GeneratorExp,
 )
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+B908_pytest_functions = {"raises", "warns"}
+B908_unittest_methods = {
+    "assertRaises",
+    "assertRaisesRegex",
+    "assertRaisesRegexp",
+    "assertWarns",
+    "assertWarnsRegex",
+}
 
 Context = namedtuple("Context", ["node", "stack"])
 
@@ -1105,28 +1113,37 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B022(node.lineno, node.col_offset))
 
-    def check_for_b908(self, node: ast.With):
-        has_multiline_body = len(node.body) > 1
-        for node_item in node.items:
-            if (
-                not hasattr(node_item.context_expr, "func")
-                or not hasattr(node_item.context_expr.func, "value")
-                or not hasattr(node_item.context_expr.func.value, "id")
-            ):
-                continue
-            if (
-                # pytest form
-                node_item.context_expr.func.value.id == "pytest"
-                and node_item.context_expr.func.attr == "raises"
+    @staticmethod
+    def _is_assertRaises_like(node: ast.withitem) -> bool:
+        if not (
+            isinstance(node, ast.withitem)
+            and isinstance(node.context_expr, ast.Call)
+            and isinstance(node.context_expr.func, (ast.Attribute, ast.Name))
+        ):
+            return False
+        if isinstance(node.context_expr.func, ast.Name):
+            # "with raises"
+            return node.context_expr.func.id in B908_pytest_functions
+        elif isinstance(node.context_expr.func, ast.Attribute) and isinstance(
+            node.context_expr.func.value, ast.Name
+        ):
+            return (
+                # "with pytest.raises"
+                node.context_expr.func.value.id == "pytest"
+                and node.context_expr.func.attr in B908_pytest_functions
             ) or (
-                # unittest form
-                node_item.context_expr.func.value.id == "self"
+                # "with self.assertRaises"
+                node.context_expr.func.value.id == "self"
                 # to catch all variants like
-                # 'assertRaises', 'assertRaisesRegex', 'assertRaisesRegexp'
-                and node_item.context_expr.func.attr.startswith("assert")
-            ):
-                if has_multiline_body:
-                    self.errors.append(B908(node.lineno, node.col_offset))
+                and node.context_expr.func.attr in B908_unittest_methods
+            )
+
+    def check_for_b908(self, node: ast.With):
+        if not len(node.body) > 1:
+            return
+        for node_item in node.items:
+            if self._is_assertRaises_like(node_item):
+                self.errors.append(B908(node.lineno, node.col_offset))
 
     def check_for_b025(self, node):
         seen = []
