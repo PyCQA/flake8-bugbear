@@ -28,6 +28,14 @@ CONTEXTFUL_NODES = (
     ast.GeneratorExp,
 )
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+B908_pytest_functions = {"raises", "warns"}
+B908_unittest_methods = {
+    "assertRaises",
+    "assertRaisesRegex",
+    "assertRaisesRegexp",
+    "assertWarns",
+    "assertWarnsRegex",
+}
 
 Context = namedtuple("Context", ["node", "stack"])
 
@@ -504,6 +512,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_With(self, node):
         self.check_for_b017(node)
         self.check_for_b022(node)
+        self.check_for_b908(node)
         self.generic_visit(node)
 
     def visit_JoinedStr(self, node):
@@ -1103,6 +1112,39 @@ class BugBearVisitor(ast.NodeVisitor):
             and len(item_context.args) == 0
         ):
             self.errors.append(B022(node.lineno, node.col_offset))
+
+    @staticmethod
+    def _is_assertRaises_like(node: ast.withitem) -> bool:
+        if not (
+            isinstance(node, ast.withitem)
+            and isinstance(node.context_expr, ast.Call)
+            and isinstance(node.context_expr.func, (ast.Attribute, ast.Name))
+        ):
+            return False
+        if isinstance(node.context_expr.func, ast.Name):
+            # "with raises"
+            return node.context_expr.func.id in B908_pytest_functions
+        elif isinstance(node.context_expr.func, ast.Attribute) and isinstance(
+            node.context_expr.func.value, ast.Name
+        ):
+            return (
+                # "with pytest.raises"
+                node.context_expr.func.value.id == "pytest"
+                and node.context_expr.func.attr in B908_pytest_functions
+            ) or (
+                # "with self.assertRaises"
+                node.context_expr.func.value.id == "self"
+                and node.context_expr.func.attr in B908_unittest_methods
+            )
+        else:
+            return False
+
+    def check_for_b908(self, node: ast.With):
+        if len(node.body) < 2:
+            return
+        for node_item in node.items:
+            if self._is_assertRaises_like(node_item):
+                self.errors.append(B908(node.lineno, node.col_offset))
 
     def check_for_b025(self, node):
         seen = []
@@ -1754,7 +1796,12 @@ B907 = Error(
         " flag."
     )
 )
-
+B908 = Error(
+    message=(
+        "B908 assertRaises-type context should not contains more than one top-level"
+        " statement."
+    )
+)
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
-disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B950"]
+disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B908", "B950"]
