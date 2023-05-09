@@ -1134,7 +1134,6 @@ class BugBearVisitor(ast.NodeVisitor):
             ) or (
                 # "with self.assertRaises"
                 node.context_expr.func.value.id == "self"
-                # to catch all variants like
                 and node.context_expr.func.attr in B908_unittest_methods
             )
         else:
