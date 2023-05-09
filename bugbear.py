@@ -13,7 +13,7 @@ from keyword import iskeyword
 import attr
 import pycodestyle
 
-__version__ = "23.3.12"
+__version__ = "23.3.23"
 
 LOG = logging.getLogger("flake8.bugbear")
 CONTEXTFUL_NODES = (
@@ -28,6 +28,14 @@ CONTEXTFUL_NODES = (
     ast.GeneratorExp,
 )
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+B908_pytest_functions = {"raises", "warns"}
+B908_unittest_methods = {
+    "assertRaises",
+    "assertRaisesRegex",
+    "assertRaisesRegexp",
+    "assertWarns",
+    "assertWarnsRegex",
+}
 
 Context = namedtuple("Context", ["node", "stack"])
 
@@ -504,6 +512,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_With(self, node):
         self.check_for_b017(node)
         self.check_for_b022(node)
+        self.check_for_b908(node)
         self.generic_visit(node)
 
     def visit_JoinedStr(self, node):
@@ -1108,6 +1117,39 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B022(node.lineno, node.col_offset))
 
+    @staticmethod
+    def _is_assertRaises_like(node: ast.withitem) -> bool:
+        if not (
+            isinstance(node, ast.withitem)
+            and isinstance(node.context_expr, ast.Call)
+            and isinstance(node.context_expr.func, (ast.Attribute, ast.Name))
+        ):
+            return False
+        if isinstance(node.context_expr.func, ast.Name):
+            # "with raises"
+            return node.context_expr.func.id in B908_pytest_functions
+        elif isinstance(node.context_expr.func, ast.Attribute) and isinstance(
+            node.context_expr.func.value, ast.Name
+        ):
+            return (
+                # "with pytest.raises"
+                node.context_expr.func.value.id == "pytest"
+                and node.context_expr.func.attr in B908_pytest_functions
+            ) or (
+                # "with self.assertRaises"
+                node.context_expr.func.value.id == "self"
+                and node.context_expr.func.attr in B908_unittest_methods
+            )
+        else:
+            return False
+
+    def check_for_b908(self, node: ast.With):
+        if len(node.body) < 2:
+            return
+        for node_item in node.items:
+            if self._is_assertRaises_like(node_item):
+                self.errors.append(B908(node.lineno, node.col_offset))
+
     def check_for_b025(self, node):
         seen = []
         for handler in node.handlers:
@@ -1178,11 +1220,6 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B906(node.lineno, node.col_offset))
 
     def check_for_b907(self, node: ast.JoinedStr):  # noqa: C901
-        # AST structure of strings in f-strings in 3.7 is different enough this
-        # implementation doesn't work
-        if sys.version_info <= (3, 7):
-            return  # pragma: no cover
-
         def myunparse(node: ast.AST) -> str:  # pragma: no cover
             if sys.version_info >= (3, 9):
                 return ast.unparse(node)
@@ -1294,6 +1331,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "warnings"
             and not any(kw.arg == "stacklevel" for kw in node.keywords)
+            and len(node.args) < 3
         ):
             self.errors.append(B028(node.lineno, node.col_offset))
 
@@ -1686,7 +1724,7 @@ B027 = Error(
 )
 B028 = Error(
     message=(
-        "B028 No explicit stacklevel keyword argument found. The warn method from the"
+        "B028 No explicit stacklevel argument found. The warn method from the"
         " warnings module uses a stacklevel of 1 by default. This will only show a"
         " stack trace for the line on which the warn method is called."
         " It is therefore recommended to use a stacklevel of 2 or"
@@ -1777,7 +1815,12 @@ B907 = Error(
         " flag."
     )
 )
-
+B908 = Error(
+    message=(
+        "B908 assertRaises-type context should not contains more than one top-level"
+        " statement."
+    )
+)
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
-disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B950"]
+disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B908", "B950"]

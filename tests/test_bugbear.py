@@ -52,6 +52,7 @@ from bugbear import (
     B905,
     B906,
     B907,
+    B908,
     B950,
     BugBearChecker,
     BugBearVisitor,
@@ -121,7 +122,7 @@ class BugbearTestCase(unittest.TestCase):
                 B006(72, 19),
                 B006(76, 31),
                 B006(80, 25),
-                B006(85, 45 if sys.version_info >= (3, 8) else 46),
+                B006(85, 45),
                 B008(85, 60),
                 B006(89, 45),
                 B008(89, 63),
@@ -131,7 +132,7 @@ class BugbearTestCase(unittest.TestCase):
                 B008(109, 38),
                 B008(113, 11),
                 B008(113, 31),
-                B008(117, 29 if sys.version_info >= (3, 8) else 30),
+                B008(117, 29),
                 B008(160, 29),
                 B008(164, 44),
                 B006(170, 19),
@@ -294,20 +295,17 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b019.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-
-        # AST Decorator column location for callable decorators changes in 3.7
-        col = 5 if sys.version_info >= (3, 7) else 4
         self.assertEqual(
             errors,
             self.errors(
                 B019(73, 5),
                 B019(77, 5),
-                B019(81, col),
-                B019(85, col),
+                B019(81, 5),
+                B019(85, 5),
                 B019(89, 5),
                 B019(93, 5),
-                B019(97, col),
-                B019(101, col),
+                B019(97, 5),
+                B019(101, 5),
             ),
         )
 
@@ -431,7 +429,7 @@ class BugbearTestCase(unittest.TestCase):
             B027(16, 4, vars=("empty_2",)),
             B027(19, 4, vars=("empty_3",)),
             B027(23, 4, vars=("empty_4",)),
-            B027(31 if sys.version_info >= (3, 8) else 30, 4, vars=("empty_5",)),
+            B027(31, 4, vars=("empty_5",)),
         )
         self.assertEqual(errors, expected)
 
@@ -505,7 +503,21 @@ class BugbearTestCase(unittest.TestCase):
         )
         self.assertEqual(errors, expected)
 
-    @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
+    def test_b908(self):
+        filename = Path(__file__).absolute().parent / "b908.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B908(7, 0),
+            B908(15, 8),
+            B908(21, 8),
+            B908(27, 8),
+            B908(37, 0),
+            B908(41, 0),
+            B908(45, 0),
+        )
+        self.assertEqual(errors, expected)
+
     def test_b907(self):
         filename = Path(__file__).absolute().parent / "b907.py"
         bbc = BugBearChecker(filename=str(filename))
@@ -553,7 +565,6 @@ class BugbearTestCase(unittest.TestCase):
     # manual permutations to save overhead when doing >60k permutations
     # see format spec at
     # https://docs.python.org/3/library/string.html#format-specification-mini-language
-    @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
     def test_b907_format_specifier_permutations(self):
         visitor = BugBearVisitor(filename="", lines="")
 
@@ -631,7 +642,6 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
-    @unittest.skipIf(sys.version_info < (3, 8), "requires 3.8+")
     def test_b902_py38(self):
         filename = Path(__file__).absolute().parent / "b902_py38.py"
         bbc = BugBearChecker(filename=str(filename))

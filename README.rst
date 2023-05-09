@@ -173,7 +173,7 @@ limitations make it difficult.
 
 **B027**: Empty method in abstract base class, but has no abstract decorator. Consider adding @abstractmethod.
 
-**B028**: No explicit stacklevel keyword argument found. The warn method from the warnings module uses a
+**B028**: No explicit stacklevel argument found. The warn method from the warnings module uses a
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
 
@@ -229,6 +229,8 @@ Will only trigger on function names where the part after ``visit_`` is a valid `
 This is meant to be enabled by developers writing visitors using the ``ast`` module, such as flake8 plugin writers.
 
 **B907**: Consider replacing ``f"'{foo}'"`` with ``f"{foo!r}"`` which is both easier to read and will escape quotes inside ``foo`` if that would appear. The check tries to filter out any format specs that are invalid together with ``!r``. If you're using other conversion flags then e.g. ``f"'{foo!a}'"`` can be replaced with ``f"{ascii(foo)!r}"``. Not currently implemented for python<3.8 or ``str.format()`` calls.
+
+**B908**: Contexts with exceptions assertions like ``with self.assertRaises`` or ``with pytest.raises`` should not have multiple top-level statements. Each statement should be in its own context. That way, the test ensures that the exception is raised only in the exact statement where you expect it.
 
 **B950**: Line too long. This is a pragmatic equivalent of
 ``pycodestyle``'s ``E501``: it considers "max-line-length" but only triggers
@@ -329,7 +331,13 @@ Change Log
 
 Unreleased
 ~~~~~~~~~~
+* B028: Allow stacklevel to be explicitly assigned as a positional argument
 
+23.3.23
+~~~~~~~~~~
+
+* flake8-bugbear is now >= 3.8.1 project like flake8>=6.0.0
+  * This has allowed some more modern AST usage cleanup and less CI running etc.
 * B030: Fix crash on certain unusual except handlers (e.g. ``except a[0].b:``)
 * Add B033: Check for duplicate items in sets.
 
