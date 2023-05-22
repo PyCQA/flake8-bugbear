@@ -501,6 +501,7 @@ class BugbearTestCase(unittest.TestCase):
             B033(11, 11, vars=("True",)),
             B033(12, 11, vars=("False",)),
             B033(16, 4, vars=("True",)),
+            B033(18, 4, vars=("False",)),
         )
         self.assertEqual(errors, expected)
 
