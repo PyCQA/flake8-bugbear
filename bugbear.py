@@ -1356,7 +1356,9 @@ class BugBearVisitor(ast.NodeVisitor):
             if not isinstance(elt, ast.Constant):
                 continue
             if elt.value in seen:
-                self.errors.append(B033(elt.lineno, elt.col_offset, vars=(repr(elt.value),)))
+                self.errors.append(
+                    B033(elt.lineno, elt.col_offset, vars=(repr(elt.value),))
+                )
             else:
                 seen.add(elt.value)
 
