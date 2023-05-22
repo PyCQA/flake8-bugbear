@@ -1817,7 +1817,7 @@ B907 = Error(
 )
 B908 = Error(
     message=(
-        "B908 assertRaises-type context should not contains more than one top-level"
+        "B908 assertRaises-type context should not contain more than one top-level"
         " statement."
     )
 )
