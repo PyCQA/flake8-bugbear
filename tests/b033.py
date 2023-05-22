@@ -1,6 +1,6 @@
 """
 Should emit:
-B033 - on lines 6-12
+B033 - on lines 6-12 and 16
 """
 
 test = {1, 2, 3, 3, 5}
@@ -10,6 +10,11 @@ test = {None, True, None}
 test = {3, 3.0}
 test = {1, True}
 test = {0, False}
+multi_line = {
+    "alongvalueeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    1,
+    True,
+}
 
 test = {1, 2, 3, 3.5, 5}
 test = {"a", "b", "c", "d", "e"}

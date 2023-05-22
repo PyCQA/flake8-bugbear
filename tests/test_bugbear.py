@@ -493,13 +493,14 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B033(6, 7),
-            B033(7, 7),
-            B033(8, 7),
-            B033(9, 7),
-            B033(10, 7),
-            B033(11, 7),
-            B033(12, 7),
+            B033(6, 17, vars=("3",)),
+            B033(7, 23, vars=("'c'",)),
+            B033(8, 21, vars=("True",)),
+            B033(9, 20, vars=("None",)),
+            B033(10, 11, vars=("3.0",)),
+            B033(11, 11, vars=("True",)),
+            B033(12, 11, vars=("False",)),
+            B033(16, 4, vars=("True",)),
         )
         self.assertEqual(errors, expected)
 
