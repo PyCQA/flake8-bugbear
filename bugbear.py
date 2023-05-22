@@ -1761,8 +1761,8 @@ B032 = Error(
 
 B033 = Error(
     message=(
-        "B033 Set should not contain duplicate item {}. Duplicate items will be replaced"
-        " with a single item at runtime."
+        "B033 Set should not contain duplicate item {}. Duplicate items will be"
+        " replaced with a single item at runtime."
     )
 )
 
