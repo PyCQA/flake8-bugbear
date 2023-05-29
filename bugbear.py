@@ -1168,12 +1168,46 @@ class BugBearVisitor(ast.NodeVisitor):
         for duplicate in duplicates:
             self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
 
-    def check_for_b905(self, node):
-        if (
-            isinstance(node.func, ast.Name)
-            and node.func.id == "zip"
-            and not any(kw.arg == "strict" for kw in node.keywords)
+    @staticmethod
+    def _is_infinite_iterator(node: ast.expr) -> bool:
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "itertools"
         ):
+            return False
+        if node.func.attr in {"cycle", "count"}:
+            return True
+        elif node.func.attr == "repeat":
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                # itertools.repeat(iterable)
+                return True
+            if (
+                len(node.args) == 2
+                and isinstance(node.args[1], ast.Constant)
+                and node.args[1].value is None
+            ):
+                # itertools.repeat(iterable, None)
+                return True
+            for kw in node.keywords:
+                # itertools.repeat(iterable, times=None)
+                if (
+                    kw.arg == "times"
+                    and isinstance(kw.value, ast.Constant)
+                    and kw.value.value is None
+                ):
+                    return True
+
+        return False
+
+    def check_for_b905(self, node):
+        if not (isinstance(node.func, ast.Name) and node.func.id == "zip"):
+            return
+        for arg in node.args:
+            if self._is_infinite_iterator(arg):
+                return
+        if not any(kw.arg == "strict" for kw in node.keywords):
             self.errors.append(B905(node.lineno, node.col_offset))
 
     def check_for_b906(self, node: ast.FunctionDef):
