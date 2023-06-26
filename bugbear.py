@@ -5,6 +5,7 @@ import logging
 import math
 import re
 import sys
+import warnings
 from collections import namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
@@ -1182,7 +1183,12 @@ class BugBearVisitor(ast.NodeVisitor):
 
         # extract what's visited
         class_name = node.name[len("visit_") :]
-        class_type = getattr(ast, class_name, None)
+
+        # silence any DeprecationWarnings
+        # that might come from accessing a deprecated AST node
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            class_type = getattr(ast, class_name, None)
 
         if (
             # not a valid ast subclass
