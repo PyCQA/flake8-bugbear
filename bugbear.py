@@ -200,7 +200,7 @@ def _is_identifier(arg):
     if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
         return False
 
-    return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg.s) is not None
+    return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg.value) is not None
 
 
 def _flatten_excepthandler(node):
@@ -401,14 +401,14 @@ class BugBearVisitor(ast.NodeVisitor):
             with suppress(AttributeError, IndexError):
                 if (
                     node.func.id in ("getattr", "hasattr")
-                    and node.args[1].s == "__call__"
+                    and node.args[1].value == "__call__"
                 ):
                     self.errors.append(B004(node.lineno, node.col_offset))
                 if (
                     node.func.id == "getattr"
                     and len(node.args) == 2
                     and _is_identifier(node.args[1])
-                    and not iskeyword(node.args[1].s)
+                    and not iskeyword(node.args[1].value)
                 ):
                     self.errors.append(B009(node.lineno, node.col_offset))
                 elif (
@@ -416,7 +416,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and node.func.id == "setattr"
                     and len(node.args) == 3
                     and _is_identifier(node.args[1])
-                    and not iskeyword(node.args[1].s)
+                    and not iskeyword(node.args[1].value)
                 ):
                     self.errors.append(B010(node.lineno, node.col_offset))
 
@@ -556,11 +556,11 @@ class BugBearVisitor(ast.NodeVisitor):
             if call_path in B005.valid_paths:
                 return  # path is exempt
 
-            s = node.args[0].s
-            if len(s) == 1:
+            value = node.args[0].value
+            if len(value) == 1:
                 return  # stripping just one character
 
-            if len(s) == len(set(s)):
+            if len(value) == len(set(value)):
                 return  # no characters appear more than once
 
             self.errors.append(B005(node.lineno, node.col_offset))
