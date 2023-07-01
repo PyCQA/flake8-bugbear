@@ -188,6 +188,8 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B033**: Sets should not contain duplicate items. Duplicate items will be replaced with a single item at runtime.
 
+**B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `output`/`maxsplit` as keyword arguments. Not doing so is a very common source of confusion, and will likely be deprecated in future python versions.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -328,6 +330,10 @@ MIT
 
 Change Log
 ----------
+
+Future
+~~~~~~
+* Add B034: re.sub/subn/split must pass flags/count/maxsplit as keyword arguments.
 
 23.6.5
 ~~~~~~

@@ -45,6 +45,7 @@ from bugbear import (
     B031,
     B032,
     B033,
+    B034,
     B901,
     B902,
     B903,
@@ -505,6 +506,23 @@ class BugbearTestCase(unittest.TestCase):
         )
         self.assertEqual(errors, expected)
 
+    def test_b034(self):
+        filename = Path(__file__).absolute().parent / "b034.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B034(5, 0, vars=("sub", "count")),
+            B034(6, 0, vars=("sub", "count")),
+            B034(7, 0, vars=("sub", "count")),
+            B034(8, 0, vars=("subn", "count")),
+            B034(9, 0, vars=("subn", "count")),
+            B034(10, 0, vars=("subn", "count")),
+            B034(11, 0, vars=("split", "maxsplit")),
+            B034(12, 0, vars=("split", "maxsplit")),
+            B034(13, 0, vars=("split", "maxsplit")),
+        )
+        self.assertEqual(errors, expected)
+
     def test_b908(self):
         filename = Path(__file__).absolute().parent / "b908.py"
         bbc = BugBearChecker(filename=str(filename))
@@ -520,6 +538,7 @@ class BugbearTestCase(unittest.TestCase):
         )
         self.assertEqual(errors, expected)
 
+    @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
     def test_b907(self):
         filename = Path(__file__).absolute().parent / "b907.py"
         bbc = BugBearChecker(filename=str(filename))
