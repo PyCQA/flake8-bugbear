@@ -1250,10 +1250,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     continue
 
                 # check for quote mark after pre-marked variable
-                if (
-                    current_mark is not None
-                    and variable is not None
-                ):
+                if current_mark is not None and variable is not None:
                     if value.value[0] == current_mark:
                         self.errors.append(
                             B907(

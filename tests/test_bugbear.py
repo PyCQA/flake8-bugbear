@@ -537,11 +537,9 @@ class BugbearTestCase(unittest.TestCase):
             B907(14, on_py312(9), vars=("var",)),
             B907(16, on_py312(5), vars=("'hello'",)),
             B907(17, on_py312(5), vars=("foo()",)),
-
             # Multiline f-strings have lineno changes as well as colno changes on py312+
             B907(21 if py312 else 20, 7 if py312 else 5, vars=("var",)),
             B907(26 if py312 else 25, 7 if py312 else 5, vars=("var",)),
-
             B907(31, on_py312(12), vars=("var",)),
             B907(32, on_py312(3), vars=("var",)),
             B907(33, on_py312(3), vars=("var",)),
