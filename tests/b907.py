@@ -17,12 +17,12 @@ f'a "{"hello"}" b'
 f'a "{foo()}" b'
 
 # fmt: off
-k = (f'"' # error emitted on this line since all values are assigned the same lineno
+k = (f'"' # Error emitted here on <py312 (all values assigned the same lineno)
      f'{var}'
      f'"'
      f'"')
 
-k = (f'"' # error emitted on this line
+k = (f'"' # error emitted on this line on <py312
      f'{var}'
      '"'
      f'"')
