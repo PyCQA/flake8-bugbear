@@ -334,6 +334,7 @@ Unreleased
 
 * Fix a crash and several test failures on Python 3.12, all relating to the B907
   check.
+* Declare support for Python 3.12.
 
 23.6.5
 ~~~~~~
