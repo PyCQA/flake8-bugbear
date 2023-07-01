@@ -1250,20 +1250,23 @@ class BugBearVisitor(ast.NodeVisitor):
                     continue
 
                 # check for quote mark after pre-marked variable
-                if current_mark is not None and variable is not None:
-                    if value.value[0] == current_mark:
-                        self.errors.append(
-                            B907(
-                                variable.lineno,
-                                variable.col_offset,
-                                vars=(myunparse(variable.value),),
-                            )
+                if (
+                    current_mark is not None
+                    and variable is not None
+                    and value.value[0] == current_mark
+                ):
+                    self.errors.append(
+                        B907(
+                            variable.lineno,
+                            variable.col_offset,
+                            vars=(myunparse(variable.value),),
                         )
-                        current_mark = variable = None
-                        # don't continue with length>1, so we can detect a new pre-mark
-                        # in the same string as a post-mark, e.g. `"{foo}" "{bar}"`
-                        if len(value.value) == 1:
-                            continue
+                    )
+                    current_mark = variable = None
+                    # don't continue with length>1, so we can detect a new pre-mark
+                    # in the same string as a post-mark, e.g. `"{foo}" "{bar}"`
+                    if len(value.value) == 1:
+                        continue
 
                 # detect pre-mark
                 if value.value[-1] in quote_marks:
