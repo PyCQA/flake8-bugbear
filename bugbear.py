@@ -1266,11 +1266,7 @@ class BugBearVisitor(ast.NodeVisitor):
                             continue
 
                 # detect pre-mark
-                if (
-                    isinstance(value, ast.Constant)
-                    and isinstance(value.value, str)
-                    and value.value[-1] in quote_marks
-                ):
+                if value.value[-1] in quote_marks:
                     current_mark = value.value[-1]
                     variable = None
                     continue
