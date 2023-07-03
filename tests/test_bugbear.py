@@ -538,7 +538,6 @@ class BugbearTestCase(unittest.TestCase):
         )
         self.assertEqual(errors, expected)
 
-    @unittest.skipIf(sys.version_info < (3, 8), "not implemented for <3.8")
     def test_b907(self):
         filename = Path(__file__).absolute().parent / "b907.py"
         bbc = BugBearChecker(filename=str(filename))
