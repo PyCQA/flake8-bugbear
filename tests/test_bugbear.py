@@ -511,15 +511,15 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B034(5, 0, vars=("sub", "count")),
-            B034(6, 0, vars=("sub", "count")),
-            B034(7, 0, vars=("sub", "count")),
-            B034(8, 0, vars=("subn", "count")),
-            B034(9, 0, vars=("subn", "count")),
-            B034(10, 0, vars=("subn", "count")),
-            B034(11, 0, vars=("split", "maxsplit")),
-            B034(12, 0, vars=("split", "maxsplit")),
-            B034(13, 0, vars=("split", "maxsplit")),
+            B034(5, 24, vars=("sub", "count")),
+            B034(6, 24, vars=("sub", "count")),
+            B034(7, 24, vars=("sub", "count")),
+            B034(8, 25, vars=("subn", "count")),
+            B034(9, 25, vars=("subn", "count")),
+            B034(10, 25, vars=("subn", "count")),
+            B034(11, 25, vars=("split", "maxsplit")),
+            B034(12, 25, vars=("split", "maxsplit")),
+            B034(13, 25, vars=("split", "maxsplit")),
         )
         self.assertEqual(errors, expected)
 
