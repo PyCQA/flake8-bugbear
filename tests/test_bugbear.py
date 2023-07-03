@@ -8,9 +8,6 @@ import unittest
 from argparse import Namespace
 from pathlib import Path
 
-from hypothesis import HealthCheck, given, settings
-from hypothesmith import from_grammar
-
 from bugbear import (
     B001,
     B002,
@@ -542,43 +539,51 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b907.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
+        py39 = sys.version_info >= (3, 9)
+        py312 = sys.version_info >= (3, 12)
+
+        def on_py312(number):
+            """F-string nodes have column numbers set to 0 on <py312"""
+            return number if py312 else 0
+
         expected = self.errors(
-            B907(8, 0, vars=("var",)),
-            B907(9, 0, vars=("var",)),
-            B907(10, 0, vars=("var",)),
-            B907(12, 0, vars=("var",)),
-            B907(13, 0, vars=("var",)),
-            B907(14, 0, vars=("var",)),
-            B907(16, 0, vars=("'hello'",)),
-            B907(17, 0, vars=("foo()",)),
-            B907(20, 5, vars=("var",)),
-            B907(25, 5, vars=("var",)),
-            B907(31, 0, vars=("var",)),
-            B907(32, 0, vars=("var",)),
-            B907(33, 0, vars=("var",)),
-            B907(33, 0, vars=("var2",)),
-            B907(34, 0, vars=("var",)),
-            B907(34, 0, vars=("var2",)),
-            B907(35, 0, vars=("var",)),
-            B907(35, 0, vars=("var2",)),
-            B907(38, 0, vars=("var2",)),
-            B907(41, 0, vars=("var",)),
-            B907(42, 0, vars=("var.__str__",)),
-            B907(43, 0, vars=("var.__str__.__repr__",)),
-            B907(44, 0, vars=("3 + 5" if sys.version_info >= (3, 9) else "BinOp",)),
-            B907(45, 0, vars=("foo()",)),
-            B907(46, 0, vars=("None",)),
-            B907(47, 0, vars=("..." if sys.version_info >= (3, 9) else "Ellipsis",)),
-            B907(48, 0, vars=("True",)),
-            B907(51, 0, vars=("var",)),
-            B907(52, 0, vars=("var",)),
-            B907(53, 0, vars=("var",)),
-            B907(54, 0, vars=("var",)),
-            B907(57, 0, vars=("var",)),
-            B907(60, 0, vars=("var",)),
-            B907(64, 0, vars=("var",)),
-            B907(66, 0, vars=("var",)),
-            B907(68, 0, vars=("var",)),
+            B907(8, on_py312(9), vars=("var",)),
+            B907(9, on_py312(3), vars=("var",)),
+            B907(10, on_py312(9), vars=("var",)),
+            B907(12, on_py312(9), vars=("var",)),
+            B907(13, on_py312(3), vars=("var",)),
+            B907(14, on_py312(9), vars=("var",)),
+            B907(16, on_py312(5), vars=("'hello'",)),
+            B907(17, on_py312(5), vars=("foo()",)),
+            # Multiline f-strings have lineno changes as well as colno changes on py312+
+            B907(21 if py312 else 20, 7 if py312 else 5, vars=("var",)),
+            B907(26 if py312 else 25, 7 if py312 else 5, vars=("var",)),
+            B907(31, on_py312(12), vars=("var",)),
+            B907(32, on_py312(3), vars=("var",)),
+            B907(33, on_py312(3), vars=("var",)),
+            B907(33, on_py312(29), vars=("var2",)),
+            B907(34, on_py312(3), vars=("var",)),
+            B907(34, on_py312(15), vars=("var2",)),
+            B907(35, on_py312(3), vars=("var",)),
+            B907(35, on_py312(10), vars=("var2",)),
+            B907(38, on_py312(13), vars=("var2",)),
+            B907(41, on_py312(3), vars=("var",)),
+            B907(42, on_py312(3), vars=("var.__str__",)),
+            B907(43, on_py312(3), vars=("var.__str__.__repr__",)),
+            B907(44, on_py312(3), vars=("3 + 5" if py39 else "BinOp",)),
+            B907(45, on_py312(3), vars=("foo()",)),
+            B907(46, on_py312(3), vars=("None",)),
+            B907(47, on_py312(3), vars=("..." if py39 else "Ellipsis",)),
+            B907(48, on_py312(3), vars=("True",)),
+            B907(51, on_py312(3), vars=("var",)),
+            B907(52, on_py312(3), vars=("var",)),
+            B907(53, on_py312(3), vars=("var",)),
+            B907(54, on_py312(3), vars=("var",)),
+            B907(57, on_py312(3), vars=("var",)),
+            B907(60, on_py312(3), vars=("var",)),
+            B907(64, on_py312(5), vars=("var",)),
+            B907(66, on_py312(3), vars=("var",)),
+            B907(68, on_py312(3), vars=("var",)),
         )
         self.assertEqual(errors, expected)
 
@@ -813,13 +818,18 @@ class BugbearTestCase(unittest.TestCase):
 
 
 class TestFuzz(unittest.TestCase):
-    @settings(suppress_health_check=[HealthCheck.too_slow])
-    @given(from_grammar().map(ast.parse))
-    def test_does_not_crash_on_any_valid_code(self, syntax_tree):
-        # Given any syntatically-valid source code, flake8-bugbear should
-        # not crash.  This tests doesn't check that we do the *right* thing,
-        # just that we don't crash on valid-if-poorly-styled code!
-        BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
+    # TODO: enable this test on py312 once hypothesmith supports py312
+    if sys.version_info < (3, 12):
+        from hypothesis import HealthCheck, given, settings
+        from hypothesmith import from_grammar
+
+        @settings(suppress_health_check=[HealthCheck.too_slow])
+        @given(from_grammar().map(ast.parse))
+        def test_does_not_crash_on_any_valid_code(self, syntax_tree):
+            # Given any syntatically-valid source code, flake8-bugbear should
+            # not crash.  This tests doesn't check that we do the *right* thing,
+            # just that we don't crash on valid-if-poorly-styled code!
+            BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
 
     def test_does_not_crash_on_site_code(self):
         # Because the generator isn't perfect, we'll also test on all the code

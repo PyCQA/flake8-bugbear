@@ -1246,36 +1246,34 @@ class BugBearVisitor(ast.NodeVisitor):
         current_mark = None
         variable = None
         for value in node.values:
-            # check for quote mark after pre-marked variable
-            if (
-                current_mark is not None
-                and variable is not None
-                and isinstance(value, ast.Constant)
-                and isinstance(value.value, str)
-                and value.value[0] == current_mark
-            ):
-                self.errors.append(
-                    B907(
-                        variable.lineno,
-                        variable.col_offset,
-                        vars=(myunparse(variable.value),),
-                    )
-                )
-                current_mark = variable = None
-                # don't continue with length>1, so we can detect a new pre-mark
-                # in the same string as a post-mark, e.g. `"{foo}" "{bar}"`
-                if len(value.value) == 1:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                if not value.value:
                     continue
 
-            # detect pre-mark
-            if (
-                isinstance(value, ast.Constant)
-                and isinstance(value.value, str)
-                and value.value[-1] in quote_marks
-            ):
-                current_mark = value.value[-1]
-                variable = None
-                continue
+                # check for quote mark after pre-marked variable
+                if (
+                    current_mark is not None
+                    and variable is not None
+                    and value.value[0] == current_mark
+                ):
+                    self.errors.append(
+                        B907(
+                            variable.lineno,
+                            variable.col_offset,
+                            vars=(myunparse(variable.value),),
+                        )
+                    )
+                    current_mark = variable = None
+                    # don't continue with length>1, so we can detect a new pre-mark
+                    # in the same string as a post-mark, e.g. `"{foo}" "{bar}"`
+                    if len(value.value) == 1:
+                        continue
+
+                # detect pre-mark
+                if value.value[-1] in quote_marks:
+                    current_mark = value.value[-1]
+                    variable = None
+                    continue
 
             # detect variable, if there's a pre-mark
             if (
@@ -1379,7 +1377,9 @@ class BugBearVisitor(ast.NodeVisitor):
             if len(node.args) > num_args:
                 self.errors.append(
                     B034(
-                        node.args[num_args].lineno, node.args[num_args].col_offset, vars=(node.func.attr, param_name)
+                        node.args[num_args].lineno,
+                        node.args[num_args].col_offset,
+                        vars=(node.func.attr, param_name),
                     )
                 )
 

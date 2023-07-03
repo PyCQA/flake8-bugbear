@@ -55,7 +55,7 @@ You can also use [tox](https://tox.wiki/en/latest/index.html) to test with multi
 ```console
 /path/to/venv/bin/tox
 ```
-will by default run all tests on python versions 3.8 through 3.11. If you only want to test a specific version you can specify the environment with `-e`
+will by default run all tests on python versions 3.8 through 3.12. If you only want to test a specific version you can specify the environment with `-e`
 
 ```console
 /path/to/venv/bin/tox -e py38
