@@ -1379,7 +1379,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if len(node.args) > num_args:
                 self.errors.append(
                     B034(
-                        node.lineno, node.col_offset, vars=(node.func.attr, param_name)
+                        node.args[num_args].lineno, node.args[num_args].col_offset, vars=(node.func.attr, param_name)
                     )
                 )
 
