@@ -1794,7 +1794,8 @@ B033 = Error(
 
 B034 = Error(
     message=(
-        "B034 {} should pass `{}` and `flags` as keyword arguments to avoid confusion."
+        "B034 {} should pass `{}` and `flags` as keyword arguments to avoid confusion"
+        " due to unintuitive argument positions."
     )
 )
 

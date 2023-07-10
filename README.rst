@@ -188,7 +188,7 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B033**: Sets should not contain duplicate items. Duplicate items will be replaced with a single item at runtime.
 
-**B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `output`/`maxsplit` as keyword arguments. Not doing so is a very common source of confusion.
+**B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `count`/`maxsplit` as keyword arguments. It is commonly assumed that `flags` is the third positional parameter, forgetting about `count`/`maxsplit`, since many other `re` module functions are of the form `f(pattern, string, flags)`.
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
