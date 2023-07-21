@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "flake8-bugbear"
 authors = [{name = "Łukasz Langa", email = "lukasz@langa.pl"}]
 license = {text = "MIT"}
-description = "A plugin for flake8 finding likely bugs and design problems in your program. Contains warnings that don't belong in pyflakes and pycodestyle."
+description = "A plugin for flake8 finding likely bugs and design problems in your program. Contains warnings that don't belong to pyflakes and pycodestyle."
 keywords = [
     "flake8",
     "bugbear",

@@ -13,7 +13,7 @@ flake8-bugbear
    :alt: pre-commit.ci status
 
 A plugin for ``flake8`` finding likely bugs and design problems in your
-program.  Contains warnings that don't belong in ``pyflakes`` and
+program.  Contains warnings that don't belong to ``pyflakes`` and
 ``pycodestyle``::
 
     bug·bear  (bŭg′bâr′)
@@ -27,7 +27,7 @@ program.  Contains warnings that don't belong in ``pyflakes`` and
     3. A fearsome imaginary creature, especially one evoked to frighten
        children.
 
-It is felt that these lints don't belong in the main Python tools as they
+It is felt that these lints don't belong to the main Python tools as they
 are very opinionated and do not have a PEP or standard behind them. Due to
 ``flake8`` being designed to be extensible, the original creators of these lints
 believed that a plugin was the best route. This has resulted in better development
