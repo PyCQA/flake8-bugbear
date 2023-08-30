@@ -62,10 +62,15 @@ class BugBearChecker:
         else:
             b008_extend_immutable_calls = set()
 
+        b902_classmethod_decorators: set[str] = {"classmethod"}
+        if self.options and hasattr(self.options, "classmethod_decorators"):
+            b902_classmethod_decorators = set(self.options.classmethod_decorators)
+
         visitor = self.visitor(
             filename=self.filename,
             lines=self.lines,
             b008_extend_immutable_calls=b008_extend_immutable_calls,
+            b902_classmethod_decorators=b902_classmethod_decorators,
         )
         visitor.visit(self.tree)
         for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
@@ -142,6 +147,16 @@ class BugBearChecker:
             parse_from_config=True,
             default=[],
             help="Skip B008 test for additional immutable calls.",
+        )
+        optmanager.add_option(
+            "--classmethod-decorators",
+            comma_separated_list=True,
+            parse_from_config=True,
+            default=["classmethod"],
+            help=(
+                "List of method decorators that should be treated as classmethods by"
+                " B902"
+            ),
         )
 
     @lru_cache  # noqa: B019
@@ -310,6 +325,7 @@ class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
     lines = attr.ib()
     b008_extend_immutable_calls = attr.ib(default=attr.Factory(set))
+    b902_classmethod_decorators = attr.ib(default=attr.Factory(set))
     node_stack = attr.ib(default=attr.Factory(list))
     node_window = attr.ib(default=attr.Factory(list))
     errors = attr.ib(default=attr.Factory(list))
@@ -991,7 +1007,10 @@ class BugBearVisitor(ast.NodeVisitor):
         bases = {b.id for b in cls.bases if isinstance(b, ast.Name)}
         if "type" in bases:
             if (
-                "classmethod" in decorators.names
+                any(
+                    name in decorators.names
+                    for name in self.b902_classmethod_decorators
+                )
                 or node.name in B902.implicit_classmethods
             ):
                 expected_first_args = B902.metacls
@@ -1001,7 +1020,10 @@ class BugBearVisitor(ast.NodeVisitor):
                 kind = "metaclass instance"
         else:
             if (
-                "classmethod" in decorators.names
+                any(
+                    name in decorators.names
+                    for name in self.b902_classmethod_decorators
+                )
                 or node.name in B902.implicit_classmethods
             ):
                 expected_first_args = B902.cls

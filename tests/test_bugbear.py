@@ -649,6 +649,28 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
+    def test_b902_extended(self):
+        filename = Path(__file__).absolute().parent / "b902_extended.py"
+
+        mock_options = Namespace(
+            classmethod_decorators=["mylibrary.makeclassmethod", "validator"],
+            select=["B902"],
+        )
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        errors = list(bbc.run())
+
+        self.assertEqual(
+            errors,
+            self.errors(
+                B902(5, 13, vars=("'self'", "class", "cls")),
+                B902(10, 13, vars=("'cls'", "instance", "self")),
+                B902(15, 13, vars=("'cls'", "instance", "self")),
+                B902(20, 13, vars=("'cls'", "instance", "self")),
+                B902(25, 13, vars=("'cls'", "instance", "self")),
+                B902(30, 13, vars=("'cls'", "instance", "self")),
+            ),
+        )
+
     def test_b902_py38(self):
         filename = Path(__file__).absolute().parent / "b902_py38.py"
         bbc = BugBearChecker(filename=str(filename))
