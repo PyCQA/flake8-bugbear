@@ -2,10 +2,22 @@
 class Errors:
     # correctly registered as classmethod
     @validator
-    def foo1(self) -> None:
+    def foo_validator(self) -> None:
         ...
 
-    # cannot read attribute decorators
+    @other.validator
+    def foo_other_validator(self) -> None:
+        ...
+
+    @foo.bar.validator
+    def foo_foo_bar_validator(self) -> None:
+        ...
+
+    @validator.blah
+    def foo_validator_blah(cls) -> None:
+        ...
+
+    # specifying attribute in options is not valid
     @mylibrary.makeclassmethod
     def foo2(cls) -> None:
         ...
@@ -20,11 +32,6 @@ class Errors:
     def foo3(cls) -> None:
         ...
 
-    # doesn't check names inside libraries
-    @other.validator
-    def foo4(cls) -> None:
-        ...
-
     # random unknown decorator
     @aoeuaoeu
     def foo5(cls) -> None:
@@ -36,16 +43,16 @@ class NoErrors:
     def foo1(cls) -> None:
         ...
 
+    @other.validator
+    def foo4(cls) -> None:
+        ...
+
     @mylibrary.makeclassmethod
     def foo2(self) -> None:
         ...
 
     @classmethod
     def foo3(self) -> None:
-        ...
-
-    @other.validator
-    def foo4(self) -> None:
         ...
 
     @aoeuaoeu

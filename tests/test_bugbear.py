@@ -662,12 +662,14 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B902(5, 13, vars=("'self'", "class", "cls")),
-                B902(10, 13, vars=("'cls'", "instance", "self")),
-                B902(15, 13, vars=("'cls'", "instance", "self")),
-                B902(20, 13, vars=("'cls'", "instance", "self")),
-                B902(25, 13, vars=("'cls'", "instance", "self")),
-                B902(30, 13, vars=("'cls'", "instance", "self")),
+                B902(5, 22, vars=("'self'", "class", "cls")),
+                B902(9, 28, vars=("'self'", "class", "cls")),
+                B902(13, 30, vars=("'self'", "class", "cls")),
+                B902(17, 27, vars=("'cls'", "instance", "self")),
+                B902(22, 13, vars=("'cls'", "instance", "self")),
+                B902(27, 13, vars=("'cls'", "instance", "self")),
+                B902(32, 13, vars=("'cls'", "instance", "self")),
+                B902(37, 13, vars=("'cls'", "instance", "self")),
             ),
         )
 
