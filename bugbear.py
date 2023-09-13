@@ -14,7 +14,7 @@ from keyword import iskeyword
 import attr
 import pycodestyle
 
-__version__ = "23.6.5"
+__version__ = "23.7.10"
 
 LOG = logging.getLogger("flake8.bugbear")
 CONTEXTFUL_NODES = (
@@ -204,10 +204,8 @@ class BugBearChecker:
                 return True
 
         LOG.info(
-            (
-                "Optional warning %s not present in selected warnings: %r. Not "
-                "firing it at all."
-            ),
+            "Optional warning %s not present in selected warnings: %r. Not "
+            "firing it at all.",
             code,
             self.options.select,
         )
@@ -443,8 +441,9 @@ class BugBearVisitor(ast.NodeVisitor):
 
             self.check_for_b026(node)
 
-        self.check_for_b905(node)
         self.check_for_b028(node)
+        self.check_for_b034(node)
+        self.check_for_b905(node)
         self.generic_visit(node)
 
     def visit_Module(self, node):
@@ -1201,12 +1200,46 @@ class BugBearVisitor(ast.NodeVisitor):
         for duplicate in duplicates:
             self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
 
-    def check_for_b905(self, node):
-        if (
-            isinstance(node.func, ast.Name)
-            and node.func.id == "zip"
-            and not any(kw.arg == "strict" for kw in node.keywords)
+    @staticmethod
+    def _is_infinite_iterator(node: ast.expr) -> bool:
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "itertools"
         ):
+            return False
+        if node.func.attr in {"cycle", "count"}:
+            return True
+        elif node.func.attr == "repeat":
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                # itertools.repeat(iterable)
+                return True
+            if (
+                len(node.args) == 2
+                and isinstance(node.args[1], ast.Constant)
+                and node.args[1].value is None
+            ):
+                # itertools.repeat(iterable, None)
+                return True
+            for kw in node.keywords:
+                # itertools.repeat(iterable, times=None)
+                if (
+                    kw.arg == "times"
+                    and isinstance(kw.value, ast.Constant)
+                    and kw.value.value is None
+                ):
+                    return True
+
+        return False
+
+    def check_for_b905(self, node):
+        if not (isinstance(node.func, ast.Name) and node.func.id == "zip"):
+            return
+        for arg in node.args:
+            if self._is_infinite_iterator(arg):
+                return
+        if not any(kw.arg == "strict" for kw in node.keywords):
             self.errors.append(B905(node.lineno, node.col_offset))
 
     def check_for_b906(self, node: ast.FunctionDef):
@@ -1397,6 +1430,27 @@ class BugBearVisitor(ast.NodeVisitor):
                 )
             else:
                 seen.add(elt.value)
+
+    def check_for_b034(self, node: ast.Call):
+        if not isinstance(node.func, ast.Attribute):
+            return
+        if not isinstance(node.func.value, ast.Name) or node.func.value.id != "re":
+            return
+
+        def check(num_args, param_name):
+            if len(node.args) > num_args:
+                self.errors.append(
+                    B034(
+                        node.args[num_args].lineno,
+                        node.args[num_args].col_offset,
+                        vars=(node.func.attr, param_name),
+                    )
+                )
+
+        if node.func.attr in ("sub", "subn"):
+            check(3, "count")
+        elif node.func.attr == "split":
+            check(2, "maxsplit")
 
 
 def compose_call_path(node):
@@ -1801,6 +1855,13 @@ B033 = Error(
     message=(
         "B033 Set should not contain duplicate item {}. Duplicate items will be"
         " replaced with a single item at runtime."
+    )
+)
+
+B034 = Error(
+    message=(
+        "B034 {} should pass `{}` and `flags` as keyword arguments to avoid confusion"
+        " due to unintuitive argument positions."
     )
 )
 

@@ -188,6 +188,8 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B033**: Sets should not contain duplicate items. Duplicate items will be replaced with a single item at runtime.
 
+**B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `count`/`maxsplit` as keyword arguments. It is commonly assumed that `flags` is the third positional parameter, forgetting about `count`/`maxsplit`, since many other `re` module functions are of the form `f(pattern, string, flags)`.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -220,8 +222,11 @@ See `the exception chaining tutorial <https://docs.python.org/3/tutorial/errors.
 for details.
 
 **B905**: ``zip()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
-to raise a ``ValueError`` if the arguments are exhausted at differing lengths. The ``strict=`` argument
-was added in Python 3.10, so don't enable this flag for code that should work on <3.10.
+to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
+
+Exclusions are `itertools.count <https://docs.python.org/3/library/itertools.html#itertools.count>`_, `itertools.cycle <https://docs.python.org/3/library/itertools.html#itertools.cycle>`_ and `itertools.repeat <https://docs.python.org/3/library/itertools.html#itertools.repeat>`_ (with times=None) since they are infinite iterators.
+
+The ``strict=`` argument was added in Python 3.10, so don't enable this flag for code that should work on <3.10.
 For more information: https://peps.python.org/pep-0618/
 
 **B906**: ``visit_`` function with no further call to a ``visit`` function. This is often an error, and will stop the visitor from recursing into the subnodes of a visited node. Consider adding a call ``self.generic_visit(node)`` at the end of the function.
@@ -333,9 +338,10 @@ MIT
 Change Log
 ----------
 
-Unreleased
+23.7.10
 ~~~~~~~~~~
 
+* Add B034: re.sub/subn/split must pass flags/count/maxsplit as keyword arguments.
 * Fix a crash and several test failures on Python 3.12, all relating to the B907
   check.
 * Declare support for Python 3.12.

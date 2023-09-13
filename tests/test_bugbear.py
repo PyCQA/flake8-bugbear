@@ -42,6 +42,7 @@ from bugbear import (
     B031,
     B032,
     B033,
+    B034,
     B901,
     B902,
     B903,
@@ -113,31 +114,31 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B006(60, 24),
-                B006(64, 29),
-                B006(68, 19),
-                B006(72, 19),
-                B006(76, 31),
-                B006(80, 25),
-                B006(85, 45),
-                B008(85, 60),
-                B006(89, 45),
-                B008(89, 63),
-                B006(93, 44),
-                B008(93, 59),
-                B006(97, 32),
-                B008(109, 38),
-                B008(113, 11),
-                B008(113, 31),
-                B008(117, 29),
-                B008(160, 29),
-                B008(164, 44),
-                B006(170, 19),
-                B008(170, 20),
-                B008(170, 30),
-                B008(176, 21),
-                B008(181, 18),
-                B008(181, 36),
+                B006(58, 24),
+                B006(61, 29),
+                B006(64, 19),
+                B006(67, 19),
+                B006(70, 31),
+                B006(73, 25),
+                B006(77, 45),
+                B008(77, 60),
+                B006(81, 45),
+                B008(81, 63),
+                B006(85, 44),
+                B008(85, 59),
+                B006(89, 32),
+                B008(100, 38),
+                B008(103, 11),
+                B008(103, 31),
+                B008(107, 29),
+                B008(149, 29),
+                B008(153, 44),
+                B006(159, 19),
+                B008(159, 20),
+                B008(159, 30),
+                B008(165, 21),
+                B008(170, 18),
+                B008(170, 36),
             ),
         )
 
@@ -167,7 +168,7 @@ class BugbearTestCase(unittest.TestCase):
 
         self.assertEqual(
             errors,
-            self.errors(B008(15, 66)),
+            self.errors(B008(13, 66)),
         )
 
     def test_b009_b010(self):
@@ -295,14 +296,14 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B019(73, 5),
-                B019(77, 5),
+                B019(60, 5),
+                B019(63, 5),
+                B019(66, 5),
+                B019(69, 5),
+                B019(72, 5),
+                B019(75, 5),
+                B019(78, 5),
                 B019(81, 5),
-                B019(85, 5),
-                B019(89, 5),
-                B019(93, 5),
-                B019(97, 5),
-                B019(101, 5),
             ),
         )
 
@@ -502,6 +503,23 @@ class BugbearTestCase(unittest.TestCase):
         )
         self.assertEqual(errors, expected)
 
+    def test_b034(self):
+        filename = Path(__file__).absolute().parent / "b034.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B034(5, 24, vars=("sub", "count")),
+            B034(6, 24, vars=("sub", "count")),
+            B034(7, 24, vars=("sub", "count")),
+            B034(8, 25, vars=("subn", "count")),
+            B034(9, 25, vars=("subn", "count")),
+            B034(10, 25, vars=("subn", "count")),
+            B034(11, 25, vars=("split", "maxsplit")),
+            B034(12, 25, vars=("split", "maxsplit")),
+            B034(13, 25, vars=("split", "maxsplit")),
+        )
+        self.assertEqual(errors, expected)
+
     def test_b908(self):
         filename = Path(__file__).absolute().parent / "b908.py"
         bbc = BugBearChecker(filename=str(filename))
@@ -636,16 +654,16 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B902(29, 17, vars=("'i_am_special'", "instance", "self")),
-                B902(32, 30, vars=("'cls'", "instance", "self")),
-                B902(35, 4, vars=("(none)", "instance", "self")),
-                B902(39, 12, vars=("'self'", "class", "cls")),
-                B902(42, 22, vars=("*args", "instance", "self")),
-                B902(48, 30, vars=("**kwargs", "instance", "self")),
-                B902(51, 32, vars=("*, self", "instance", "self")),
-                B902(54, 44, vars=("*, self", "instance", "self")),
-                B902(68, 17, vars=("'self'", "metaclass instance", "cls")),
-                B902(72, 20, vars=("'cls'", "metaclass class", "metacls")),
+                B902(22, 17, vars=("'i_am_special'", "instance", "self")),
+                B902(24, 30, vars=("'cls'", "instance", "self")),
+                B902(26, 4, vars=("(none)", "instance", "self")),
+                B902(29, 12, vars=("'self'", "class", "cls")),
+                B902(31, 22, vars=("*args", "instance", "self")),
+                B902(36, 30, vars=("**kwargs", "instance", "self")),
+                B902(38, 32, vars=("*, self", "instance", "self")),
+                B902(40, 44, vars=("*, self", "instance", "self")),
+                B902(52, 17, vars=("'self'", "metaclass instance", "cls")),
+                B902(55, 20, vars=("'cls'", "metaclass class", "metacls")),
             ),
         )
 
@@ -680,16 +698,16 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B902(29, 17, vars=("'i_am_special'", "instance", "self")),
-                B902(32, 30, vars=("'cls'", "instance", "self")),
-                B902(35, 4, vars=("(none)", "instance", "self")),
-                B902(39, 12, vars=("'self'", "class", "cls")),
-                B902(42, 22, vars=("*args", "instance", "self")),
-                B902(48, 30, vars=("**kwargs", "instance", "self")),
-                B902(51, 32, vars=("*, self", "instance", "self")),
-                B902(54, 44, vars=("*, self", "instance", "self")),
-                B902(68, 17, vars=("'self'", "metaclass instance", "cls")),
-                B902(72, 20, vars=("'cls'", "metaclass class", "metacls")),
+                B902(22, 17, vars=("'i_am_special'", "instance", "self")),
+                B902(24, 30, vars=("'cls'", "instance", "self")),
+                B902(26, 4, vars=("(none)", "instance", "self")),
+                B902(29, 12, vars=("'self'", "class", "cls")),
+                B902(31, 22, vars=("*args", "instance", "self")),
+                B902(36, 30, vars=("**kwargs", "instance", "self")),
+                B902(38, 32, vars=("*, self", "instance", "self")),
+                B902(40, 44, vars=("*, self", "instance", "self")),
+                B902(52, 17, vars=("'self'", "metaclass instance", "cls")),
+                B902(55, 20, vars=("'cls'", "metaclass class", "metacls")),
             ),
         )
 
@@ -697,7 +715,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b903.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B903(32, 0), B903(38, 0)))
+        self.assertEqual(errors, self.errors(B903(31, 0), B903(37, 0)))
 
     def test_b904(self):
         filename = Path(__file__).absolute().parent / "b904.py"
@@ -724,6 +742,8 @@ class BugbearTestCase(unittest.TestCase):
             B905(4, 15),
             B905(5, 4),
             B905(6, 0),
+            B905(21, 0),
+            B905(22, 0),
         ]
         self.assertEqual(errors, self.errors(*expected))
 
