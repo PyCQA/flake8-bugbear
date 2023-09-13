@@ -292,12 +292,15 @@ and/or ignored codes.
 Configuration
 -------------
 
-The plugin currently has one setting:
+The plugin currently has the following settings:
 
 ``extend-immutable-calls``: Specify a list of additional immutable calls.
 This could be useful, when using other libraries that provide more immutable calls,
 beside those already handled by ``flake8-bugbear``. Calls to these method will no longer
 raise a ``B008`` warning.
+
+``classmethod-decorators``: Specify a list of decorators to additionally mark a method as a ``classmethod`` as used by B902. Default values are `classmethod, validator, root_validator`, and when an `@obj.name` decorator is specified it will match against either `name` or `obj.name`.
+This functions similarly to how `pep8-naming <https://github.com/PyCQA/pep8-naming>` handles it, but with different defaults, and they don't support specifying attributes at all.
 
 For example::
 
@@ -306,6 +309,7 @@ For example::
   max-complexity = 12
   ...
   extend-immutable-calls = pathlib.Path, Path
+  classmethod-decorators = myclassmethod, mylibrary.otherclassmethod
 
 Tests / Lints
 ---------------

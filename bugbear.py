@@ -38,6 +38,8 @@ B908_unittest_methods = {
     "assertWarnsRegex",
 }
 
+B902_default_decorators = {"classmethod", "validator", "root_validator"}
+
 Context = namedtuple("Context", ["node", "stack"])
 
 
@@ -62,7 +64,7 @@ class BugBearChecker:
         else:
             b008_extend_immutable_calls = set()
 
-        b902_classmethod_decorators: set[str] = {"classmethod"}
+        b902_classmethod_decorators: set[str] = B902_default_decorators
         if self.options and hasattr(self.options, "classmethod_decorators"):
             b902_classmethod_decorators = set(self.options.classmethod_decorators)
 
@@ -148,16 +150,19 @@ class BugBearChecker:
             default=[],
             help="Skip B008 test for additional immutable calls.",
         )
-        optmanager.add_option(
-            "--classmethod-decorators",
-            comma_separated_list=True,
-            parse_from_config=True,
-            default=["classmethod"],
-            help=(
-                "List of method decorators that should be treated as classmethods by"
-                " B902"
-            ),
-        )
+        # you cannot register the same option in two different plugins, so we
+        # only register --classmethod-decorators if pep8-naming is not installed
+        if "pep8ext_naming" not in sys.modules.keys():
+            optmanager.add_option(
+                "--classmethod-decorators",
+                comma_separated_list=True,
+                parse_from_config=True,
+                default=B902_default_decorators,
+                help=(
+                    "List of method decorators that should be treated as classmethods"
+                    " by B902"
+                ),
+            )
 
     @lru_cache  # noqa: B019
     def should_warn(self, code):
