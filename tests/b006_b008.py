@@ -12,8 +12,7 @@ from types import MappingProxyType
 
 # B006
 # Allow immutable literals/calls/comprehensions
-def this_is_okay(value=(1, 2, 3)):
-    ...
+def this_is_okay(value=(1, 2, 3)): ...
 
 
 async def and_this_also(value=tuple()):
@@ -50,35 +49,28 @@ def operators_ok_unqualified(
     pass
 
 
-def kwonlyargs_immutable(*, value=()):
-    ...
+def kwonlyargs_immutable(*, value=()): ...
 
 
 # Flag mutable literals/comprehensions
 
 
-def this_is_wrong(value=[1, 2, 3]):
-    ...
+def this_is_wrong(value=[1, 2, 3]): ...
 
 
-def this_is_also_wrong(value={}):
-    ...
+def this_is_also_wrong(value={}): ...
 
 
-def and_this(value=set()):
-    ...
+def and_this(value=set()): ...
 
 
-def this_too(value=collections.OrderedDict()):
-    ...
+def this_too(value=collections.OrderedDict()): ...
 
 
-async def async_this_too(value=collections.defaultdict()):
-    ...
+async def async_this_too(value=collections.defaultdict()): ...
 
 
-def dont_forget_me(value=collections.deque()):
-    ...
+def dont_forget_me(value=collections.deque()): ...
 
 
 # N.B. we're also flagging the function call in the comprehension
@@ -94,8 +86,7 @@ def set_comprehension_also_not_okay(default={i**2 for i in range(3)}):
     pass
 
 
-def kwonlyargs_mutable(*, value=[]):
-    ...
+def kwonlyargs_mutable(*, value=[]): ...
 
 
 # Recommended approach for mutable defaults
@@ -106,16 +97,14 @@ def do_this_instead(value=None):
 
 # B008
 # Flag function calls as default args (including if they are part of a sub-expression)
-def in_fact_all_calls_are_wrong(value=time.time()):
-    ...
+def in_fact_all_calls_are_wrong(value=time.time()): ...
 
 
 def f(when=dt.datetime.now() + dt.timedelta(days=7)):
     pass
 
 
-def can_even_catch_lambdas(a=(lambda x: x)()):
-    ...
+def can_even_catch_lambdas(a=(lambda x: x)()): ...
 
 
 # Recommended approach for function calls as default args

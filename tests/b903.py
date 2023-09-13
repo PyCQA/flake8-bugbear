@@ -3,8 +3,7 @@ class NoWarningsMoreMethods:
         self.foo = foo
         self.bar = bar
 
-    def other_function(self):
-        ...
+    def other_function(self): ...
 
 
 class NoWarningsClassAttributes:
