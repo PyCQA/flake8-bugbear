@@ -681,13 +681,13 @@ class BugbearTestCase(unittest.TestCase):
             errors,
             self.errors(
                 B902(5, 22, vars=("'self'", "class", "cls")),
-                B902(9, 28, vars=("'self'", "class", "cls")),
-                B902(13, 30, vars=("'self'", "class", "cls")),
-                B902(17, 27, vars=("'cls'", "instance", "self")),
+                B902(8, 28, vars=("'self'", "class", "cls")),
+                B902(11, 30, vars=("'self'", "class", "cls")),
+                B902(14, 27, vars=("'cls'", "instance", "self")),
+                B902(18, 13, vars=("'cls'", "instance", "self")),
                 B902(22, 13, vars=("'cls'", "instance", "self")),
-                B902(27, 13, vars=("'cls'", "instance", "self")),
-                B902(32, 13, vars=("'cls'", "instance", "self")),
-                B902(37, 13, vars=("'cls'", "instance", "self")),
+                B902(26, 13, vars=("'cls'", "instance", "self")),
+                B902(30, 13, vars=("'cls'", "instance", "self")),
             ),
         )
 

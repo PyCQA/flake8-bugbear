@@ -10,6 +10,7 @@ from collections import namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
 from keyword import iskeyword
+from typing import Dict, List, Union
 
 import attr
 import pycodestyle
@@ -1002,7 +1003,9 @@ class BugBearVisitor(ast.NodeVisitor):
         elif isinstance(d, ast.Call):
             return cls.find_decorator_name(d.func)
 
-    def check_for_b902(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+    def check_for_b902(
+        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
+    ) -> None:
         if len(self.contexts) < 2 or not isinstance(
             self.contexts[-2].node, ast.ClassDef
         ):
@@ -1471,7 +1474,7 @@ class NameFinder(ast.NodeVisitor):
     key is name string, value is the node (useful for location purposes).
     """
 
-    names: dict[str, list[ast.Name]] = attr.ib(default=attr.Factory(dict))
+    names: Dict[str, List[ast.Name]] = attr.ib(default=attr.Factory(dict))
 
     def visit_Name(  # noqa: B906 # names don't contain other names
         self, node: ast.Name
