@@ -688,6 +688,15 @@ class BugbearTestCase(unittest.TestCase):
                 B902(22, 13, vars=("'cls'", "instance", "self")),
                 B902(26, 13, vars=("'cls'", "instance", "self")),
                 B902(30, 13, vars=("'cls'", "instance", "self")),
+                # metaclass
+                B902(59, 22, vars=("'cls'", "metaclass class", "metacls")),
+                B902(62, 28, vars=("'cls'", "metaclass class", "metacls")),
+                B902(65, 30, vars=("'cls'", "metaclass class", "metacls")),
+                B902(68, 27, vars=("'metacls'", "metaclass instance", "cls")),
+                B902(72, 13, vars=("'metacls'", "metaclass instance", "cls")),
+                B902(76, 13, vars=("'metacls'", "metaclass instance", "cls")),
+                B902(80, 13, vars=("'metacls'", "metaclass instance", "cls")),
+                B902(84, 13, vars=("'metacls'", "metaclass instance", "cls")),
             ),
         )
 

@@ -304,8 +304,8 @@ This could be useful, when using other libraries that provide more immutable cal
 beside those already handled by ``flake8-bugbear``. Calls to these method will no longer
 raise a ``B008`` warning.
 
-``classmethod-decorators``: Specify a list of decorators to additionally mark a method as a ``classmethod`` as used by B902. Default values are `classmethod, validator, root_validator`, and when an `@obj.name` decorator is specified it will match against either `name` or `obj.name`.
-This functions similarly to how `pep8-naming <https://github.com/PyCQA/pep8-naming>` handles it, but with different defaults, and they don't support specifying attributes at all.
+``classmethod-decorators``: Specify a list of decorators to additionally mark a method as a ``classmethod`` as used by B902. Default values are ``classmethod, validator, root_validator``, and when an ``@obj.name`` decorator is specified it will match against either ``name`` or ``obj.name``.
+This functions similarly to how `pep8-naming <https://github.com/PyCQA/pep8-naming>` handles it, but with different defaults, and they don't support specifying attributes such that a decorator will never match against a specified value ``obj.name`` even if decorated with ``@obj.name``.
 
 For example::
 
