@@ -1006,6 +1006,12 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b902(
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
     ) -> None:
+        def is_classmethod(decorators: set[str]) -> bool:
+            return (
+                any(name in decorators for name in self.b902_classmethod_decorators)
+                or node.name in B902.implicit_classmethods
+            )
+
         if len(self.contexts) < 2 or not isinstance(
             self.contexts[-2].node, ast.ClassDef
         ):
@@ -1024,20 +1030,14 @@ class BugBearVisitor(ast.NodeVisitor):
 
         bases = {b.id for b in cls.bases if isinstance(b, ast.Name)}
         if "type" in bases:
-            if (
-                any(name in decorators for name in self.b902_classmethod_decorators)
-                or node.name in B902.implicit_classmethods
-            ):
+            if is_classmethod(decorators):
                 expected_first_args = B902.metacls
                 kind = "metaclass class"
             else:
                 expected_first_args = B902.cls
                 kind = "metaclass instance"
         else:
-            if (
-                any(name in decorators for name in self.b902_classmethod_decorators)
-                or node.name in B902.implicit_classmethods
-            ):
+            if is_classmethod(decorators):
                 expected_first_args = B902.cls
                 kind = "class"
             else:
