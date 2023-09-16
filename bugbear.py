@@ -1003,7 +1003,7 @@ class BugBearVisitor(ast.NodeVisitor):
         elif isinstance(d, ast.Call):
             return cls.find_decorator_name(d.func)
 
-    def check_for_b902(
+    def check_for_b902(  # noqa: C901 (too complex)
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
     ) -> None:
         def is_classmethod(decorators: Set[str]) -> bool:
