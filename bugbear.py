@@ -10,7 +10,7 @@ from collections import namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
 from keyword import iskeyword
-from typing import Dict, List, Union
+from typing import Dict, List, Set, Union
 
 import attr
 import pycodestyle
@@ -1006,7 +1006,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b902(
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
     ) -> None:
-        def is_classmethod(decorators: set[str]) -> bool:
+        def is_classmethod(decorators: Set[str]) -> bool:
             return (
                 any(name in decorators for name in self.b902_classmethod_decorators)
                 or node.name in B902.implicit_classmethods
