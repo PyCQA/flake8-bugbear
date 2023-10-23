@@ -2,6 +2,7 @@
 Should emit:
 B031 - on lines 30, 34, 43
 """
+
 import itertools
 from itertools import groupby
 

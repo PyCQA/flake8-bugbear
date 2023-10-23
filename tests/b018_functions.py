@@ -3,7 +3,6 @@ Should emit:
 B018 - on lines 16-25, 29, 32
 """
 
-
 def foo1():
     """my docstring"""
 

@@ -2,6 +2,7 @@
 Should emit:
 B023 - on lines 12, 13, 16, 28, 29, 30, 31, 40, 42, 50, 51, 52, 53, 61, 68.
 """
+
 from functools import reduce
 
 functions = []

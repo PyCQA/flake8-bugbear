@@ -3,7 +3,6 @@ Should emit:
 B018 - on lines 17-26, 30, 33
 """
 
-
 class Foo1:
     """abc"""
 

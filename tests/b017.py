@@ -2,6 +2,7 @@
 Should emit:
 B017 - on lines 24, 26, 28, 31 and 32.
 """
+
 import asyncio
 import unittest
 
