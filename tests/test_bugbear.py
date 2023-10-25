@@ -77,7 +77,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b002.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B002(15, 8), B002(20, 11)))
+        self.assertEqual(errors, self.errors(B002(14, 8), B002(19, 11)))
 
     def test_b003(self):
         filename = Path(__file__).absolute().parent / "b003.py"
@@ -258,7 +258,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b017.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        expected = self.errors(B017(24, 8), B017(26, 8), B017(28, 8))
+        expected = self.errors(B017(25, 8), B017(27, 8), B017(29, 8))
         self.assertEqual(errors, expected)
 
     def test_b018_functions(self):
@@ -266,9 +266,9 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
 
-        expected = [B018(line, 4) for line in range(16, 26)]
-        expected.append(B018(29, 4))
-        expected.append(B018(32, 4))
+        expected = [B018(line, 4) for line in range(15, 25)]
+        expected.append(B018(28, 4))
+        expected.append(B018(31, 4))
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b018_classes(self):
@@ -276,9 +276,9 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
 
-        expected = [B018(line, 4) for line in range(17, 27)]
-        expected.append(B018(30, 4))
-        expected.append(B018(33, 4))
+        expected = [B018(line, 4) for line in range(16, 26)]
+        expected.append(B018(29, 4))
+        expected.append(B018(32, 4))
         self.assertEqual(errors, self.errors(*expected))
 
     def test_b018_modules(self):
@@ -296,14 +296,14 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
-                B019(60, 5),
-                B019(63, 5),
-                B019(66, 5),
-                B019(69, 5),
-                B019(72, 5),
-                B019(75, 5),
-                B019(78, 5),
-                B019(81, 5),
+                B019(61, 5),
+                B019(64, 5),
+                B019(67, 5),
+                B019(70, 5),
+                B019(73, 5),
+                B019(76, 5),
+                B019(79, 5),
+                B019(82, 5),
             ),
         )
 
@@ -348,29 +348,29 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B023(12, 29, vars=("x",)),
-            B023(13, 29, vars=("y",)),
-            B023(16, 15, vars=("x",)),
-            B023(28, 18, vars=("x",)),
+            B023(13, 29, vars=("x",)),
+            B023(14, 29, vars=("y",)),
+            B023(17, 15, vars=("x",)),
             B023(29, 18, vars=("x",)),
             B023(30, 18, vars=("x",)),
-            B023(31, 21, vars=("x",)),
-            B023(40, 33, vars=("x",)),
-            B023(42, 13, vars=("x",)),
-            B023(50, 29, vars=("a",)),
-            B023(51, 29, vars=("a_",)),
-            B023(52, 29, vars=("b",)),
-            B023(53, 29, vars=("c",)),
-            B023(61, 16, vars=("j",)),
-            B023(61, 20, vars=("k",)),
-            B023(68, 9, vars=("l",)),
-            B023(113, 23, vars=("x",)),
-            B023(114, 26, vars=("x",)),
-            B023(115, 36, vars=("x",)),
-            B023(116, 37, vars=("x",)),
-            B023(117, 36, vars=("x",)),
-            B023(168, 28, vars=("name",)),  # known false alarm
-            B023(171, 28, vars=("i",)),
+            B023(31, 18, vars=("x",)),
+            B023(32, 21, vars=("x",)),
+            B023(41, 33, vars=("x",)),
+            B023(43, 13, vars=("x",)),
+            B023(51, 29, vars=("a",)),
+            B023(52, 29, vars=("a_",)),
+            B023(53, 29, vars=("b",)),
+            B023(54, 29, vars=("c",)),
+            B023(62, 16, vars=("j",)),
+            B023(62, 20, vars=("k",)),
+            B023(69, 9, vars=("l",)),
+            B023(114, 23, vars=("x",)),
+            B023(115, 26, vars=("x",)),
+            B023(116, 36, vars=("x",)),
+            B023(117, 37, vars=("x",)),
+            B023(118, 36, vars=("x",)),
+            B023(169, 28, vars=("name",)),  # known false alarm
+            B023(172, 28, vars=("i",)),
         )
         self.assertEqual(errors, expected)
 
@@ -408,13 +408,13 @@ class BugbearTestCase(unittest.TestCase):
         self.assertEqual(
             errors,
             self.errors(
+                B026(15, 15),
                 B026(16, 15),
-                B026(17, 15),
-                B026(18, 26),
-                B026(19, 37),
-                B026(20, 15),
+                B026(17, 26),
+                B026(18, 37),
+                B026(19, 15),
+                B026(19, 25),
                 B026(20, 25),
-                B026(21, 25),
             ),
         )
 
@@ -464,9 +464,9 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B031(30, 36, vars=("section_items",)),
-            B031(34, 30, vars=("section_items",)),
-            B031(43, 36, vars=("section_items",)),
+            B031(31, 36, vars=("section_items",)),
+            B031(35, 30, vars=("section_items",)),
+            B031(44, 36, vars=("section_items",)),
         )
         self.assertEqual(errors, expected)
 
@@ -645,7 +645,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b901.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B901(9, 8), B901(36, 4)))
+        self.assertEqual(errors, self.errors(B901(8, 8), B901(35, 4)))
 
     def test_b902(self):
         filename = Path(__file__).absolute().parent / "b902.py"
