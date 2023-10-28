@@ -440,8 +440,8 @@ class BugBearVisitor(ast.NodeVisitor):
                 ):
                     self.errors.append(B010(node.lineno, node.col_offset))
 
-            self.check_for_b026(node)
-
+        self.check_for_b026(node)
+        self.check_for_b905(node)
         self.check_for_b028(node)
         self.check_for_b034(node)
         self.check_for_b905(node)

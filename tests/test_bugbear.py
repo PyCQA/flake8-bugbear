@@ -415,6 +415,7 @@ class BugbearTestCase(unittest.TestCase):
                 B026(19, 15),
                 B026(19, 25),
                 B026(20, 25),
+                B026(21, 19),
             ),
         )
 

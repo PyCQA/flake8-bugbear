@@ -338,6 +338,12 @@ MIT
 Change Log
 ----------
 
+Unreleased
+~~~~~~~~~~
+
+* B026: Fix bug where the check was not triggered for calls where the callee
+  is an attribute
+
 23.9.16
 ~~~~~~~
 
