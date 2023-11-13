@@ -3,6 +3,7 @@ Should emit:
 B026 - on lines 16, 17, 18, 19, 20, 21
 """
 
+
 def foo(bar, baz, bam):
     pass
 

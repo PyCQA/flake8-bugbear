@@ -97,9 +97,9 @@ for name in ["a", "b"]:
 _ = {
     k: v
     for k, v in reduce(
-        lambda data, event: merge_mappings(
-            [data, {name: f(caches, data, event) for name, f in xx}]
-        ),
+        lambda data, event: merge_mappings([
+            data, {name: f(caches, data, event) for name, f in xx}
+        ]),
         events,
         {name: getattr(group, name) for name in yy},
     ).items()
