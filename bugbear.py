@@ -547,7 +547,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b005(node)
         self.generic_visit(node)
 
-    def visit_ImportFrom(self,node):
+    def visit_ImportFrom(self, node):
         self.visit_Import(node)
 
     def visit_Set(self, node):
@@ -654,7 +654,7 @@ class BugBearVisitor(ast.NodeVisitor):
         lookup.
         """
         item = node.items[0]
-        item_context = item.context_expr                    
+        item_context = item.context_expr
 
         if (
             hasattr(item_context, "func")
@@ -676,6 +676,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and item_context.func.id == "raises"
                     and isinstance(item_context.func.ctx, ast.Load)
                     and "pytest.raises" in self._b005_imports
+                    and "match" not in [kwd.arg for kwd in item_context.keywords]
                 )
             )
             and len(item_context.args) == 1
