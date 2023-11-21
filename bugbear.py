@@ -547,6 +547,9 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b005(node)
         self.generic_visit(node)
 
+    def visit_ImportFrom(self,node):
+        self.visit_Import(node)
+
     def visit_Set(self, node):
         self.check_for_b033(node)
         self.generic_visit(node)
@@ -555,6 +558,10 @@ class BugBearVisitor(ast.NodeVisitor):
         if isinstance(node, ast.Import):
             for name in node.names:
                 self._b005_imports.add(name.asname or name.name)
+        elif isinstance(node, ast.ImportFrom):
+            print(ast.dump(ast.parse(node), indent=4))
+            for name in node.names:
+                self._b005_imports.add(f'{node.module}.{name.name or name.asname}')
         elif isinstance(node, ast.Call):
             if node.func.attr not in B005.methods:
                 return  # method name doesn't match
@@ -649,6 +656,15 @@ class BugBearVisitor(ast.NodeVisitor):
         """
         item = node.items[0]
         item_context = item.context_expr
+
+        #print(ast.dump(ast.parse(item), indent=4))
+
+        # notes: this prints out ast.Name for raises and ast.Attribute for pytest.raises
+        #        need to modify the logic below to recognize this somehow...avoiding any
+        #        false positives (e.g. for a 'from Dummy import raises' import)
+        if (isinstance(item_context.func, ast.Name)):
+            #print(item_context.func.ctx)  # this is an ast.Load object, but doesn't "link" to the import statement
+            print(self._b005_imports)  # this is only called for Import, not FromImport...what happens if that changes?
 
         if (
             hasattr(item_context, "func")
