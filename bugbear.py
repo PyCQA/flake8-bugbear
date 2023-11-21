@@ -654,25 +654,28 @@ class BugBearVisitor(ast.NodeVisitor):
         lookup.
         """
         item = node.items[0]
-        item_context = item.context_expr
-
-        if (isinstance(item_context.func, ast.Name)
-            and item_context.func.id == "raises"#:  # ast.Name element with id = raises implies a call to a "raises" method
-            and isinstance(item_context.func.ctx, ast.Load)#):  # the "type" of the ast.Name object is a Load() object
-            and "pytest.raises" in self._b005_imports):
-                print('pytest.raises has been used')
-                    
+        item_context = item.context_expr                    
 
         if (
             hasattr(item_context, "func")
-            and isinstance(item_context.func, ast.Attribute)
             and (
-                item_context.func.attr == "assertRaises"
+                (
+                    isinstance(item_context.func, ast.Attribute)
+                    and (
+                        item_context.func.attr == "assertRaises"
+                        or (
+                            item_context.func.attr == "raises"
+                            and isinstance(item_context.func.value, ast.Name)
+                            and item_context.func.value.id == "pytest"
+                            and "match" not in [kwd.arg for kwd in item_context.keywords]
+                        )
+                    )
+                )
                 or (
-                    item_context.func.attr == "raises"
-                    and isinstance(item_context.func.value, ast.Name)
-                    and item_context.func.value.id == "pytest"
-                    and "match" not in [kwd.arg for kwd in item_context.keywords]
+                    isinstance(item_context.func, ast.Name)
+                    and item_context.func.id == "raises"
+                    and isinstance(item_context.func.ctx, ast.Load)
+                    and "pytest.raises" in self._b005_imports
                 )
             )
             and len(item_context.args) == 1
