@@ -560,7 +560,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 self._b005_imports.add(name.asname or name.name)
         elif isinstance(node, ast.ImportFrom):
             for name in node.names:
-                self._b005_imports.add(f'{node.module}.{name.name or name.asname}')
+                self._b005_imports.add(f"{node.module}.{name.name or name.asname}")
         elif isinstance(node, ast.Call):
             if node.func.attr not in B005.methods:
                 return  # method name doesn't match
@@ -667,7 +667,8 @@ class BugBearVisitor(ast.NodeVisitor):
                             item_context.func.attr == "raises"
                             and isinstance(item_context.func.value, ast.Name)
                             and item_context.func.value.id == "pytest"
-                            and "match" not in [kwd.arg for kwd in item_context.keywords]
+                            and "match"
+                            not in [kwd.arg for kwd in item_context.keywords]
                         )
                     )
                 )
