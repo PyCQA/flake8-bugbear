@@ -559,7 +559,6 @@ class BugBearVisitor(ast.NodeVisitor):
             for name in node.names:
                 self._b005_imports.add(name.asname or name.name)
         elif isinstance(node, ast.ImportFrom):
-            print(ast.dump(ast.parse(node), indent=4))
             for name in node.names:
                 self._b005_imports.add(f'{node.module}.{name.name or name.asname}')
         elif isinstance(node, ast.Call):
@@ -657,14 +656,12 @@ class BugBearVisitor(ast.NodeVisitor):
         item = node.items[0]
         item_context = item.context_expr
 
-        #print(ast.dump(ast.parse(item), indent=4))
-
-        # notes: this prints out ast.Name for raises and ast.Attribute for pytest.raises
-        #        need to modify the logic below to recognize this somehow...avoiding any
-        #        false positives (e.g. for a 'from Dummy import raises' import)
-        if (isinstance(item_context.func, ast.Name)):
-            #print(item_context.func.ctx)  # this is an ast.Load object, but doesn't "link" to the import statement
-            print(self._b005_imports)  # this is only called for Import, not FromImport...what happens if that changes?
+        if (isinstance(item_context.func, ast.Name)
+            and item_context.func.id == "raises"#:  # ast.Name element with id = raises implies a call to a "raises" method
+            and isinstance(item_context.func.ctx, ast.Load)#):  # the "type" of the ast.Name object is a Load() object
+            and "pytest.raises" in self._b005_imports):
+                print('pytest.raises has been used')
+                    
 
         if (
             hasattr(item_context, "func")
