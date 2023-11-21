@@ -258,7 +258,7 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b017.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        expected = self.errors(B017(25, 8), B017(27, 8), B017(29, 8))
+        expected = self.errors(B017(26, 8), B017(28, 8), B017(30, 8), B017(32, 8))
         self.assertEqual(errors, expected)
 
     def test_b018_functions(self):
@@ -530,9 +530,11 @@ class BugbearTestCase(unittest.TestCase):
             B908(15, 8),
             B908(21, 8),
             B908(27, 8),
+            B017(37, 0),
             B908(37, 0),
             B908(41, 0),
             B908(45, 0),
+            B017(56, 0)
         )
         self.assertEqual(errors, expected)
 
