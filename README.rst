@@ -190,6 +190,8 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `count`/`maxsplit` as keyword arguments. It is commonly assumed that `flags` is the third positional parameter, forgetting about `count`/`maxsplit`, since many other `re` module functions are of the form `f(pattern, string, flags)`.
 
+**B035**: Found dict comprehension with a static key - either a constant value or variable not from the comprehension expression. This will result in a dict with a single key that was repeatedly overwritten.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 

@@ -483,6 +483,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_DictComp(self, node):
         self.check_for_b023(node)
+        self.check_for_b035(node)
         self.generic_visit(node)
 
     def visit_GeneratorExp(self, node):
@@ -953,6 +954,36 @@ class BugBearVisitor(ast.NodeVisitor):
                             self.errors.append(
                                 B031(node.lineno, node.col_offset, vars=(node.id,))
                             )
+
+    def _get_names_from_tuple(self, node: ast.Tuple):
+        for dim in node.elts:
+            if isinstance(dim, ast.Name):
+                yield dim.id
+            elif isinstance(dim, ast.Tuple):
+                yield from self._get_names_from_tuple(dim)
+
+    def _get_dict_comp_loop_var_names(self, node: ast.DictComp):
+        for gen in node.generators:
+            if isinstance(gen.target, ast.Name):
+                yield gen.target.id
+            elif isinstance(gen.target, ast.Tuple):
+                yield from self._get_names_from_tuple(gen.target)
+
+    def check_for_b035(self, node: ast.DictComp):
+        """Check that a static key isn't used in a dict comprehension.
+
+        Emit a warning if a likely unchanging key is used - either a constant,
+        or a variable that isn't coming from the generator expression.
+        """
+        if isinstance(node.key, ast.Constant):
+            self.errors.append(
+                B035(node.key.lineno, node.key.col_offset, vars=(node.key.value,))
+            )
+        elif isinstance(node.key, ast.Name):
+            if node.key.id not in self._get_dict_comp_loop_var_names(node):
+                self.errors.append(
+                    B035(node.key.lineno, node.key.col_offset, vars=(node.key.id,))
+                )
 
     def _get_assigned_names(self, loop_node):
         loop_targets = (ast.For, ast.AsyncFor, ast.comprehension)
@@ -1884,6 +1915,8 @@ B034 = Error(
         " due to unintuitive argument positions."
     )
 )
+B035 = Error(message="B035 Static key in dict comprehension {!r}.")
+
 
 # Warnings disabled by default.
 B901 = Error(

@@ -43,6 +43,7 @@ from bugbear import (
     B032,
     B033,
     B034,
+    B035,
     B901,
     B902,
     B903,
@@ -518,6 +519,19 @@ class BugbearTestCase(unittest.TestCase):
             B034(11, 25, vars=("split", "maxsplit")),
             B034(12, 25, vars=("split", "maxsplit")),
             B034(13, 25, vars=("split", "maxsplit")),
+        )
+        self.assertEqual(errors, expected)
+
+    def test_b035(self):
+        filename = Path(__file__).absolute().parent / "b035.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B035(6, 21, vars=("a",)),
+            B035(7, 21, vars=(1,)),
+            B035(19, 12, vars=("a",)),
+            B035(25, 21, vars=("CONST_KEY_VAR",)),
+            B035(35, 33, vars=("v3",)),
         )
         self.assertEqual(errors, expected)
 
