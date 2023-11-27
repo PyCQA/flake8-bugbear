@@ -68,3 +68,10 @@ version = {attr = "bugbear.__version__"}
 
 [tool.isort]
 profile = "black"
+
+[tool.black]
+force-exclude = '''
+(
+  ^/tests\/b.*
+)
+'''
