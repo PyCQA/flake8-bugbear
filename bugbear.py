@@ -1556,10 +1556,9 @@ class NamedExprFinder(ast.NodeVisitor):
 
     names: Dict[str, List[ast.Name]] = attr.ib(default=attr.Factory(dict))
 
-    def visit_NamedExpr(  # noqa: B906 # names don't contain other names
-        self, node: ast.NamedExpr
-    ):
+    def visit_NamedExpr(self, node: ast.NamedExpr):
         self.names.setdefault(node.target.id, []).append(node.target)
+        self.generic_visit(node)
 
     def visit(self, node):
         """Like super-visit but supports iteration over lists."""
