@@ -962,12 +962,17 @@ class BugBearVisitor(ast.NodeVisitor):
             elif isinstance(dim, ast.Tuple):
                 yield from self._get_names_from_tuple(dim)
 
-    def _get_dict_comp_loop_var_names(self, node: ast.DictComp):
+    def _get_dict_comp_loop_and_named_expr_var_names(self, node: ast.DictComp):
+        finder = NamedExprFinder()
         for gen in node.generators:
             if isinstance(gen.target, ast.Name):
                 yield gen.target.id
             elif isinstance(gen.target, ast.Tuple):
                 yield from self._get_names_from_tuple(gen.target)
+
+            finder.visit(gen.ifs)
+
+        yield from finder.names.keys()
 
     def check_for_b035(self, node: ast.DictComp):
         """Check that a static key isn't used in a dict comprehension.
@@ -980,7 +985,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 B035(node.key.lineno, node.key.col_offset, vars=(node.key.value,))
             )
         elif isinstance(node.key, ast.Name):
-            if node.key.id not in self._get_dict_comp_loop_var_names(node):
+            if node.key.id not in self._get_dict_comp_loop_and_named_expr_var_names(node):
                 self.errors.append(
                     B035(node.key.lineno, node.key.col_offset, vars=(node.key.id,))
                 )
@@ -1528,6 +1533,31 @@ class NameFinder(ast.NodeVisitor):
         self, node: ast.Name
     ):
         self.names.setdefault(node.id, []).append(node)
+
+    def visit(self, node):
+        """Like super-visit but supports iteration over lists."""
+        if not isinstance(node, list):
+            return super().visit(node)
+
+        for elem in node:
+            super().visit(elem)
+        return node
+
+
+@attr.s
+class NamedExprFinder(ast.NodeVisitor):
+    """Finds names defined through an ast.NamedExpr.
+
+    After `.visit(node)` is called, `found` is a dict with all name nodes inside,
+    key is name string, value is the node (useful for location purposes).
+    """
+
+    names: Dict[str, List[ast.Name]] = attr.ib(default=attr.Factory(dict))
+
+    def visit_NamedExpr(  # noqa: B906 # names don't contain other names
+        self, node: ast.NamedExpr
+    ):
+        self.names.setdefault(node.target.id, []).append(node.target)
 
     def visit(self, node):
         """Like super-visit but supports iteration over lists."""

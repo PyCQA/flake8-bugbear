@@ -33,3 +33,19 @@ var_from_nested_tuple = {v2: k for k, (v1, v2) in {"a": (1, 2)}.items()}
 # bad - variabe not from generator
 v3 = 1
 bad_var_not_from_nested_tuple = {v3: k for k, (v1, v2) in {"a": (1, 2)}.items()}
+
+# OK - variable from named expression
+var_from_named_expr = {
+    k: v
+    for v in {"key": "foo", "data": {}}
+    if (k := v.get("key")) is not None
+}
+
+# nested generators with named expressions
+var_from_named_expr_nested = {
+    k: v
+    for v in {"keys": [{"key": "foo"}], "data": {}}
+    if (keys := v.get("keys")) is not None
+    for item in keys
+    if (k := item.get("key")) is not None
+}
