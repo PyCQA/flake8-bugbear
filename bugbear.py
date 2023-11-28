@@ -985,7 +985,9 @@ class BugBearVisitor(ast.NodeVisitor):
                 B035(node.key.lineno, node.key.col_offset, vars=(node.key.value,))
             )
         elif isinstance(node.key, ast.Name):
-            if node.key.id not in self._get_dict_comp_loop_and_named_expr_var_names(node):
+            if node.key.id not in self._get_dict_comp_loop_and_named_expr_var_names(
+                node
+            ):
                 self.errors.append(
                     B035(node.key.lineno, node.key.col_offset, vars=(node.key.id,))
                 )
