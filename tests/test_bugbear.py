@@ -969,18 +969,16 @@ class BugbearTestCase(unittest.TestCase):
 
 
 class TestFuzz(unittest.TestCase):
-    # TODO: enable this test on py312 once hypothesmith supports py312
-    if sys.version_info < (3, 12):
-        from hypothesis import HealthCheck, given, settings
-        from hypothesmith import from_grammar
+    from hypothesis import HealthCheck, given, settings
+    from hypothesmith import from_grammar
 
-        @settings(suppress_health_check=[HealthCheck.too_slow])
-        @given(from_grammar().map(ast.parse))
-        def test_does_not_crash_on_any_valid_code(self, syntax_tree):
-            # Given any syntatically-valid source code, flake8-bugbear should
-            # not crash.  This tests doesn't check that we do the *right* thing,
-            # just that we don't crash on valid-if-poorly-styled code!
-            BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
+    @given(from_grammar().map(ast.parse))
+    def test_does_not_crash_on_any_valid_code(self, syntax_tree):
+        # Given any syntatically-valid source code, flake8-bugbear should
+        # not crash.  This tests doesn't check that we do the *right* thing,
+        # just that we don't crash on valid-if-poorly-styled code!
+        BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
 
     def test_does_not_crash_on_site_code(self):
         # Because the generator isn't perfect, we'll also test on all the code
