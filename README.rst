@@ -349,6 +349,12 @@ MIT
 Change Log
 ----------
 
+Unreleased
+~~~~~~~~~~
+
+* B036: Fix crash on `raise` statements raising something other than
+  a bare name (#450)
+
 24.1.15
 ~~~~~~~
 

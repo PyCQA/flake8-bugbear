@@ -341,7 +341,9 @@ class ExceptBaseExceptionVisitor(ast.NodeVisitor):
         """If we find a corresponding `raise` or `raise e` where e was from
         `except BaseException as e:` then we mark re_raised as True and can
         stop scanning."""
-        if node.exc is None or node.exc.id == self.root.name:
+        if node.exc is None or (
+            isinstance(node.exc, ast.Name) and node.exc.id == self.root.name
+        ):
             self._re_raised = True
             return
         return super().generic_visit(node)

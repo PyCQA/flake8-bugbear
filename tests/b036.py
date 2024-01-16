@@ -52,3 +52,8 @@ except BaseException:
         pass
     except ValueError:
         raise  # bad - raising within a nested try/except, but not within the main one
+
+try:
+    pass
+except BaseException:
+    raise a.b from None  # bad (regression test for #449)
