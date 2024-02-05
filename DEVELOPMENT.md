@@ -39,7 +39,7 @@ python3 -m venv /path/to/venv
 
 ```console
 cd flake8-bugbear
-/path/to/venv/bin/pip install -e .[dev]
+/path/to/venv/bin/pip install -e '.[dev]'
 ```
 
 ## Running Tests

@@ -41,7 +41,7 @@ B908_unittest_methods = {
     "assertWarnsRegex",
 }
 
-B902_default_decorators = {"classmethod", "validator", "root_validator"}
+B902_default_decorators = {"classmethod"}
 
 Context = namedtuple("Context", ["node", "stack"])
 
