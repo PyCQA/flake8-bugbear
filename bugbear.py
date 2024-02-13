@@ -1495,15 +1495,17 @@ class BugBearVisitor(ast.NodeVisitor):
                     format_specifier = re.sub(r"\.\d*", "", format_specifier)
 
                     # skip if any invalid characters in format spec
-                    invalid_characters = "".join((
-                        "=",  # align character only valid for numerics
-                        "+- ",  # sign
-                        "0123456789",  # width digits
-                        "z",  # coerce negative zero floating point to positive
-                        "#",  # alternate form
-                        "_,",  # thousands grouping
-                        "bcdeEfFgGnoxX%",  # various number specifiers
-                    ))
+                    invalid_characters = "".join(
+                        (
+                            "=",  # align character only valid for numerics
+                            "+- ",  # sign
+                            "0123456789",  # width digits
+                            "z",  # coerce negative zero floating point to positive
+                            "#",  # alternate form
+                            "_,",  # thousands grouping
+                            "bcdeEfFgGnoxX%",  # various number specifiers
+                        )
+                    )
                     if set(format_specifier).intersection(invalid_characters):
                         current_mark = variable = None
                         continue
