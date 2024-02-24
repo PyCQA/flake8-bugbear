@@ -27,6 +27,7 @@
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # noqa"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # type: ignore"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # noqa: F401"
+"https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # pragma: no cover"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com#noqa:F401, B950"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com  # type: ignore[some-code]"
 "https://foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.com # type: ignore[some-code]"
