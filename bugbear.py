@@ -366,6 +366,7 @@ class BugBearVisitor(ast.NodeVisitor):
     errors = attr.ib(default=attr.Factory(list))
     futures = attr.ib(default=attr.Factory(set))
     contexts = attr.ib(default=attr.Factory(list))
+    exceptions_tracked: dict[str, bool | None] = attr.ib(default=attr.Factory(dict))
 
     NODE_WINDOW_SIZE = 4
     _b023_seen = attr.ib(factory=set, init=False)
@@ -435,6 +436,7 @@ class BugBearVisitor(ast.NodeVisitor):
             return
 
         # used by B040 to check for add_note exceptions that are unraised
+        old_exceptions_tracked = self.exceptions_tracked
         self.exceptions_tracked = {node.name: None}
 
         handlers = _flatten_excepthandler(node.type)
@@ -482,7 +484,7 @@ class BugBearVisitor(ast.NodeVisitor):
             # point to `node.name.lineno`. If we track more exceptions we should
             # store the node of the variable in `exceptions_tracked` to point to here.
             self.errors.append(B040(node.lineno, node.col_offset))
-        self.exceptions_tracked.clear()
+        self.exceptions_tracked = old_exceptions_tracked
 
     def visit_UAdd(self, node):
         trailing_nodes = list(map(type, self.node_window[-4:]))
@@ -492,9 +494,10 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node):
+        is_b040_add_note = False
         if isinstance(node.func, ast.Attribute):
             self.check_for_b005(node)
-            self.check_for_b040_add_note(node.func)
+            is_b040_add_note = self.check_for_b040_add_note(node.func)
         else:
             with suppress(AttributeError, IndexError):
                 if (
@@ -521,10 +524,19 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b026(node)
         self.check_for_b028(node)
         self.check_for_b034(node)
-        self.check_for_b040_usage(node.args)
-        self.check_for_b040_usage(node.keywords)
         self.check_for_b905(node)
-        self.generic_visit(node)
+
+        if not is_b040_add_note:
+            self.check_for_b040_usage(node.args)
+            self.check_for_b040_usage(node.keywords)
+            self.generic_visit(node)
+        else:
+            # TODO: temp dirty hack to avoid nested calls within the parameter list
+            # using the variable itself. (i.e. `e.add_note(str(e))`)
+            # will clean up, complexity depends on decision of scope of the check
+            current_exceptions_tracked = self.exceptions_tracked.copy()
+            self.generic_visit(node)
+            self.exceptions_tracked = current_exceptions_tracked
 
     def visit_Module(self, node):
         self.generic_visit(node)
@@ -1078,13 +1090,15 @@ class BugBearVisitor(ast.NodeVisitor):
                     B035(node.key.lineno, node.key.col_offset, vars=(node.key.id,))
                 )
 
-    def check_for_b040_add_note(self, node: ast.Attribute) -> None:
+    def check_for_b040_add_note(self, node: ast.Attribute) -> bool:
         if (
             node.attr == "add_note"
             and isinstance(node.value, ast.Name)
             and node.value.id in self.exceptions_tracked
         ):
             self.exceptions_tracked[node.value.id] = True
+            return True
+        return False
 
     def check_for_b040_usage(self, node: ast.expr | None) -> None:
         def superwalk(node: ast.AST | list[ast.AST]):
@@ -1101,6 +1115,10 @@ class BugBearVisitor(ast.NodeVisitor):
             for n in superwalk(node)
             if isinstance(n, ast.Name) and n.id in self.exceptions_tracked
         ):
+            if hasattr(node, "lineno"):
+                print("deleting", node.lineno)
+            else:
+                print("deleting0", node[0].lineno)
             del self.exceptions_tracked[name]
 
     def _get_assigned_names(self, loop_node):

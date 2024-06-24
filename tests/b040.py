@@ -122,12 +122,13 @@ except Exception as e: # safe
 
 try:
     ...
-except Exception as e: # should error
+except Exception as e: # error
     e.add_note(str(e))
 
+# check nesting
 try:
     ...
-except Exception as e:  # should error
+except Exception as e:  # error
     e.add_note("")
     try:
         ...
