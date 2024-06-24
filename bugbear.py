@@ -1115,10 +1115,6 @@ class BugBearVisitor(ast.NodeVisitor):
             for n in superwalk(node)
             if isinstance(n, ast.Name) and n.id in self.exceptions_tracked
         ):
-            if hasattr(node, "lineno"):
-                print("deleting", node.lineno)
-            else:
-                print("deleting0", node[0].lineno)
             del self.exceptions_tracked[name]
 
     def _get_assigned_names(self, loop_node):

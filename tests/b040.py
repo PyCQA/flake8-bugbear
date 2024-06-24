@@ -116,6 +116,13 @@ except Exception as e: # should error, but we don't handle lambdas
 
 try:
     ...
+except Exception as e: # should error, but we don't handle nested functions
+    e.add_note("")
+    def habla(e):
+        raise e
+
+try:
+    ...
 except Exception as e: # safe
     e.add_note("")
     ann_assign_target: Exception = e
