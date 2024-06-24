@@ -428,11 +428,15 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.check_for_b018(node)
 
-    def visit_ExceptHandler(self, node):
+    def visit_ExceptHandler(self, node):  # noqa: C901 # too complex
         if node.type is None:
             self.errors.append(B001(node.lineno, node.col_offset))
             self.generic_visit(node)
             return
+
+        # used by B040 to check for add_note exceptions that are unraised
+        self.exceptions_tracked = {node.name: None}
+
         handlers = _flatten_excepthandler(node.type)
         names = []
         bad_handlers = []
@@ -471,6 +475,15 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
+        for _exc_name, exc_status in self.exceptions_tracked.items():
+            if exc_status is None:
+                continue
+            # TODO: if we only track the caught exception, we can directly
+            # point to `node.name.lineno`. If we track more exceptions we should
+            # store the node of the variable in `exceptions_tracked` to point to here.
+            self.errors.append(B040(node.lineno, node.col_offset))
+        self.exceptions_tracked.clear()
+
     def visit_UAdd(self, node):
         trailing_nodes = list(map(type, self.node_window[-4:]))
         if trailing_nodes == [ast.UnaryOp, ast.UAdd, ast.UnaryOp, ast.UAdd]:
@@ -481,6 +494,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_Call(self, node):
         if isinstance(node.func, ast.Attribute):
             self.check_for_b005(node)
+            self.check_for_b040_add_note(node.func)
         else:
             with suppress(AttributeError, IndexError):
                 if (
@@ -507,15 +521,19 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b026(node)
         self.check_for_b028(node)
         self.check_for_b034(node)
+        self.check_for_b040_usage(node.args)
+        self.check_for_b040_usage(node.keywords)
         self.check_for_b905(node)
         self.generic_visit(node)
 
     def visit_Module(self, node):
         self.generic_visit(node)
 
-    def visit_Assign(self, node):
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self.check_for_b040_usage(node.value)
         if len(node.targets) == 1:
             t = node.targets[0]
+
             if isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name):
                 if (t.value.id, t.attr) == ("os", "environ"):
                     self.errors.append(B003(node.lineno, node.col_offset))
@@ -587,7 +605,12 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b015(node)
         self.generic_visit(node)
 
-    def visit_Raise(self, node):
+    def visit_Raise(self, node: ast.Raise):
+        if node.exc is None:
+            self.exceptions_tracked.clear()
+        else:
+            self.check_for_b040_usage(node.exc)
+            self.check_for_b040_usage(node.cause)
         self.check_for_b016(node)
         self.check_for_b904(node)
         self.generic_visit(node)
@@ -604,6 +627,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_AnnAssign(self, node):
         self.check_for_b032(node)
+        self.check_for_b040_usage(node.value)
         self.generic_visit(node)
 
     def visit_Import(self, node):
@@ -1053,6 +1077,31 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.errors.append(
                     B035(node.key.lineno, node.key.col_offset, vars=(node.key.id,))
                 )
+
+    def check_for_b040_add_note(self, node: ast.Attribute) -> None:
+        if (
+            node.attr == "add_note"
+            and isinstance(node.value, ast.Name)
+            and node.value.id in self.exceptions_tracked
+        ):
+            self.exceptions_tracked[node.value.id] = True
+
+    def check_for_b040_usage(self, node: ast.expr | None) -> None:
+        def superwalk(node: ast.AST | list[ast.AST]):
+            if isinstance(node, list):
+                for n in node:
+                    yield from ast.walk(n)
+            else:
+                yield from ast.walk(node)
+
+        if not self.exceptions_tracked or node is None:
+            return
+        for name in (
+            n.id
+            for n in superwalk(node)
+            if isinstance(n, ast.Name) and n.id in self.exceptions_tracked
+        ):
+            del self.exceptions_tracked[name]
 
     def _get_assigned_names(self, loop_node):
         loop_targets = (ast.For, ast.AsyncFor, ast.comprehension)
@@ -2164,6 +2213,10 @@ B036 = Error(
 
 B037 = Error(
     message="B037 Class `__init__` methods must not return or yield and any values."
+)
+
+B040 = Error(
+    message="B040 Exception with added note not used. Did you forget to raise it?"
 )
 
 # Warnings disabled by default.

@@ -351,6 +351,10 @@ MIT
 Change Log
 ----------
 
+Future
+~~~~~~
+* Add B040: Exception with added note not reraised. (#474)
+
 24.4.26
 ~~~~~~~
 
