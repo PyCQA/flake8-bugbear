@@ -12,7 +12,7 @@ from collections import defaultdict, namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
 from keyword import iskeyword
-from typing import Dict, List, Set, Union
+from typing import Dict, Iterable, Iterator, List, Set, Union
 
 import attr
 import pycodestyle
@@ -227,7 +227,7 @@ def _is_identifier(arg):
     return re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", arg.value) is not None
 
 
-def _flatten_excepthandler(node):
+def _flatten_excepthandler(node: ast.expr | None) -> Iterator[ast.expr | None]:
     if not isinstance(node, ast.Tuple):
         yield node
         return
@@ -439,36 +439,8 @@ class BugBearVisitor(ast.NodeVisitor):
         old_exceptions_tracked = self.exceptions_tracked
         self.exceptions_tracked = {node.name: None}
 
-        handlers = _flatten_excepthandler(node.type)
-        names = []
-        bad_handlers = []
-        ignored_handlers = []
-        for handler in handlers:
-            if isinstance(handler, (ast.Name, ast.Attribute)):
-                name = _to_name_str(handler)
-                if name is None:
-                    ignored_handlers.append(handler)
-                else:
-                    names.append(name)
-            elif isinstance(handler, (ast.Call, ast.Starred)):
-                ignored_handlers.append(handler)
-            else:
-                bad_handlers.append(handler)
-        if bad_handlers:
-            self.errors.append(B030(node.lineno, node.col_offset))
-        if len(names) == 0 and not bad_handlers and not ignored_handlers:
-            self.errors.append(B029(node.lineno, node.col_offset))
-        elif (
-            len(names) == 1
-            and not bad_handlers
-            and not ignored_handlers
-            and isinstance(node.type, ast.Tuple)
-        ):
-            self.errors.append(B013(node.lineno, node.col_offset, vars=names))
-        else:
-            maybe_error = _check_redundant_excepthandlers(names, node)
-            if maybe_error is not None:
-                self.errors.append(maybe_error)
+        names = self.check_for_b013_b029_b030(node)
+
         if (
             "BaseException" in names
             and not ExceptBaseExceptionVisitor(node).re_raised()
@@ -727,6 +699,40 @@ class BugBearVisitor(ast.NodeVisitor):
 
         for child in node.finalbody:
             _loop(child, (ast.Return, ast.Continue, ast.Break))
+
+    def check_for_b013_b029_b030(self, node: ast.ExceptHandler) -> list[str]:
+        handlers: Iterable[ast.expr | None] = _flatten_excepthandler(node.type)
+        names: list[str] = []
+        bad_handlers: list[object] = []
+        ignored_handlers: list[ast.Name | ast.Attribute | ast.Call | ast.Starred] = []
+
+        for handler in handlers:
+            if isinstance(handler, (ast.Name, ast.Attribute)):
+                name = _to_name_str(handler)
+                if name is None:
+                    ignored_handlers.append(handler)
+                else:
+                    names.append(name)
+            elif isinstance(handler, (ast.Call, ast.Starred)):
+                ignored_handlers.append(handler)
+            else:
+                bad_handlers.append(handler)
+        if bad_handlers:
+            self.errors.append(B030(node.lineno, node.col_offset))
+        if len(names) == 0 and not bad_handlers and not ignored_handlers:
+            self.errors.append(B029(node.lineno, node.col_offset))
+        elif (
+            len(names) == 1
+            and not bad_handlers
+            and not ignored_handlers
+            and isinstance(node.type, ast.Tuple)
+        ):
+            self.errors.append(B013(node.lineno, node.col_offset, vars=names))
+        else:
+            maybe_error = _check_redundant_excepthandlers(names, node)
+            if maybe_error is not None:
+                self.errors.append(maybe_error)
+        return names
 
     def check_for_b015(self, node):
         if isinstance(self.node_stack[-2], ast.Expr):

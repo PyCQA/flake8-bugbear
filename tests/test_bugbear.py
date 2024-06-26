@@ -642,12 +642,12 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B040(6, 0),
-            B040(28, 0),
-            B040(81, 0),
+            B040(7, 0),
+            B040(24, 0),
+            B040(83, 0),
             B040(107, 0),
-            B040(132, 0),
-            B040(138, 0),
+            B040(114, 0),
+            B040(124, 0),
         )
         self.assertEqual(errors, expected)
 
