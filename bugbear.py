@@ -63,9 +63,9 @@ class BugBearChecker:
             self.load_file()
 
         if self.options and hasattr(self.options, "extend_immutable_calls"):
-            b008_extend_immutable_calls = set(self.options.extend_immutable_calls)
+            b008_b039_extend_immutable_calls = set(self.options.extend_immutable_calls)
         else:
-            b008_extend_immutable_calls = set()
+            b008_b039_extend_immutable_calls = set()
 
         b902_classmethod_decorators: set[str] = B902_default_decorators
         if self.options and hasattr(self.options, "classmethod_decorators"):
@@ -74,7 +74,7 @@ class BugBearChecker:
         visitor = self.visitor(
             filename=self.filename,
             lines=self.lines,
-            b008_extend_immutable_calls=b008_extend_immutable_calls,
+            b008_b039_extend_immutable_calls=b008_b039_extend_immutable_calls,
             b902_classmethod_decorators=b902_classmethod_decorators,
         )
         visitor.visit(self.tree)
@@ -360,7 +360,7 @@ class ExceptBaseExceptionVisitor(ast.NodeVisitor):
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
     lines = attr.ib()
-    b008_extend_immutable_calls = attr.ib(default=attr.Factory(set))
+    b008_b039_extend_immutable_calls = attr.ib(default=attr.Factory(set))
     b902_classmethod_decorators = attr.ib(default=attr.Factory(set))
     node_window = attr.ib(default=attr.Factory(list))
     errors = attr.ib(default=attr.Factory(list))
@@ -496,6 +496,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b026(node)
         self.check_for_b028(node)
         self.check_for_b034(node)
+        self.check_for_b039(node)
         self.check_for_b905(node)
 
         if not is_b040_add_note:
@@ -663,8 +664,34 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B005(node.lineno, node.col_offset))
 
     def check_for_b006_and_b008(self, node):
-        visitor = FuntionDefDefaultsVisitor(self.b008_extend_immutable_calls)
+        visitor = FunctionDefDefaultsVisitor(
+            B006, B008, self.b008_b039_extend_immutable_calls
+        )
         visitor.visit(node.args.defaults + node.args.kw_defaults)
+        self.errors.extend(visitor.errors)
+
+    def check_for_b039(self, node: ast.Call):
+        if not (
+            (isinstance(node.func, ast.Name) and node.func.id == "ContextVar")
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "ContextVar"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "contextvars"
+            )
+        ):
+            return
+        # ContextVar only takes one kw currently, but better safe than sorry
+        for kw in node.keywords:
+            if kw.arg == "default":
+                break
+        else:
+            return
+
+        visitor = FunctionDefDefaultsVisitor(
+            B039, B039, self.b008_b039_extend_immutable_calls
+        )
+        visitor.visit(kw.value)
         self.errors.extend(visitor.errors)
 
     def check_for_b007(self, node):
@@ -1849,9 +1876,20 @@ class NamedExprFinder(ast.NodeVisitor):
         return node
 
 
-class FuntionDefDefaultsVisitor(ast.NodeVisitor):
-    def __init__(self, b008_extend_immutable_calls=None):
-        self.b008_extend_immutable_calls = b008_extend_immutable_calls or set()
+class FunctionDefDefaultsVisitor(ast.NodeVisitor):
+    """Used by B006, B008, and B039. B039 is essentially B006+B008 but for ContextVar."""
+
+    def __init__(
+        self,
+        error_code_calls,  # B006 or B039
+        error_code_literals,  # B008 or B039
+        b008_b039_extend_immutable_calls=None,
+    ):
+        self.b008_b039_extend_immutable_calls = (
+            b008_b039_extend_immutable_calls or set()
+        )
+        self.error_code_calls = error_code_calls
+        self.error_code_literals = error_code_literals
         for node in B006.mutable_literals + B006.mutable_comprehensions:
             setattr(self, f"visit_{node}", self.visit_mutable_literal_or_comprehension)
         self.errors = []
@@ -1870,18 +1908,18 @@ class FuntionDefDefaultsVisitor(ast.NodeVisitor):
         #
         # We do still search for cases of B008 within mutable structures though.
         if self.arg_depth == 1:
-            self.errors.append(B006(node.lineno, node.col_offset))
+            self.errors.append(self.error_code_calls(node.lineno, node.col_offset))
         # Check for nested functions.
         self.generic_visit(node)
 
     def visit_Call(self, node):
         call_path = ".".join(compose_call_path(node.func))
         if call_path in B006.mutable_calls:
-            self.errors.append(B006(node.lineno, node.col_offset))
+            self.errors.append(self.error_code_calls(node.lineno, node.col_offset))
             self.generic_visit(node)
             return
 
-        if call_path in B008.immutable_calls | self.b008_extend_immutable_calls:
+        if call_path in B008.immutable_calls | self.b008_b039_extend_immutable_calls:
             self.generic_visit(node)
             return
 
@@ -1893,9 +1931,11 @@ class FuntionDefDefaultsVisitor(ast.NodeVisitor):
                 pass
             else:
                 if math.isfinite(value):
-                    self.errors.append(B008(node.lineno, node.col_offset))
+                    self.errors.append(
+                        self.error_code_literals(node.lineno, node.col_offset)
+                    )
         else:
-            self.errors.append(B008(node.lineno, node.col_offset))
+            self.errors.append(self.error_code_literals(node.lineno, node.col_offset))
 
         # Check for nested functions.
         self.generic_visit(node)
@@ -1995,6 +2035,8 @@ B006 = Error(
         "between them."
     )
 )
+
+# Note: these are also used by B039
 B006.mutable_literals = ("Dict", "List", "Set")
 B006.mutable_comprehensions = ("ListComp", "DictComp", "SetComp")
 B006.mutable_calls = {
@@ -2025,6 +2067,8 @@ B008 = Error(
         "use that variable as a default value."
     )
 )
+
+# Note: these are also used by B039
 B008.immutable_calls = {
     "tuple",
     "frozenset",
@@ -2233,6 +2277,14 @@ B036 = Error(
 
 B037 = Error(
     message="B037 Class `__init__` methods must not return or yield and any values."
+)
+
+B039 = Error(
+    message=(
+        "B039 ContextVar with mutable literal or function call as default. "
+        "This is only evaluated once, and all subsequent calls to `.get()` "
+        "will return the same instance of the default."
+    )
 )
 
 B040 = Error(

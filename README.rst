@@ -201,6 +201,10 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B038**: **Moved to B909** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs.
 
+**B039**: ``ContextVar`` with mutable literal or function call as default. This is only evaluated once, and all subsequent calls to `.get()` would return the same instance of the default. This uses the same logic as B006 and B008, including ignoring values in ``extend-immutable-calls``.
+
+**B040**: Caught exception with call to ``add_note`` not used. Did you forget to ``raise`` it?
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -315,7 +319,7 @@ The plugin currently has the following settings:
 ``extend-immutable-calls``: Specify a list of additional immutable calls.
 This could be useful, when using other libraries that provide more immutable calls,
 beside those already handled by ``flake8-bugbear``. Calls to these method will no longer
-raise a ``B008`` warning.
+raise a ``B008`` or ``B039`` warning.
 
 ``classmethod-decorators``: Specify a list of decorators to additionally mark a method as a ``classmethod`` as used by B902. The default only checks for ``classmethod``. When an ``@obj.name`` decorator is specified it will match against either ``name`` or ``obj.name``.
 This functions similarly to how `pep8-naming <https://github.com/PyCQA/pep8-naming>` handles it, but with different defaults, and they don't support specifying attributes such that a decorator will never match against a specified value ``obj.name`` even if decorated with ``@obj.name``.
@@ -351,8 +355,10 @@ MIT
 Change Log
 ----------
 
-Future
+FUTURE
 ~~~~~~
+
+* Add B039, ``ContextVar`` with mutable literal or function call as default.
 * Add B040: Exception with added note not reraised. (#474)
 
 24.4.26
