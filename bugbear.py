@@ -12,7 +12,7 @@ from collections import defaultdict, namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
 from keyword import iskeyword
-from typing import Dict, Iterable, Iterator, List, Set, Union
+from typing import Dict, Iterable, Iterator, List, Sequence, Set, Union
 
 import attr
 import pycodestyle  # type: ignore[import-untyped]
@@ -243,7 +243,7 @@ def _flatten_excepthandler(node: ast.expr | None) -> Iterator[ast.expr | None]:
         yield expr
 
 
-def _check_redundant_excepthandlers(names, node):
+def _check_redundant_excepthandlers(names: Sequence[str], node):
     # See if any of the given exception names could be removed, e.g. from:
     #    (MyError, MyError)  # duplicate names
     #    (MyError, BaseException)  # everything derives from the Base
@@ -380,7 +380,7 @@ class BugBearVisitor(ast.NodeVisitor):
     if False:
         # Useful for tracing what the hell is going on.
 
-        def __getattr__(self, name):
+        def __getattr__(self, name: str):
             print(name)
             return self.__getattribute__(name)
 
@@ -944,7 +944,7 @@ class BugBearVisitor(ast.NodeVisitor):
         """Check for inheritance from abstract classes in abc and lack of
         any methods decorated with abstract*"""
 
-        def is_abc_class(value, name="ABC"):
+        def is_abc_class(value, name: str = "ABC"):
             # class foo(metaclass = [abc.]ABCMeta)
             if isinstance(value, ast.keyword):
                 return value.arg == "metaclass" and is_abc_class(value.value, "ABCMeta")
@@ -1678,7 +1678,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if not isinstance(func.value, ast.Name) or func.value.id != "re":
             return
 
-        def check(num_args, param_name) -> None:
+        def check(num_args: int, param_name: str) -> None:
             if len(node.args) > num_args:
                 arg = node.args[num_args]
                 self.errors.append(
