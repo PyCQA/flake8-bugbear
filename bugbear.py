@@ -639,7 +639,7 @@ class BugBearVisitor(ast.NodeVisitor):
         elif isinstance(node, ast.ImportFrom):
             for name in node.names:
                 self._b005_imports.add(f"{node.module}.{name.name or name.asname}")
-        elif isinstance(node, ast.Call):
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             if node.func.attr not in B005_METHODS:
                 return  # method name doesn't match
 
@@ -1674,22 +1674,20 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b034(self, node: ast.Call) -> None:
         if not isinstance(node.func, ast.Attribute):
             return
-        if not isinstance(node.func.value, ast.Name) or node.func.value.id != "re":
+        func = node.func
+        if not isinstance(func.value, ast.Name) or func.value.id != "re":
             return
 
         def check(num_args, param_name) -> None:
             if len(node.args) > num_args:
+                arg = node.args[num_args]
                 self.errors.append(
-                    B034(
-                        node.args[num_args].lineno,
-                        node.args[num_args].col_offset,
-                        vars=(node.func.attr, param_name),
-                    )
+                    B034(arg.lineno, arg.col_offset, vars=(func.attr, param_name))
                 )
 
-        if node.func.attr in ("sub", "subn"):
+        if func.attr in ("sub", "subn"):
             check(3, "count")
-        elif node.func.attr == "split":
+        elif func.attr == "split":
             check(2, "maxsplit")
 
     def check_for_b909(self, node: ast.For) -> None:
@@ -1920,7 +1918,7 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
         self.error_code_literals = error_code_literals
         for node in B006_MUTABLE_LITERALS + B006_MUTABLE_COMPREHENSIONS:
             setattr(self, f"visit_{node}", self.visit_mutable_literal_or_comprehension)
-        self.errors = []
+        self.errors: list[error] = []
         self.arg_depth = 0
         super().__init__()
 
