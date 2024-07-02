@@ -15,7 +15,7 @@ from keyword import iskeyword
 from typing import Dict, Iterable, Iterator, List, Set, Union
 
 import attr
-import pycodestyle
+import pycodestyle  # type: ignore[import-untyped]
 
 __version__ = "24.4.26"
 
@@ -259,7 +259,7 @@ def _check_redundant_excepthandlers(names, node):
     # Remove redundant exceptions that the automatic system either handles
     # poorly (usually aliases) or can't be checked (e.g. it's not an
     # built-in exception).
-    for primary, equivalents in B014.redundant_exceptions.items():
+    for primary, equivalents in B014_REDUNDANT_EXCEPTIONS.items():
         if primary in good:
             good = [g for g in good if g not in equivalents]
 
@@ -366,17 +366,16 @@ class B040CaughtException:
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
     lines = attr.ib()
-    b008_b039_extend_immutable_calls = attr.ib(factory=set)
-    b902_classmethod_decorators = attr.ib(factory=set)
-    node_window = attr.ib(factory=list)
-    errors = attr.ib(factory=list)
-    futures = attr.ib(factory=set)
-    contexts = attr.ib(factory=list)
+    b008_b039_extend_immutable_calls: set[str] = attr.ib(factory=set)
+    b902_classmethod_decorators: set[str] = attr.ib(factory=set)
+    node_window: list[ast.AST] = attr.ib(factory=list)
+    errors: list[error] = attr.ib(factory=list)
+    contexts: list[Context] = attr.ib(factory=list)
     b040_caught_exception: B040CaughtException | None = attr.ib(default=None)
 
     NODE_WINDOW_SIZE = 4
-    _b023_seen = attr.ib(factory=set, init=False)
-    _b005_imports = attr.ib(factory=set, init=False)
+    _b023_seen: set[error] = attr.ib(factory=set, init=False)
+    _b005_imports: set[str] = attr.ib(factory=set, init=False)
 
     if False:
         # Useful for tracing what the hell is going on.
@@ -641,7 +640,7 @@ class BugBearVisitor(ast.NodeVisitor):
             for name in node.names:
                 self._b005_imports.add(f"{node.module}.{name.name or name.asname}")
         elif isinstance(node, ast.Call):
-            if node.func.attr not in B005.methods:
+            if node.func.attr not in B005_METHODS:
                 return  # method name doesn't match
 
             if (
@@ -656,10 +655,6 @@ class BugBearVisitor(ast.NodeVisitor):
                 or not isinstance(node.args[0].value, str)
             ):
                 return  # used arguments don't match the builtin strip
-
-            call_path = ".".join(compose_call_path(node.func.value))
-            if call_path in B005.valid_paths:
-                return  # path is exempt
 
             value = node.args[0].value
             if len(value) == 1:
@@ -843,7 +838,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if decorator in {"classmethod", "staticmethod"}:
                 return
 
-            if decorator in B019.caches:
+            if decorator in B019_CACHES:
                 self.errors.append(
                     B019(
                         node.decorator_list[idx].lineno,
@@ -1229,7 +1224,7 @@ class BugBearVisitor(ast.NodeVisitor):
         def is_classmethod(decorators: Set[str]) -> bool:
             return (
                 any(name in decorators for name in self.b902_classmethod_decorators)
-                or node.name in B902.implicit_classmethods
+                or node.name in B902_IMPLICIT_CLASSMETHODS
             )
 
         if len(self.contexts) < 2 or not isinstance(
@@ -1251,17 +1246,17 @@ class BugBearVisitor(ast.NodeVisitor):
         bases = {b.id for b in cls.bases if isinstance(b, ast.Name)}
         if any(basetype in bases for basetype in ("type", "ABCMeta", "EnumMeta")):
             if is_classmethod(decorators):
-                expected_first_args = B902.metacls
+                expected_first_args = B902_METACLS
                 kind = "metaclass class"
             else:
-                expected_first_args = B902.cls
+                expected_first_args = B902_CLS
                 kind = "metaclass instance"
         else:
             if is_classmethod(decorators):
-                expected_first_args = B902.cls
+                expected_first_args = B902_CLS
                 kind = "class"
             else:
-                expected_first_args = B902.self
+                expected_first_args = B902_SELF
                 kind = "instance"
 
         args = getattr(node.args, "posonlyargs", []) + node.args.args
@@ -1708,7 +1703,7 @@ def compose_call_path(node):
         yield node.id
 
 
-def _tansform_slice_to_py39(slice: ast.Slice) -> ast.Slice | ast.Name:
+def _transform_slice_to_py39(slice: ast.expr | ast.Slice) -> ast.Slice | ast.expr:
     """Transform a py38 style slice to a py39 style slice.
 
     In py39 the slice was changed to have simple names directly assigned:
@@ -1769,18 +1764,18 @@ class B909Checker(ast.NodeVisitor):
         "discard",
     )
 
-    def __init__(self, name: str, key: str):
+    def __init__(self, name: str, key: str) -> None:
         self.name = name
         self.key = key
-        self.mutations = defaultdict(list)
+        self.mutations: dict[int, list[ast.AST]] = defaultdict(list)
         self._conditional_block = 0
 
-    def visit_Assign(self, node: ast.Assign):
+    def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
             if (
                 isinstance(target, ast.Subscript)
                 and _to_name_str(target.value) == self.name
-                and _to_name_str(_tansform_slice_to_py39(target.slice)) != self.key
+                and _to_name_str(_transform_slice_to_py39(target.slice)) != self.key
             ):
                 self.mutations[self._conditional_block].append(node)
         self.generic_visit(node)
@@ -1897,7 +1892,7 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
         )
         self.error_code_calls = error_code_calls
         self.error_code_literals = error_code_literals
-        for node in B006.mutable_literals + B006.mutable_comprehensions:
+        for node in B006_MUTABLE_LITERALS + B006_MUTABLE_COMPREHENSIONS:
             setattr(self, f"visit_{node}", self.visit_mutable_literal_or_comprehension)
         self.errors = []
         self.arg_depth = 0
@@ -1921,12 +1916,12 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node):
         call_path = ".".join(compose_call_path(node.func))
-        if call_path in B006.mutable_calls:
+        if call_path in B006_MUTABLE_CALLS:
             self.errors.append(self.error_code_calls(node.lineno, node.col_offset))
             self.generic_visit(node)
             return
 
-        if call_path in B008.immutable_calls | self.b008_b039_extend_immutable_calls:
+        if call_path in B008_IMMUTABLE_CALLS | self.b008_b039_extend_immutable_calls:
             self.generic_visit(node)
             return
 
@@ -2031,8 +2026,7 @@ B005 = Error(
         "expressions to remove string fragments."
     )
 )
-B005.methods = {"lstrip", "rstrip", "strip"}
-B005.valid_paths = {}
+B005_METHODS = {"lstrip", "rstrip", "strip"}
 
 B006 = Error(
     message=(
@@ -2044,9 +2038,9 @@ B006 = Error(
 )
 
 # Note: these are also used by B039
-B006.mutable_literals = ("Dict", "List", "Set")
-B006.mutable_comprehensions = ("ListComp", "DictComp", "SetComp")
-B006.mutable_calls = {
+B006_MUTABLE_LITERALS = ("Dict", "List", "Set")
+B006_MUTABLE_COMPREHENSIONS = ("ListComp", "DictComp", "SetComp")
+B006_MUTABLE_CALLS = {
     "Counter",
     "OrderedDict",
     "collections.Counter",
@@ -2076,7 +2070,7 @@ B008 = Error(
 )
 
 # Note: these are also used by B039
-B008.immutable_calls = {
+B008_IMMUTABLE_CALLS = {
     "tuple",
     "frozenset",
     "types.MappingProxyType",
@@ -2126,7 +2120,7 @@ B014 = Error(
         "Write `except {2}{1}:`, which catches exactly the same exceptions."
     )
 )
-B014.redundant_exceptions = {
+B014_REDUNDANT_EXCEPTIONS = {
     "OSError": {
         # All of these are actually aliases of OSError since Python 3.3
         "IOError",
@@ -2175,7 +2169,7 @@ B019 = Error(
         "preventing garbage collection."
     )
 )
-B019.caches = {
+B019_CACHES = {
     "functools.cache",
     "functools.lru_cache",
     "cache",
@@ -2312,10 +2306,10 @@ B902 = Error(
         "canonical first argument name in methods, i.e. {}."
     )
 )
-B902.implicit_classmethods = {"__new__", "__init_subclass__", "__class_getitem__"}
-B902.self = ["self"]  # it's a list because the first is preferred
-B902.cls = ["cls", "klass"]  # ditto.
-B902.metacls = ["metacls", "metaclass", "typ", "mcs"]  # ditto.
+B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
+B902_SELF = ["self"]  # it's a list because the first is preferred
+B902_CLS = ["cls", "klass"]  # ditto.
+B902_METACLS = ["metacls", "metaclass", "typ", "mcs"]  # ditto.
 
 B903 = Error(
     message=(
