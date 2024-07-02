@@ -792,7 +792,10 @@ class BugbearTestCase(unittest.TestCase):
         filename = Path(__file__).absolute().parent / "b901.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
-        self.assertEqual(errors, self.errors(B901(8, 8), B901(35, 4)))
+        self.assertEqual(
+            errors,
+            self.errors(B901(8, 8), B901(35, 4), B901(82, 8), B901(89, 4), B901(94, 4)),
+        )
 
     def test_b902(self):
         filename = Path(__file__).absolute().parent / "b902.py"

@@ -1192,9 +1192,26 @@ class BugBearVisitor(ast.NodeVisitor):
         for child in node.body:
             yield from _loop(node, child)
 
-    def check_for_b901(self, node):
+    def check_for_b901(self, node: ast.FunctionDef) -> None:
         if node.name == "__await__":
             return
+
+        # If the user explicitly wrote the 3-argument version of Generator as the
+        # return annotation, they probably know what they were doing.
+        if (
+            node.returns is not None
+            and isinstance(node.returns, ast.Subscript)
+            and (
+                is_name(node.returns.value, "Generator")
+                or is_name(node.returns.value, "typing.Generator")
+                or is_name(node.returns.value, "collections.abc.Generator")
+            )
+        ):
+            slice = node.returns.slice
+            if sys.version_info < (3, 9) and isinstance(slice, ast.Index):
+                slice = slice.value
+            if isinstance(slice, ast.Tuple) and len(slice.elts) == 3:
+                return
 
         has_yield = False
         return_node = None
@@ -1209,9 +1226,8 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(x, ast.Return) and x.value is not None:
                 return_node = x
 
-            if has_yield and return_node is not None:
-                self.errors.append(B901(return_node.lineno, return_node.col_offset))
-                break
+        if has_yield and return_node is not None:
+            self.errors.append(B901(return_node.lineno, return_node.col_offset))
 
     # taken from pep8-naming
     @classmethod
@@ -1706,6 +1722,16 @@ def compose_call_path(node):
         yield from compose_call_path(node.func)
     elif isinstance(node, ast.Name):
         yield node.id
+
+
+def is_name(node: ast.expr, name: str) -> bool:
+    if "." not in name:
+        return isinstance(node, ast.Name) and node.id == name
+    else:
+        if not isinstance(node, ast.Attribute):
+            return False
+        rest, attr = name.rsplit(".", maxsplit=1)
+        return node.attr == attr and is_name(node.value, rest)
 
 
 def _tansform_slice_to_py39(slice: ast.Slice) -> ast.Slice | ast.Name:
