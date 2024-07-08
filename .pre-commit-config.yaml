@@ -22,6 +22,6 @@ repos:
       exclude: ^tests/b.*
 
   - repo: https://github.com/rstcheck/rstcheck
-    rev: v6.2.0
+    rev: v6.2.4
     hooks:
     - id: rstcheck
