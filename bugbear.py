@@ -46,7 +46,7 @@ B902_default_decorators = {"classmethod"}
 Context = namedtuple("Context", ["node", "stack"])
 
 
-@attr.s(hash=False)
+@attr.s(unsafe_hash=False)
 class BugBearChecker:
     name = "flake8-bugbear"
     version = __version__
