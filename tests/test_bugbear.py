@@ -461,6 +461,8 @@ class BugbearTestCase(unittest.TestCase):
             B024(58, 0, vars=("MetaBase_1",)),
             B024(69, 0, vars=("abc_Base_1",)),
             B024(74, 0, vars=("abc_Base_2",)),
+            B024(123, 0, vars=("abc_assign_class_variable",)),
+            B024(129, 0, vars=("abc_annassign_class_variable",)),
         )
         self.assertEqual(errors, expected)
 

@@ -10,7 +10,7 @@ import foo
 
 """
 Should emit:
-B024 - on lines 17, 34, 52, 58, 69, 74, 84, 89
+B024 - on lines 17, 52, 58, 69, 74, 123, 129
 """
 
 
@@ -31,7 +31,7 @@ class Base_3(ABC):
         foo()
 
 
-class Base_4(ABC):
+class Base_4(ABC): # safe
     @notabc.abstractmethod
     def method(self):
         foo()
@@ -112,16 +112,24 @@ class keyword_abc_2(metaclass=abc.ABC):  # safe
         foo()
 
 
-class abc_set_class_variable_1(ABC):  # safe
+# safe, see https://github.com/PyCQA/flake8-bugbear/issues/293
+class abc_annasign_empty_class_variable_1(ABC):
     foo: int
+    def method(self):
+        foo()
 
 
-class abc_set_class_variable_2(ABC):  # safe
+# *not* safe, see https://github.com/PyCQA/flake8-bugbear/issues/471
+class abc_assign_class_variable(ABC):
     foo = 2
+    def method(self):
+        foo()
 
 
-class abc_set_class_variable_3(ABC):  # safe
+class abc_annassign_class_variable(ABC):  # *not* safe, see #471
     foo: int = 2
+    def method(self):
+        foo()
 
 
 # this doesn't actually declare a class variable, it's just an expression

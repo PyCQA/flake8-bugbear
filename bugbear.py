@@ -996,7 +996,7 @@ class BugBearVisitor(ast.NodeVisitor):
         for stmt in node.body:
             # https://github.com/PyCQA/flake8-bugbear/issues/293
             # Ignore abc's that declares a class attribute that must be set
-            if isinstance(stmt, (ast.AnnAssign, ast.Assign)):
+            if isinstance(stmt, ast.AnnAssign) and stmt.value is None:
                 has_abstract_method = True
                 continue
 
