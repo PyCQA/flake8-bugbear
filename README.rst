@@ -357,6 +357,11 @@ MIT
 Change Log
 ----------
 
+
+FUTURE
+~~~~~~
+* B024: No longer treats assigned class variables as abstract (#471)
+
 24.8.19
 ~~~~~~~
 
