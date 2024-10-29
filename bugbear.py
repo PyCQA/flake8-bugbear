@@ -2312,7 +2312,7 @@ B036 = Error(
 )
 
 B037 = Error(
-    message="B037 Class `__init__` methods must not return or yield and any values."
+    message="B037 Class `__init__` methods must not return or yield any values."
 )
 
 B039 = Error(
