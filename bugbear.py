@@ -17,7 +17,7 @@ from typing import Dict, Iterable, Iterator, List, Sequence, Set, Union
 import attr
 import pycodestyle  # type: ignore[import-untyped]
 
-__version__ = "24.8.19"
+__version__ = "24.10.31"
 
 LOG = logging.getLogger("flake8.bugbear")
 CONTEXTFUL_NODES = (

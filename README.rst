@@ -360,9 +360,13 @@ Change Log
 ----------
 
 
-FUTURE
+24.10.31
 ~~~~~~
+
+* B041: New dictionary same key AND value check (#496)
+* B037: Fix typo in error message
 * B024: No longer treats assigned class variables as abstract (#471)
+* Bump required attrs version to 22.2.0
 
 24.8.19
 ~~~~~~~
