@@ -8,7 +8,7 @@ import math
 import re
 import sys
 import warnings
-from collections import defaultdict, namedtuple
+from collections import Counter, defaultdict, namedtuple
 from contextlib import suppress
 from functools import lru_cache, partial
 from keyword import iskeyword
@@ -362,6 +362,17 @@ class B040CaughtException:
     has_note: bool
 
 
+class B041UnhandledKeyType:
+    """
+    A dictionary key of a type that we do not check for duplicates.
+    """
+
+
+@attr.define(frozen=True)
+class B041VariableKeyType:
+    name: str
+
+
 @attr.s
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
@@ -632,6 +643,35 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_Set(self, node) -> None:
         self.check_for_b033(node)
         self.generic_visit(node)
+
+    def visit_Dict(self, node) -> None:
+        self.check_for_b041(node)
+        self.generic_visit(node)
+
+    def check_for_b041(self, node) -> None:
+        # Complain if there are duplicate key-value pairs in a dictionary literal.
+        def convert_to_value(item):
+            if isinstance(item, ast.Constant):
+                return item.value
+            elif isinstance(item, ast.Tuple):
+                return tuple(convert_to_value(i) for i in item.elts)
+            elif isinstance(item, ast.Name):
+                return B041VariableKeyType(item.id)
+            else:
+                return B041UnhandledKeyType()
+
+        keys = [convert_to_value(key) for key in node.keys]
+        key_counts = Counter(keys)
+        duplicate_keys = [key for key, count in key_counts.items() if count > 1]
+        for key in duplicate_keys:
+            key_indices = [i for i, i_key in enumerate(keys) if i_key == key]
+            seen = set()
+            for index in key_indices:
+                value = convert_to_value(node.values[index])
+                if value in seen:
+                    key_node = node.keys[index]
+                    self.errors.append(B041(key_node.lineno, key_node.col_offset))
+                seen.add(value)
 
     def check_for_b005(self, node) -> None:
         if isinstance(node, ast.Import):
@@ -2326,6 +2366,8 @@ B039 = Error(
 B040 = Error(
     message="B040 Exception with added note not used. Did you forget to raise it?"
 )
+
+B041 = Error(message=("B041 Repeated key-value pair in dictionary literal."))
 
 # Warnings disabled by default.
 B901 = Error(
