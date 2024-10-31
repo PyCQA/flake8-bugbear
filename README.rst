@@ -361,7 +361,7 @@ Change Log
 
 
 24.10.31
-~~~~~~
+~~~~~~~~
 
 * B041: New dictionary same key AND value check (#496)
 * B037: Fix typo in error message
