@@ -360,6 +360,11 @@ Change Log
 ----------
 
 
+FUTURE
+~~~~~~
+
+* B012 and B025 now also handle try/except*
+
 24.10.31
 ~~~~~~~~
 

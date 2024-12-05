@@ -457,7 +457,7 @@ class BugBearVisitor(ast.NodeVisitor):
         else:
             self.b040_caught_exception = B040CaughtException(node.name, False)
 
-        names = self.check_for_b013_b029_b030(node)
+        names = self.check_for_b013_b014_b029_b030(node)
 
         if (
             "BaseException" in names
@@ -603,6 +603,8 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b012(node)
         self.check_for_b025(node)
         self.generic_visit(node)
+
+    visit_TryStar = visit_Try
 
     def visit_Compare(self, node) -> None:
         self.check_for_b015(node)
@@ -770,7 +772,7 @@ class BugBearVisitor(ast.NodeVisitor):
         for child in node.finalbody:
             _loop(child, (ast.Return, ast.Continue, ast.Break))
 
-    def check_for_b013_b029_b030(self, node: ast.ExceptHandler) -> list[str]:
+    def check_for_b013_b014_b029_b030(self, node: ast.ExceptHandler) -> list[str]:
         handlers: Iterable[ast.expr | None] = _flatten_excepthandler(node.type)
         names: list[str] = []
         bad_handlers: list[object] = []
@@ -2058,6 +2060,7 @@ class B020NameFinder(NameFinder):
 error = namedtuple("error", "lineno col message type vars")
 Error = partial(partial, error, type=BugBearChecker, vars=())
 
+# note: bare except* is a syntax error
 B001 = Error(
     message=(
         "B001 Do not use bare `except:`, it also catches unexpected "
