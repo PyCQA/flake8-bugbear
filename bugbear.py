@@ -515,6 +515,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b039(node)
         self.check_for_b905(node)
         self.check_for_b910(node)
+        self.check_for_b911(node)
 
         # no need for copying, if used in nested calls it will be set to None
         current_b040_caught_exception = self.b040_caught_exception
@@ -1757,6 +1758,18 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B910(node.lineno, node.col_offset))
 
+    def check_for_b911(self, node: ast.Call) -> None:
+        if (
+            (isinstance(node.func, ast.Name) and node.func.id == "batched")
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "batched"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "itertools"
+            )
+        ) and not any(kw.arg == "strict" for kw in node.keywords):
+            self.errors.append(B911(node.lineno, node.col_offset))
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -2436,6 +2449,9 @@ B909 = Error(
 B910 = Error(
     message="B910 Use Counter() instead of defaultdict(int) to avoid excessive memory use"
 )
+B911 = Error(
+    message="B911 `itertools.batched()` without an explicit `strict=` parameter."
+)
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
 
@@ -2449,5 +2465,6 @@ disabled_by_default = [
     "B908",
     "B909",
     "B910",
+    "B911",
     "B950",
 ]

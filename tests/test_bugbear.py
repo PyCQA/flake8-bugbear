@@ -59,6 +59,7 @@ from bugbear import (
     B908,
     B909,
     B910,
+    B911,
     B950,
     BugBearChecker,
     BugBearVisitor,
@@ -1071,6 +1072,21 @@ class BugbearTestCase(unittest.TestCase):
         expected = [
             B910(3, 4),
             B910(8, 4),
+        ]
+        self.assertEqual(errors, self.errors(*expected))
+
+    @unittest.skipIf(sys.version_info < (3, 13), "requires 3.13+")
+    def test_b911(self):
+        filename = Path(__file__).absolute().parent / "b911_py313.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = [
+            B911(5, 0),
+            B911(6, 0),
+            B911(7, 0),
+            B911(8, 0),
+            B911(9, 0),
+            B911(10, 0),
         ]
         self.assertEqual(errors, self.errors(*expected))
 
