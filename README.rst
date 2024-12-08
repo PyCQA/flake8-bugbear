@@ -258,6 +258,10 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 
 **B910**: Use Counter() instead of defaultdict(int) to avoid excessive memory use as the default dict will record missing keys with the default value when accessed.
 
+**B911**: ``itertools.batched()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator to raise a ``ValueError`` if the final batch is shorter than ``n``.
+
+The ``strict=`` argument was added in Python 3.13, so don't enable this flag for code that should work on <3.13.
+
 **B950**: Line too long. This is a pragmatic equivalent of
 ``pycodestyle``'s ``E501``: it considers "max-line-length" but only triggers
 when the value has been exceeded by **more than 10%**. ``noqa`` and ``type: ignore`` comments are ignored. You will no
