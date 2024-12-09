@@ -1683,6 +1683,8 @@ class BugBearVisitor(ast.NodeVisitor):
             and node.func.value.id == "warnings"
             and not any(kw.arg == "stacklevel" for kw in node.keywords)
             and len(node.args) < 3
+            and not any(isinstance(a, ast.Starred) for a in node.args)
+            and not any(kw.arg is None for kw in node.keywords)
         ):
             self.errors.append(B028(node.lineno, node.col_offset))
 
