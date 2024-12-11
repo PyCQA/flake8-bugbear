@@ -243,7 +243,7 @@ def _flatten_excepthandler(node: ast.expr | None) -> Iterator[ast.expr | None]:
         yield expr
 
 
-def _check_redundant_excepthandlers(names: Sequence[str], node):
+def _check_redundant_excepthandlers(names: Sequence[str], node, in_trystar):
     # See if any of the given exception names could be removed, e.g. from:
     #    (MyError, MyError)  # duplicate names
     #    (MyError, BaseException)  # everything derives from the Base
@@ -275,7 +275,7 @@ def _check_redundant_excepthandlers(names: Sequence[str], node):
         return B014(
             node.lineno,
             node.col_offset,
-            vars=(", ".join(names), as_, desc),
+            vars=(", ".join(names), as_, desc, in_trystar),
         )
     return None
 
@@ -388,6 +388,9 @@ class BugBearVisitor(ast.NodeVisitor):
     _b023_seen: set[error] = attr.ib(factory=set, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
 
+    # set to "*" when inside a try/except*, for correctly printing errors
+    in_trystar: str = attr.ib(default="")
+
     if False:
         # Useful for tracing what the hell is going on.
 
@@ -457,7 +460,7 @@ class BugBearVisitor(ast.NodeVisitor):
         else:
             self.b040_caught_exception = B040CaughtException(node.name, False)
 
-        names = self.check_for_b013_b029_b030(node)
+        names = self.check_for_b013_b014_b029_b030(node)
 
         if (
             "BaseException" in names
@@ -604,6 +607,12 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b012(node)
         self.check_for_b025(node)
         self.generic_visit(node)
+
+    def visit_TryStar(self, node) -> None:
+        outer_trystar = self.in_trystar
+        self.in_trystar = "*"
+        self.visit_Try(node)
+        self.in_trystar = outer_trystar
 
     def visit_Compare(self, node) -> None:
         self.check_for_b015(node)
@@ -763,7 +772,9 @@ class BugBearVisitor(ast.NodeVisitor):
                 bad_node_types = (ast.Return,)
 
             elif isinstance(node, bad_node_types):
-                self.errors.append(B012(node.lineno, node.col_offset))
+                self.errors.append(
+                    B012(node.lineno, node.col_offset, vars=(self.in_trystar,))
+                )
 
             for child in ast.iter_child_nodes(node):
                 _loop(child, bad_node_types)
@@ -771,7 +782,7 @@ class BugBearVisitor(ast.NodeVisitor):
         for child in node.finalbody:
             _loop(child, (ast.Return, ast.Continue, ast.Break))
 
-    def check_for_b013_b029_b030(self, node: ast.ExceptHandler) -> list[str]:
+    def check_for_b013_b014_b029_b030(self, node: ast.ExceptHandler) -> list[str]:
         handlers: Iterable[ast.expr | None] = _flatten_excepthandler(node.type)
         names: list[str] = []
         bad_handlers: list[object] = []
@@ -791,16 +802,27 @@ class BugBearVisitor(ast.NodeVisitor):
         if bad_handlers:
             self.errors.append(B030(node.lineno, node.col_offset))
         if len(names) == 0 and not bad_handlers and not ignored_handlers:
-            self.errors.append(B029(node.lineno, node.col_offset))
+            self.errors.append(
+                B029(node.lineno, node.col_offset, vars=(self.in_trystar,))
+            )
         elif (
             len(names) == 1
             and not bad_handlers
             and not ignored_handlers
             and isinstance(node.type, ast.Tuple)
         ):
-            self.errors.append(B013(node.lineno, node.col_offset, vars=names))
+            self.errors.append(
+                B013(
+                    node.lineno,
+                    node.col_offset,
+                    vars=(
+                        *names,
+                        self.in_trystar,
+                    ),
+                )
+            )
         else:
-            maybe_error = _check_redundant_excepthandlers(names, node)
+            maybe_error = _check_redundant_excepthandlers(names, node, self.in_trystar)
             if maybe_error is not None:
                 self.errors.append(maybe_error)
         return names
@@ -1216,7 +1238,9 @@ class BugBearVisitor(ast.NodeVisitor):
             and not (isinstance(node.exc, ast.Name) and node.exc.id.islower())
             and any(isinstance(n, ast.ExceptHandler) for n in self.node_stack)
         ):
-            self.errors.append(B904(node.lineno, node.col_offset))
+            self.errors.append(
+                B904(node.lineno, node.col_offset, vars=(self.in_trystar,))
+            )
 
     def walk_function_body(self, node):
         def _loop(parent, node):
@@ -1480,7 +1504,9 @@ class BugBearVisitor(ast.NodeVisitor):
         # sort to have a deterministic output
         duplicates = sorted({x for x in seen if seen.count(x) > 1})
         for duplicate in duplicates:
-            self.errors.append(B025(node.lineno, node.col_offset, vars=(duplicate,)))
+            self.errors.append(
+                B025(node.lineno, node.col_offset, vars=(duplicate, self.in_trystar))
+            )
 
     @staticmethod
     def _is_infinite_iterator(node: ast.expr) -> bool:
@@ -2073,6 +2099,7 @@ class B020NameFinder(NameFinder):
 error = namedtuple("error", "lineno col message type vars")
 Error = partial(partial, error, type=BugBearChecker, vars=())
 
+# note: bare except* is a syntax error, so B001 does not need to handle it
 B001 = Error(
     message=(
         "B001 Do not use bare `except:`, it also catches unexpected "
@@ -2194,20 +2221,20 @@ B011 = Error(
 B012 = Error(
     message=(
         "B012 return/continue/break inside finally blocks cause exceptions "
-        "to be silenced. Exceptions should be silenced in except blocks. Control "
+        "to be silenced. Exceptions should be silenced in except{0} blocks. Control "
         "statements can be moved outside the finally block."
     )
 )
 B013 = Error(
     message=(
         "B013 A length-one tuple literal is redundant.  "
-        "Write `except {0}:` instead of `except ({0},):`."
+        "Write `except{1} {0}:` instead of `except{1} ({0},):`."
     )
 )
 B014 = Error(
     message=(
-        "B014 Redundant exception types in `except ({0}){1}:`.  "
-        "Write `except {2}{1}:`, which catches exactly the same exceptions."
+        "B014 Redundant exception types in `except{3} ({0}){1}:`.  "
+        "Write `except{3} {2}{1}:`, which catches exactly the same exceptions."
     )
 )
 B014_REDUNDANT_EXCEPTIONS = {
@@ -2296,8 +2323,8 @@ B024 = Error(
 )
 B025 = Error(
     message=(
-        "B025 Exception `{0}` has been caught multiple times. Only the first except"
-        " will be considered and all other except catches can be safely removed."
+        "B025 Exception `{0}` has been caught multiple times. Only the first except{0}"
+        " will be considered and all other except{0} catches can be safely removed."
     )
 )
 B026 = Error(
@@ -2325,7 +2352,7 @@ B028 = Error(
 )
 B029 = Error(
     message=(
-        "B029 Using `except ():` with an empty tuple does not handle/catch "
+        "B029 Using `except{0} ():` with an empty tuple does not handle/catch "
         "anything. Add exceptions to handle."
     )
 )
@@ -2414,7 +2441,7 @@ B903 = Error(
 
 B904 = Error(
     message=(
-        "B904 Within an `except` clause, raise exceptions with `raise ... from err` or"
+        "B904 Within an `except{0}` clause, raise exceptions with `raise ... from err` or"
         " `raise ... from None` to distinguish them from errors in exception handling. "
         " See https://docs.python.org/3/tutorial/errors.html#exception-chaining for"
         " details."
