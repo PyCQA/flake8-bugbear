@@ -472,10 +472,13 @@ Change Log
 ----------
 
 
-FUTURE
-~~~~~~
+24.12.12
+~~~~~~~~
 
-* B012 and B025 now also handle try/except*
+* B012 and B025 now also handle try/except* (#500)
+* Skip B028 if warnings.warn is called with ``*args`` or ``**kwargs`` (#501)
+* Add B911: itertools.batched without strict= (#502)
+* Readme has anchors per check (they do not seem to render on GitHub tho)
 
 24.10.31
 ~~~~~~~~
