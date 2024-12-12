@@ -58,24 +58,34 @@ If you'd like to do a PR we have development instructions `here <https://github.
 List of warnings
 ----------------
 
+.. _B001:
+
 **B001**: Do not use bare ``except:``, it also catches unexpected events
 like memory errors, interrupts, system exit, and so on.  Prefer ``except
 Exception:``.  If you're sure what you're doing, be explicit and write
 ``except BaseException:``.  Disable ``E722`` to avoid duplicate warnings.
 
+.. _B002:
+
 **B002**: Python does not support the unary prefix increment. Writing
 ``++n`` is equivalent to ``+(+(n))``, which equals ``n``. You meant ``n
 += 1``.
+
+.. _B003:
 
 **B003**: Assigning to ``os.environ`` doesn't clear the
 environment.  Subprocesses are going to see outdated
 variables, in disagreement with the current process.  Use
 ``os.environ.clear()`` or the ``env=``  argument to Popen.
 
+.. _B004:
+
 **B004**: Using ``hasattr(x, '__call__')`` to test if ``x`` is callable
 is unreliable.  If ``x`` implements custom ``__getattr__`` or its
 ``__call__`` is itself not callable, you might get misleading
 results.  Use ``callable(x)`` for consistent results.
+
+.. _B005:
 
 **B005**: Using ``.strip()`` with multi-character strings is misleading
 the reader. It looks like stripping a substring. Move your
@@ -83,13 +93,19 @@ character set to a constant if this is deliberate. Use
 ``.replace()``, ``.removeprefix()``, ``.removesuffix()`` or regular
 expressions to remove string fragments.
 
+.. _B006:
+
 **B006**: Do not use mutable data structures for argument defaults.  They
 are created during function definition time. All calls to the function
 reuse this one instance of that data structure, persisting changes
 between them.
 
+.. _B007:
+
 **B007**: Loop control variable not used within the loop body.  If this is
 intended, start the name with an underscore.
+
+.. _B008:
 
 **B008**: Do not perform function calls in argument defaults.  The call is
 performed only once at function definition time. All calls to your
@@ -97,18 +113,26 @@ function will reuse the result of that definition-time function call.  If
 this is intended, assign the function call to a module-level variable and
 use that variable as a default value.
 
+.. _B009:
+
 **B009**: Do not call ``getattr(x, 'attr')``, instead use normal
 property access: ``x.attr``. Missing a default to ``getattr`` will cause
 an ``AttributeError`` to be raised for non-existent properties. There is
 no additional safety in using ``getattr`` if you know the attribute name
 ahead of time.
 
+.. _B010:
+
 **B010**: Do not call ``setattr(x, 'attr', val)``, instead use normal
 property access: ``x.attr = val``. There is no additional safety in
 using ``setattr`` if you know the attribute name ahead of time.
 
+.. _B011:
+
 **B011**: Do not call ``assert False`` since ``python -O`` removes these calls.
 Instead callers should ``raise AssertionError()``.
+
+.. _B012:
 
 **B012**: Use of ``break``, ``continue`` or ``return`` inside ``finally`` blocks will
 silence exceptions or override return values from the ``try`` or ``except`` blocks.
@@ -116,17 +140,27 @@ To silence an exception, do it explicitly in the ``except`` block. To properly u
 a ``break``, ``continue`` or ``return`` refactor your code so these statements are not
 in the ``finally`` block.
 
+.. _B013:
+
 **B013**: A length-one tuple literal is redundant.  Write ``except SomeError:``
 instead of ``except (SomeError,):``.
+
+.. _B014:
 
 **B014**: Redundant exception types in ``except (Exception, TypeError):``.
 Write ``except Exception:``, which catches exactly the same exceptions.
 
+.. _B015:
+
 **B015**: Pointless comparison. This comparison does nothing but
 waste CPU instructions. Either prepend ``assert`` or remove it.
 
+.. _B016:
+
 **B016**: Cannot raise a literal. Did you intend to return it or raise
 an Exception?
+
+.. _B017:
 
 **B017**: ``assertRaises(Exception)`` and ``pytest.raises(Exception)`` should
 be considered evil. They can lead to your test passing even if the
@@ -136,36 +170,54 @@ specific exception (builtin or custom), or use ``assertRaisesRegex``
 using ``pytest.raises``), or use the context manager form with a target
 (e.g. ``with self.assertRaises(Exception) as ex:``).
 
+.. _B018:
+
 **B018**: Found useless expression. Either assign it to a variable or remove it.
 Note that dangling commas will cause things to be interpreted as useless tuples.
 For example, in the statement ``print(".."),`` is the same as ``(print(".."),)``
 which is an unassigned tuple. Simply remove the comma to clear the error.
 
+.. _B019:
+
 **B019**: Use of ``functools.lru_cache`` or ``functools.cache`` on methods
 can lead to memory leaks. The cache may retain instance references, preventing
 garbage collection.
 
+.. _B020:
+
 **B020**: Loop control variable overrides iterable it iterates
+
+.. _B021:
 
 **B021**: f-string used as docstring. This will be interpreted by python
 as a joined string rather than a docstring.
+
+.. _B022:
 
 **B022**: No arguments passed to `contextlib.suppress`.
 No exceptions will be suppressed and therefore this context manager is redundant.
 N.B. this rule currently does not flag `suppress` calls to avoid potential false
 positives due to similarly named user-defined functions.
 
+.. _B023:
+
 **B023**: Functions defined inside a loop must not use variables redefined in
 the loop, because `late-binding closures are a classic gotcha
 <https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
+
+.. _B024:
 
 **B024**: Abstract base class has methods, but none of them are abstract. This
 is not necessarily an error, but you might have forgotten to add the @abstractmethod
 decorator, potentially in conjunction with @classmethod, @property and/or @staticmethod.
 
+.. _B025:
+
 **B025**: ``try-except`` block with duplicate exceptions found.
 This check identifies exception types that are specified in multiple ``except``
 clauses. The first specification is the only one ever considered, so all others can be removed.
+
+.. _B026:
 
 **B026**: Star-arg unpacking after a keyword argument is strongly discouraged, because
 it only works when the keyword parameter is declared after all parameters supplied by
@@ -174,34 +226,62 @@ There was `cpython discussion of disallowing this syntax
 <https://github.com/python/cpython/issues/82741>`_, but legacy usage and parser
 limitations make it difficult.
 
+.. _B027:
+
 **B027**: Empty method in abstract base class, but has no abstract decorator. Consider adding @abstractmethod.
+
+.. _B028:
 
 **B028**: No explicit stacklevel argument found. The warn method from the warnings module uses a
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
 
+.. _B029:
+
 **B029**: Using ``except ():`` with an empty tuple does not handle/catch anything. Add exceptions to handle.
 
+.. _B030:
+
 **B030**: Except handlers should only be exception classes or tuples of exception classes.
+
+.. _B031:
 
 **B031**: Using the generator returned from `itertools.groupby()` more than once will do nothing on the
 second usage. Save the result to a list if the result is needed multiple times.
 
+.. _B032:
+
 **B032**: Possible unintentional type annotation (using ``:``). Did you mean to assign (using ``=``)?
+
+.. _B033:
 
 **B033**: Sets should not contain duplicate items. Duplicate items will be replaced with a single item at runtime.
 
+.. _B034:
+
 **B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `count`/`maxsplit` as keyword arguments. It is commonly assumed that `flags` is the third positional parameter, forgetting about `count`/`maxsplit`, since many other `re` module functions are of the form `f(pattern, string, flags)`.
+
+.. _B035:
 
 **B035**: Found dict comprehension with a static key - either a constant value or variable not from the comprehension expression. This will result in a dict with a single key that was repeatedly overwritten.
 
+.. _B036:
+
 **B036**: Found ``except BaseException:`` without re-raising (no ``raise`` in the top-level of the ``except`` block). This catches all kinds of things (Exception, SystemExit, KeyboardInterrupt...) and may prevent a program from exiting as expected.
+
+.. _B037:
 
 **B037**: Found ``return <value>``, ``yield``, ``yield <value>``, or ``yield from <value>`` in class ``__init__()`` method. No values should be returned or yielded, only bare ``return``\s are ok.
 
+.. _B038:
+
 **B038**: **Moved to B909** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs.
 
+.. _B039:
+
 **B039**: ``ContextVar`` with mutable literal or function call as default. This is only evaluated once, and all subsequent calls to `.get()` would return the same instance of the default. This uses the same logic as B006 and B008, including ignoring values in ``extend-immutable-calls``.
+
+.. _B040:
 
 **B040**: Caught exception with call to ``add_note`` not used. Did you forget to ``raise`` it?
 
@@ -215,6 +295,8 @@ controversial.  They may or may not apply to you, enable them explicitly
 in your configuration if you find them useful.  Read below on how to
 enable.
 
+.. _B901:
+
 **B901**: Using ``return x`` in a generator function used to be
 syntactically invalid in Python 2. In Python 3 ``return x`` can be used
 in a generator as a return value in conjunction with ``yield from``.
@@ -222,10 +304,14 @@ Users coming from Python 2 may expect the old behavior which might lead
 to bugs.  Use native ``async def`` coroutines or mark intentional
 ``return x`` usage with ``# noqa`` on the same line.
 
+.. _B902:
+
 **B902**: Invalid first argument used for method. Use ``self`` for
 instance methods, and ``cls`` for class methods (which includes ``__new__``
 and ``__init_subclass__``) or instance methods of metaclasses (detected as
 classes directly inheriting from ``type``).
+
+.. _B903:
 
 **B903**: Use ``collections.namedtuple`` (or ``typing.NamedTuple``) for
 data classes that only set attributes in an ``__init__`` method, and do
@@ -233,10 +319,14 @@ nothing else. If the attributes should be mutable, define the attributes
 in ``__slots__`` to save per-instance memory and to prevent accidentally
 creating additional attributes on instances.
 
+.. _B904:
+
 **B904**: Within an ``except`` clause, raise exceptions with ``raise ... from err``
 or ``raise ... from None`` to distinguish them from errors in exception handling.
 See `the exception chaining tutorial <https://docs.python.org/3/tutorial/errors.html#exception-chaining>`_
 for details.
+
+.. _B905:
 
 **B905**: ``zip()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
 to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
@@ -246,21 +336,35 @@ Exclusions are `itertools.count <https://docs.python.org/3/library/itertools.htm
 The ``strict=`` argument was added in Python 3.10, so don't enable this flag for code that should work on <3.10.
 For more information: https://peps.python.org/pep-0618/
 
+.. _B906:
+
 **B906**: ``visit_`` function with no further call to a ``visit`` function. This is often an error, and will stop the visitor from recursing into the subnodes of a visited node. Consider adding a call ``self.generic_visit(node)`` at the end of the function.
 Will only trigger on function names where the part after ``visit_`` is a valid ``ast`` type with a non-empty ``_fields`` attribute.
 This is meant to be enabled by developers writing visitors using the ``ast`` module, such as flake8 plugin writers.
 
+.. _B907:
+
 **B907**: Consider replacing ``f"'{foo}'"`` with ``f"{foo!r}"`` which is both easier to read and will escape quotes inside ``foo`` if that would appear. The check tries to filter out any format specs that are invalid together with ``!r``. If you're using other conversion flags then e.g. ``f"'{foo!a}'"`` can be replaced with ``f"{ascii(foo)!r}"``. Not currently implemented for python<3.8 or ``str.format()`` calls.
+
+.. _B908:
 
 **B908**: Contexts with exceptions assertions like ``with self.assertRaises`` or ``with pytest.raises`` should not have multiple top-level statements. Each statement should be in its own context. That way, the test ensures that the exception is raised only in the exact statement where you expect it.
 
+.. _B909:
+
 **B909**: **Was B038** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs.
 
+.. _B910:
+
 **B910**: Use Counter() instead of defaultdict(int) to avoid excessive memory use as the default dict will record missing keys with the default value when accessed.
+
+.. _B911:
 
 **B911**: ``itertools.batched()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator to raise a ``ValueError`` if the final batch is shorter than ``n``.
 
 The ``strict=`` argument was added in Python 3.13, so don't enable this flag for code that should work on <3.13.
+
+.. _B950:
 
 **B950**: Line too long. This is a pragmatic equivalent of
 ``pycodestyle``'s ``E501``: it considers "max-line-length" but only triggers
@@ -324,10 +428,14 @@ Configuration
 
 The plugin currently has the following settings:
 
+.. _extend_immutable_calls:
+
 ``extend-immutable-calls``: Specify a list of additional immutable calls.
 This could be useful, when using other libraries that provide more immutable calls,
 beside those already handled by ``flake8-bugbear``. Calls to these method will no longer
 raise a ``B008`` or ``B039`` warning.
+
+.. _classmethod_decorators:
 
 ``classmethod-decorators``: Specify a list of decorators to additionally mark a method as a ``classmethod`` as used by B902. The default only checks for ``classmethod``. When an ``@obj.name`` decorator is specified it will match against either ``name`` or ``obj.name``.
 This functions similarly to how `pep8-naming <https://github.com/PyCQA/pep8-naming>` handles it, but with different defaults, and they don't support specifying attributes such that a decorator will never match against a specified value ``obj.name`` even if decorated with ``@obj.name``.
