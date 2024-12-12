@@ -285,6 +285,8 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B040**: Caught exception with call to ``add_note`` not used. Did you forget to ``raise`` it?
 
+**B041**: Repeated key-value pair in dictionary literal. Only emits errors when the key's value is *also* the same, being the opposite of the pyflakes like check.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -355,6 +357,12 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 .. _B910:
 
 **B910**: Use Counter() instead of defaultdict(int) to avoid excessive memory use as the default dict will record missing keys with the default value when accessed.
+
+.. _B911:
+
+**B911**: ``itertools.batched()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator to raise a ``ValueError`` if the final batch is shorter than ``n``.
+
+The ``strict=`` argument was added in Python 3.13, so don't enable this flag for code that should work on <3.13.
 
 .. _B950:
 
@@ -462,6 +470,20 @@ MIT
 
 Change Log
 ----------
+
+
+FUTURE
+~~~~~~
+
+* B012 and B025 now also handle try/except*
+
+24.10.31
+~~~~~~~~
+
+* B041: New dictionary same key AND value check (#496)
+* B037: Fix typo in error message
+* B024: No longer treats assigned class variables as abstract (#471)
+* Bump required attrs version to 22.2.0
 
 24.8.19
 ~~~~~~~

@@ -11,3 +11,8 @@ warnings.warn("test", DeprecationWarning, source=None, stacklevel=2)
 warnings.warn("test", DeprecationWarning, stacklevel=1)
 warnings.warn("test", DeprecationWarning, 1)
 warnings.warn("test", category=DeprecationWarning, stacklevel=1)
+args = ("test", DeprecationWarning, 1)
+warnings.warn(*args)
+kwargs = {"message": "test", "category": DeprecationWarning, "stacklevel": 1}
+warnings.warn(**kwargs)
+warnings.warn(*args, **kwargs)

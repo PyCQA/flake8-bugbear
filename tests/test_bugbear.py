@@ -48,6 +48,7 @@ from bugbear import (
     B037,
     B039,
     B040,
+    B041,
     B901,
     B902,
     B903,
@@ -58,6 +59,7 @@ from bugbear import (
     B908,
     B909,
     B910,
+    B911,
     B950,
     BugBearChecker,
     BugBearVisitor,
@@ -206,16 +208,28 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         all_errors = [
-            B012(5, 8),
-            B012(13, 12),
-            B012(21, 12),
-            B012(31, 12),
-            B012(44, 20),
-            B012(66, 12),
-            B012(78, 12),
-            B012(94, 12),
-            B012(101, 8),
-            B012(107, 8),
+            B012(5, 8, vars=("",)),
+            B012(13, 12, vars=("",)),
+            B012(21, 12, vars=("",)),
+            B012(31, 12, vars=("",)),
+            B012(44, 20, vars=("",)),
+            B012(66, 12, vars=("",)),
+            B012(78, 12, vars=("",)),
+            B012(94, 12, vars=("",)),
+            B012(101, 8, vars=("",)),
+            B012(107, 8, vars=("",)),
+        ]
+        self.assertEqual(errors, self.errors(*all_errors))
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b012_py311(self):
+        filename = Path(__file__).absolute().parent / "b012_py311.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        all_errors = [
+            B012(7, 8, vars=("*",)),
+            B012(17, 12, vars=("*",)),
+            B012(27, 12, vars=("*",)),
         ]
         self.assertEqual(errors, self.errors(*all_errors))
 
@@ -224,7 +238,19 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B013(10, 0, vars=("ValueError",)), B013(32, 0, vars=("re.error",))
+            B013(10, 0, vars=("ValueError", "")),
+            B013(32, 0, vars=("re.error", "")),
+        )
+        self.assertEqual(errors, expected)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b013_py311(self):
+        filename = Path(__file__).absolute().parent / "b013_py311.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B013(10, 0, vars=("ValueError", "*")),
+            B013(32, 0, vars=("re.error", "*")),
         )
         self.assertEqual(errors, expected)
 
@@ -233,17 +259,37 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B014(11, 0, vars=("Exception, TypeError", "", "Exception")),
-            B014(17, 0, vars=("OSError, OSError", " as err", "OSError")),
-            B014(28, 0, vars=("MyError, MyError", "", "MyError")),
-            B014(42, 0, vars=("MyError, BaseException", " as e", "BaseException")),
-            B014(49, 0, vars=("re.error, re.error", "", "re.error")),
+            B014(11, 0, vars=("Exception, TypeError", "", "Exception", "")),
+            B014(17, 0, vars=("OSError, OSError", " as err", "OSError", "")),
+            B014(28, 0, vars=("MyError, MyError", "", "MyError", "")),
+            B014(42, 0, vars=("MyError, BaseException", " as e", "BaseException", "")),
+            B014(49, 0, vars=("re.error, re.error", "", "re.error", "")),
             B014(
                 56,
                 0,
-                vars=("IOError, EnvironmentError, OSError", "", "OSError"),
+                vars=("IOError, EnvironmentError, OSError", "", "OSError", ""),
             ),
-            B014(74, 0, vars=("ValueError, binascii.Error", "", "ValueError")),
+            B014(74, 0, vars=("ValueError, binascii.Error", "", "ValueError", "")),
+        )
+        self.assertEqual(errors, expected)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b014_py311(self):
+        filename = Path(__file__).absolute().parent / "b014_py311.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B014(11, 0, vars=("Exception, TypeError", "", "Exception", "*")),
+            B014(17, 0, vars=("OSError, OSError", " as err", "OSError", "*")),
+            B014(28, 0, vars=("MyError, MyError", "", "MyError", "*")),
+            B014(42, 0, vars=("MyError, BaseException", " as e", "BaseException", "*")),
+            B014(49, 0, vars=("re.error, re.error", "", "re.error", "*")),
+            B014(
+                56,
+                0,
+                vars=("IOError, EnvironmentError, OSError", "", "OSError", "*"),
+            ),
+            B014(74, 0, vars=("ValueError, binascii.Error", "", "ValueError", "*")),
         )
         self.assertEqual(errors, expected)
 
@@ -461,11 +507,28 @@ class BugbearTestCase(unittest.TestCase):
             B024(58, 0, vars=("MetaBase_1",)),
             B024(69, 0, vars=("abc_Base_1",)),
             B024(74, 0, vars=("abc_Base_2",)),
+            B024(123, 0, vars=("abc_assign_class_variable",)),
+            B024(129, 0, vars=("abc_annassign_class_variable",)),
         )
         self.assertEqual(errors, expected)
 
     def test_b025(self):
         filename = Path(__file__).absolute().parent / "b025.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        self.assertEqual(
+            errors,
+            self.errors(
+                B025(15, 0, vars=("ValueError",)),
+                B025(22, 0, vars=("pickle.PickleError",)),
+                B025(31, 0, vars=("TypeError",)),
+                B025(31, 0, vars=("ValueError",)),
+            ),
+        )
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b025_py311(self):
+        filename = Path(__file__).absolute().parent / "b025_py311.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         self.assertEqual(
@@ -521,13 +584,36 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
-            B029(8, 0),
-            B029(13, 0),
+            B029(8, 0, vars=("",)),
+            B029(13, 0, vars=("",)),
+        )
+        self.assertEqual(errors, expected)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b029_py311(self):
+        filename = Path(__file__).absolute().parent / "b029_py311.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B029(8, 0, vars=("*",)),
+            B029(13, 0, vars=("*",)),
         )
         self.assertEqual(errors, expected)
 
     def test_b030(self):
         filename = Path(__file__).absolute().parent / "b030.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B030(3, 0),
+            B030(13, 0),
+            B030(18, 0),
+        )
+        self.assertEqual(errors, expected)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b030_py311(self):
+        filename = Path(__file__).absolute().parent / "b030_py311.py"
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = self.errors(
@@ -625,6 +711,21 @@ class BugbearTestCase(unittest.TestCase):
         )
         self.assertEqual(errors, expected)
 
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b036_py311(self) -> None:
+        filename = Path(__file__).absolute().parent / "b036_py311.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B036(4, 0),
+            B036(11, 0),
+            B036(20, 0),
+            B036(33, 0),
+            B036(50, 0),
+            B036(58, 0),
+        )
+        self.assertEqual(errors, expected)
+
     def test_b037(self) -> None:
         filename = Path(__file__).absolute().parent / "b037.py"
         bbc = BugBearChecker(filename=str(filename))
@@ -663,6 +764,23 @@ class BugbearTestCase(unittest.TestCase):
             B040(107, 0),
             B040(114, 0),
             B040(124, 0),
+        )
+        self.assertEqual(errors, expected)
+
+    def test_b041(self) -> None:
+        filename = Path(__file__).absolute().parent / "b041.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = self.errors(
+            B041(2, 18),
+            B041(3, 18),
+            B041(3, 37),
+            B041(4, 18),
+            B041(4, 28),
+            B041(5, 14),
+            B041(6, 17),
+            B041(7, 17),
+            B041(8, 14),
         )
         self.assertEqual(errors, expected)
 
@@ -882,10 +1000,23 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename))
         errors = list(bbc.run())
         expected = [
-            B904(10, 8),
-            B904(11, 4),
-            B904(16, 4),
-            B904(55, 16),
+            B904(10, 8, vars=("",)),
+            B904(11, 4, vars=("",)),
+            B904(16, 4, vars=("",)),
+            B904(55, 16, vars=("",)),
+        ]
+        self.assertEqual(errors, self.errors(*expected))
+
+    @unittest.skipIf(sys.version_info < (3, 11), "requires 3.11+")
+    def test_b904_py311(self):
+        filename = Path(__file__).absolute().parent / "b904_py311.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = [
+            B904(10, 8, vars=("*",)),
+            B904(11, 4, vars=("*",)),
+            B904(16, 4, vars=("*",)),
+            B904(55, 16, vars=("*",)),
         ]
         self.assertEqual(errors, self.errors(*expected))
 
@@ -1051,6 +1182,21 @@ class BugbearTestCase(unittest.TestCase):
         expected = [
             B910(3, 4),
             B910(8, 4),
+        ]
+        self.assertEqual(errors, self.errors(*expected))
+
+    @unittest.skipIf(sys.version_info < (3, 13), "requires 3.13+")
+    def test_b911(self):
+        filename = Path(__file__).absolute().parent / "b911_py313.py"
+        bbc = BugBearChecker(filename=str(filename))
+        errors = list(bbc.run())
+        expected = [
+            B911(5, 0),
+            B911(6, 0),
+            B911(7, 0),
+            B911(8, 0),
+            B911(9, 0),
+            B911(10, 0),
         ]
         self.assertEqual(errors, self.errors(*expected))
 
