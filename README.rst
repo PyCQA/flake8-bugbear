@@ -235,6 +235,7 @@ limitations make it difficult.
 **B028**: No explicit stacklevel argument found. The warn method from the warnings module uses a
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
+The check is skipped when skip_file_prefixes is used.
 
 .. _B029:
 
