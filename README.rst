@@ -472,6 +472,10 @@ MIT
 Change Log
 ----------
 
+UNRELEASED
+~~~~~~~~~~
+
+* B028: Skip if skip_file_prefixes is used (#503)
 
 24.12.12
 ~~~~~~~~
