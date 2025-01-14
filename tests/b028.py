@@ -16,3 +16,4 @@ warnings.warn(*args)
 kwargs = {"message": "test", "category": DeprecationWarning, "stacklevel": 1}
 warnings.warn(**kwargs)
 warnings.warn(*args, **kwargs)
+warnings.warn("test", DeprecationWarning, skip_file_prefixes=["foo"])
