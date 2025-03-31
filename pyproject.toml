@@ -26,7 +26,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -36,8 +35,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Quality Assurance",
 ]
-requires-python = ">=3.8.1"
-dependencies = ["flake8>=6.0.0", "attrs>=22.2.0"]
+requires-python = ">=3.9"
+dependencies = ["flake8>=7.2.0", "attrs>=22.2.0"]
 dynamic = ["version"]
 
 [project.urls]

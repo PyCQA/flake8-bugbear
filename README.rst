@@ -475,6 +475,7 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* flake8-bugbear now requires at least Python 3.9, like flake8>=7.2.0
 * B028: Skip if skip_file_prefixes is used (#503)
 
 24.12.12
