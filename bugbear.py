@@ -10,9 +10,9 @@ import sys
 import warnings
 from collections import Counter, defaultdict, namedtuple
 from contextlib import suppress
-from functools import lru_cache, partial
+from functools import lru_cache
 from keyword import iskeyword
-from typing import Dict, Iterable, Iterator, List, Sequence, Set, Union
+from typing import Dict, Iterable, Iterator, List, Sequence, Set, Union, cast
 
 import attr
 import pycodestyle  # type: ignore[import-untyped]
@@ -58,7 +58,7 @@ class BugBearChecker:
     visitor = attr.ib(init=False, factory=lambda: BugBearVisitor)
     options = attr.ib(default=None)
 
-    def run(self):
+    def run(self) -> Iterable[tuple[int, int, str, type]]:
         if not self.tree or not self.lines:
             self.load_file()
 
@@ -124,7 +124,7 @@ class BugBearChecker:
                 yield B950(lineno, length, vars=(length, self.max_line_length))
 
     @classmethod
-    def adapt_error(cls, e):
+    def adapt_error(cls, e: error) -> tuple[int, int, str, type]:
         """Adapts the extended error namedtuple to be compatible with Flake8."""
         return e._replace(message=e.message.format(*e.vars))[:4]
 
@@ -243,7 +243,9 @@ def _flatten_excepthandler(node: ast.expr | None) -> Iterator[ast.expr | None]:
         yield expr
 
 
-def _check_redundant_excepthandlers(names: Sequence[str], node, in_trystar):
+def _check_redundant_excepthandlers(
+    names: Sequence[str], node: ast.ExceptHandler, in_trystar: str
+):
     # See if any of the given exception names could be removed, e.g. from:
     #    (MyError, MyError)  # duplicate names
     #    (MyError, BaseException)  # everything derives from the Base
@@ -394,7 +396,7 @@ class BugBearVisitor(ast.NodeVisitor):
     if False:
         # Useful for tracing what the hell is going on.
 
-        def __getattr__(self, name: str):
+        def __getattr__(self, name: str):  # type: ignore[unreachable]
             print(name)
             return self.__getattribute__(name)
 
@@ -477,10 +479,10 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B040(node.lineno, node.col_offset))
         self.b040_caught_exception = old_b040_caught_exception
 
-    def visit_UAdd(self, node) -> None:
+    def visit_UAdd(self, node: ast.UAdd) -> None:
         trailing_nodes = list(map(type, self.node_window[-4:]))
         if trailing_nodes == [ast.UnaryOp, ast.UAdd, ast.UnaryOp, ast.UAdd]:
-            originator = self.node_window[-4]
+            originator = cast("ast.UnaryOp", self.node_window[-4])
             self.errors.append(B002(originator.lineno, originator.col_offset))
         self.generic_visit(node)
 
@@ -546,7 +548,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     self.errors.append(B003(node.lineno, node.col_offset))
         self.generic_visit(node)
 
-    def visit_For(self, node) -> None:
+    def visit_For(self, node: ast.For) -> None:
         self.check_for_b007(node)
         self.check_for_b020(node)
         self.check_for_b023(node)
@@ -554,28 +556,28 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b909(node)
         self.generic_visit(node)
 
-    def visit_AsyncFor(self, node) -> None:
+    def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
         self.check_for_b023(node)
         self.generic_visit(node)
 
-    def visit_While(self, node) -> None:
+    def visit_While(self, node: ast.While) -> None:
         self.check_for_b023(node)
         self.generic_visit(node)
 
-    def visit_ListComp(self, node) -> None:
+    def visit_ListComp(self, node: ast.ListComp) -> None:
         self.check_for_b023(node)
         self.generic_visit(node)
 
-    def visit_SetComp(self, node) -> None:
+    def visit_SetComp(self, node: ast.SetComp) -> None:
         self.check_for_b023(node)
         self.generic_visit(node)
 
-    def visit_DictComp(self, node) -> None:
+    def visit_DictComp(self, node: ast.DictComp) -> None:
         self.check_for_b023(node)
         self.check_for_b035(node)
         self.generic_visit(node)
 
-    def visit_GeneratorExp(self, node) -> None:
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
         self.check_for_b023(node)
         self.generic_visit(node)
 
@@ -925,7 +927,18 @@ class BugBearVisitor(ast.NodeVisitor):
                 n = targets.names[name][0]
                 self.errors.append(B020(n.lineno, n.col_offset, vars=(name,)))
 
-    def check_for_b023(self, loop_node) -> None:  # noqa: C901
+    def check_for_b023(  # noqa: C901
+        self,
+        loop_node: (
+            ast.For
+            | ast.AsyncFor
+            | ast.While
+            | ast.GeneratorExp
+            | ast.SetComp
+            | ast.ListComp
+            | ast.DictComp
+        ),
+    ) -> None:
         """Check that functions (including lambdas) do not use loop variables.
 
         https://docs.python-guide.org/writing/gotchas/#late-binding-closures from
@@ -1599,21 +1612,6 @@ class BugBearVisitor(ast.NodeVisitor):
             self.errors.append(B906(node.lineno, node.col_offset))
 
     def check_for_b907(self, node: ast.JoinedStr) -> None:  # noqa: C901
-        def myunparse(node: ast.AST) -> str:  # pragma: no cover
-            if sys.version_info >= (3, 9):
-                return ast.unparse(node)
-            if isinstance(node, ast.Name):
-                return node.id
-            if isinstance(node, ast.Attribute):
-                return myunparse(node.value) + "." + node.attr
-            if isinstance(node, ast.Constant):
-                return repr(node.value)
-            if isinstance(node, ast.Call):
-                return myunparse(node.func) + "()"  # don't bother with arguments
-
-            # as a last resort, just give the type name
-            return type(node).__name__
-
         quote_marks = "'\""
         current_mark = None
         variable = None
@@ -1632,7 +1630,7 @@ class BugBearVisitor(ast.NodeVisitor):
                         B907(
                             variable.lineno,
                             variable.col_offset,
-                            vars=(myunparse(variable.value),),
+                            vars=(ast.unparse(variable.value),),
                         )
                     )
                     current_mark = variable = None
@@ -1820,46 +1818,6 @@ def is_name(node: ast.expr, name: str) -> bool:
         return node.attr == attr and is_name(node.value, rest)
 
 
-def _transform_slice_to_py39(slice: ast.expr | ast.Slice) -> ast.Slice | ast.expr:
-    """Transform a py38 style slice to a py39 style slice.
-
-    In py39 the slice was changed to have simple names directly assigned:
-    ```py
-    # code:
-    some_dict[key]
-    # py38:
-    slice=Index(
-        value=Name(
-                lineno=152,
-                col_offset=14,
-                end_lineno=152,
-                end_col_offset=17,
-                id='key',
-                ctx=Load()
-            ),
-    )
-    # py39 onwards:
-    slice=Name(
-                lineno=152,
-                col_offset=14,
-                end_lineno=152,
-                end_col_offset=17,
-                id='key',
-                ctx=Load()
-            ),
-    ```
-
-    > Changed in version 3.9: Simple indices are represented by their value,
-    > extended slices are represented as tuples.
-    from https://docs.python.org/3/library/ast.html#module-ast
-    """
-    if sys.version_info >= (3, 9):
-        return slice
-    if isinstance(slice, ast.Index) and isinstance(slice.value, ast.Name):
-        slice = slice.value
-    return slice
-
-
 class B909Checker(ast.NodeVisitor):
     # https://docs.python.org/3/library/stdtypes.html#mutable-sequence-types
     MUTATING_FUNCTIONS = (
@@ -1884,7 +1842,9 @@ class B909Checker(ast.NodeVisitor):
     def __init__(self, name: str, key: str) -> None:
         self.name = name
         self.key = key
-        self.mutations: dict[int, list[ast.AST]] = defaultdict(list)
+        self.mutations: dict[
+            int, list[ast.Assign | ast.AugAssign | ast.Delete | ast.Call]
+        ] = defaultdict(list)
         self._conditional_block = 0
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -1892,7 +1852,7 @@ class B909Checker(ast.NodeVisitor):
             if (
                 isinstance(target, ast.Subscript)
                 and _to_name_str(target.value) == self.name
-                and _to_name_str(_transform_slice_to_py39(target.slice)) != self.key
+                and _to_name_str(target.slice) != self.key
             ):
                 self.mutations[self._conditional_block].append(node)
         self.generic_visit(node)
@@ -2098,7 +2058,15 @@ class B020NameFinder(NameFinder):
 
 
 error = namedtuple("error", "lineno col message type vars")
-Error = partial(partial, error, type=BugBearChecker, vars=())
+
+
+class Error:
+    def __init__(self, message: str):
+        self.message = message
+
+    def __call__(self, lineno: int, col: int, vars: tuple[str, ...] = ()) -> error:
+        return error(lineno, col, self.message, BugBearChecker, vars=vars)
+
 
 # note: bare except* is a syntax error, so B001 does not need to handle it
 B001 = Error(
