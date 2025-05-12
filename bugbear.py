@@ -482,7 +482,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_UAdd(self, node: ast.UAdd) -> None:
         trailing_nodes = list(map(type, self.node_window[-4:]))
         if trailing_nodes == [ast.UnaryOp, ast.UAdd, ast.UnaryOp, ast.UAdd]:
-            originator = cast("ast.UnaryOp", self.node_window[-4])
+            originator = cast(ast.UnaryOp, self.node_window[-4])
             self.errors.append(B002(originator.lineno, originator.col_offset))
         self.generic_visit(node)
 
