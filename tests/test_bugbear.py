@@ -211,6 +211,7 @@ class TestFuzz(unittest.TestCase):
     from hypothesis import HealthCheck, given, settings
     from hypothesmith import from_grammar
 
+    @pytest.mark.filterwarnings("ignore::SyntaxWarning")
     @settings(suppress_health_check=[HealthCheck.too_slow])
     @given(from_grammar().map(ast.parse))
     def test_does_not_crash_on_any_valid_code(self, syntax_tree):
@@ -250,7 +251,3 @@ class TestFuzz(unittest.TestCase):
             "foo = lambda: IOError\ntry:\n    ...\nexcept (foo(),):\n    ...\n"
         )
         BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
-
-
-if __name__ == "__main__":
-    unittest.main()
