@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import ast
 import itertools
 import os
 import re
 import site
 import subprocess
+import sys
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -24,12 +27,23 @@ test_files: list[tuple[str, Path]] = sorted(
 )
 
 
+def check_version(test: str) -> None:
+    python_version = re.search(r"(?<=_PY)\d*", test)
+    if python_version:
+        version_str = python_version.group()
+        major, minor = version_str[0], version_str[1:]
+        v_i = sys.version_info
+        if (v_i.major, v_i.minor) < (int(major), int(minor)):
+            pytest.skip(f"python version {v_i} smaller than {major}, {minor}")
+
+
 @pytest.mark.parametrize(("test", "path"), test_files, ids=[f[0] for f in test_files])
 def test_eval(
     test: str,
     path: Path,
 ):
-    print(test, path)
+    check_version(test)
+
     content = path.read_text()
     expected, options = _parse_eval_file(test, content)
     assert expected
