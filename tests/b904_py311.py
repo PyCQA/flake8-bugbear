@@ -7,13 +7,13 @@ try:
     raise ValueError
 except* ValueError:
     if "abc":
-        raise TypeError
-    raise UserWarning
+        raise TypeError # B904: 8, "*"
+    raise UserWarning # B904: 4, "*"
 except* AssertionError:
     raise  # Bare `raise` should not be an error
 except* Exception as err:
     assert err
-    raise Exception("No cause here...")
+    raise Exception("No cause here...") # B904: 4, "*"
 except* BaseException as base_err:
     # Might use this instead of bare raise with the `.with_traceback()` method
     raise base_err
@@ -52,4 +52,4 @@ except* ImportError:
             try:
                 raise ValueError
             except* ValueError:
-                raise Exception
+                raise Exception # B904: 16, "*"

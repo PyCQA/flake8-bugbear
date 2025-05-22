@@ -7,7 +7,7 @@ import re
 
 try:
     pass
-except (ValueError,):
+except (ValueError,):  # B013: 0, "ValueError", ""
     # pointless use of tuple
     pass
 
@@ -29,7 +29,7 @@ except ValueError:
 
 try:
     pass
-except (re.error,):
+except (re.error,):  # B013: 0, "re.error", ""
     # pointless use of tuple with dotted attribute
     pass
 

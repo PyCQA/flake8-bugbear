@@ -1,6 +1,6 @@
 try:
     pass
-except* (ValueError, (RuntimeError, (KeyError, TypeError))):  # error
+except* (ValueError, (RuntimeError, (KeyError, TypeError))):  # error # B030: 0
     pass
 
 try:
@@ -10,12 +10,12 @@ except* (ValueError, *(RuntimeError, *(KeyError, TypeError))):  # ok
 
 try:
     pass
-except* 1:  # error
+except* 1:  # error # B030: 0
     pass
 
 try:
     pass
-except* (1, ValueError):  # error
+except* (1, ValueError):  # error # B030: 0
     pass
 
 try:

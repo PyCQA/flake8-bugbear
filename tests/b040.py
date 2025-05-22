@@ -4,7 +4,7 @@ def arbitrary_fun(*args, **kwargs): ...
 # classic case
 try:
     ...
-except Exception as e:
+except Exception as e: # B040: 0
     e.add_note("...")  # error
 
 try:
@@ -21,7 +21,7 @@ except Exception as e:
 # other exception raised
 try:
     ...
-except Exception as e:
+except Exception as e: # B040: 0
     f = ValueError()
     e.add_note("...")  # error
     raise f
@@ -80,7 +80,7 @@ except Exception as e:
 # multiple ExceptHandlers
 try:
     ...
-except ValueError as e:
+except ValueError as e: # B040: 0
     e.add_note("")  # error
 except TypeError as e:
     raise e
@@ -104,14 +104,14 @@ except Exception as e:  # safe
 # special case: e is only used in the `add_note` call itself
 try:
     ...
-except Exception as e:  # error
+except Exception as e:  # error # B040: 0
     e.add_note(str(e))
     e.add_note(str(e))
 
 # check nesting
 try:
     ...
-except Exception as e:  # error
+except Exception as e:  # error # B040: 0
     e.add_note("")
     try:
         ...
@@ -121,7 +121,7 @@ except Exception as e:  # error
 # questionable if this should error
 try:
     ...
-except Exception as e:
+except Exception as e: # B040: 0
     e.add_note("")
     e = ValueError()
 

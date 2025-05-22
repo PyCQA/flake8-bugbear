@@ -14,9 +14,9 @@ getattr(foo, "123abc")
 getattr(foo, "except")
 
 # Invalid usage
-getattr(foo, "bar")
-getattr(foo, "_123abc")
-getattr(foo, "abc123")
+getattr(foo, "bar")  # B009: 0
+getattr(foo, "_123abc")  # B009: 0
+getattr(foo, "abc123")  # B009: 0
 
 # Valid setattr usage
 setattr(foo, bar, None)
@@ -25,9 +25,9 @@ setattr(foo, "123abc", None)
 setattr(foo, "except", None)
 
 # Invalid usage
-setattr(foo, "bar", None)
-setattr(foo, "_123abc", None)
-setattr(foo, "abc123", None)
+setattr(foo, "bar", None)  # B010: 0
+setattr(foo, "_123abc", None)  # B010: 0
+setattr(foo, "abc123", None)  # B010: 0
 
 # Allow use of setattr within lambda expression
 # since assignment is not valid in this context.
@@ -42,6 +42,6 @@ class FakeCookieStore:
 
 
 # getattr is still flagged within lambda though
-c = lambda x: getattr(x, "some_attr")
+c = lambda x: getattr(x, "some_attr")  # B009: 14
 # should be replaced with
 c = lambda x: x.some_attr

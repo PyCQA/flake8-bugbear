@@ -55,38 +55,38 @@ def kwonlyargs_immutable(*, value=()): ...
 # Flag mutable literals/comprehensions
 
 
-def this_is_wrong(value=[1, 2, 3]): ...
+def this_is_wrong(value=[1, 2, 3]): ...  # B006: 24
 
 
-def this_is_also_wrong(value={}): ...
+def this_is_also_wrong(value={}): ...  # B006: 29
 
 
-def and_this(value=set()): ...
+def and_this(value=set()): ...  # B006: 19
 
 
-def this_too(value=collections.OrderedDict()): ...
+def this_too(value=collections.OrderedDict()): ...  # B006: 19
 
 
-async def async_this_too(value=collections.defaultdict()): ...
+async def async_this_too(value=collections.defaultdict()): ...  # B006: 31
 
 
-def dont_forget_me(value=collections.deque()): ...
+def dont_forget_me(value=collections.deque()): ...  # B006: 25
 
 
 # N.B. we're also flagging the function call in the comprehension
-def list_comprehension_also_not_okay(default=[i**2 for i in range(3)]):
+def list_comprehension_also_not_okay(default=[i**2 for i in range(3)]):  # B006: 45  # B008: 60
     pass
 
 
-def dict_comprehension_also_not_okay(default={i: i**2 for i in range(3)}):
+def dict_comprehension_also_not_okay(default={i: i**2 for i in range(3)}):  # B006: 45  # B008: 63
     pass
 
 
-def set_comprehension_also_not_okay(default={i**2 for i in range(3)}):
+def set_comprehension_also_not_okay(default={i**2 for i in range(3)}):  # B006: 44 # B008: 59
     pass
 
 
-def kwonlyargs_mutable(*, value=[]): ...
+def kwonlyargs_mutable(*, value=[]): ...  # B006: 32
 
 
 # Recommended approach for mutable defaults
@@ -97,14 +97,14 @@ def do_this_instead(value=None):
 
 # B008
 # Flag function calls as default args (including if they are part of a sub-expression)
-def in_fact_all_calls_are_wrong(value=time.time()): ...
+def in_fact_all_calls_are_wrong(value=time.time()): ...  # B008: 38
 
 
-def f(when=dt.datetime.now() + dt.timedelta(days=7)):
+def f(when=dt.datetime.now() + dt.timedelta(days=7)):  # B008: 11 # B008: 31
     pass
 
 
-def can_even_catch_lambdas(a=(lambda x: x)()): ...
+def can_even_catch_lambdas(a=(lambda x: x)()): ...  # B008: 29
 
 
 # Recommended approach for function calls as default args
@@ -146,28 +146,28 @@ def float_infinity_literal(value=float("1e999")):
 
 
 # But don't allow standard floats
-def float_int_is_wrong(value=float(3)):
+def float_int_is_wrong(value=float(3)):  # B008: 29
     pass
 
 
-def float_str_not_inf_or_nan_is_wrong(value=float("3.14")):
+def float_str_not_inf_or_nan_is_wrong(value=float("3.14")):  # B008: 44
     pass
 
 
 # B006 and B008
 # We should handle arbitrary nesting of these B008.
-def nested_combo(a=[float(3), dt.datetime.now()]):
+def nested_combo(a=[float(3), dt.datetime.now()]):  # B006: 19 # B008: 20 # B008: 30
     pass
 
 
 # Don't flag nested B006 since we can't guarantee that
 # it isn't made mutable by the outer operation.
-def no_nested_b006(a=map(lambda s: s.upper(), ["a", "b", "c"])):
+def no_nested_b006(a=map(lambda s: s.upper(), ["a", "b", "c"])):  # B008: 21
     pass
 
 
 # B008-ception.
-def nested_b008(a=random.randint(0, dt.datetime.now().year)):
+def nested_b008(a=random.randint(0, dt.datetime.now().year)):  # B008: 18 # B008: 36
     pass
 
 

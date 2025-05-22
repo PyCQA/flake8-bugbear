@@ -12,7 +12,7 @@ from collections import Counter, defaultdict, namedtuple
 from contextlib import suppress
 from functools import lru_cache
 from keyword import iskeyword
-from typing import Dict, Iterable, Iterator, List, Sequence, Set, Union, cast
+from typing import Dict, Iterable, Iterator, List, Protocol, Sequence, Set, Union, cast
 
 import attr
 import pycodestyle  # type: ignore[import-untyped]
@@ -121,7 +121,9 @@ class BugBearChecker:
                 if skip and not too_many_leading_white_spaces:
                     continue
 
-                yield B950(lineno, length, vars=(length, self.max_line_length))
+                yield error_codes["B950"](
+                    lineno, length, vars=(length, self.max_line_length)
+                )
 
     @classmethod
     def adapt_error(cls, e: error) -> tuple[int, int, str, type]:
@@ -274,7 +276,7 @@ def _check_redundant_excepthandlers(
     if good != names:
         desc = good[0] if len(good) == 1 else "({})".format(", ".join(good))
         as_ = " as " + node.name if node.name is not None else ""
-        return B014(
+        return error_codes["B014"](
             node.lineno,
             node.col_offset,
             vars=(", ".join(names), as_, desc, in_trystar),
@@ -375,6 +377,11 @@ class B041VariableKeyType:
     name: str
 
 
+class AstPositionNode(Protocol):
+    lineno: int
+    col_offset: int
+
+
 @attr.s
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
@@ -387,7 +394,7 @@ class BugBearVisitor(ast.NodeVisitor):
     b040_caught_exception: B040CaughtException | None = attr.ib(default=None)
 
     NODE_WINDOW_SIZE = 4
-    _b023_seen: set[error] = attr.ib(factory=set, init=False)
+    _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
@@ -399,6 +406,9 @@ class BugBearVisitor(ast.NodeVisitor):
         def __getattr__(self, name: str):  # type: ignore[unreachable]
             print(name)
             return self.__getattribute__(name)
+
+    def add_error(self, code: str, node: AstPositionNode, *vars: object) -> None:
+        self.errors.append(error_codes[code](node.lineno, node.col_offset, vars=vars))
 
     @property
     def node_stack(self):
@@ -419,17 +429,17 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_Return(self, node: ast.Return) -> None:
         if self.in_class_init():
             if node.value is not None:
-                self.errors.append(B037(node.lineno, node.col_offset))
+                self.add_error("B037", node)
         self.generic_visit(node)
 
     def visit_Yield(self, node: ast.Yield) -> None:
         if self.in_class_init():
-            self.errors.append(B037(node.lineno, node.col_offset))
+            self.add_error("B037", node)
         self.generic_visit(node)
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> None:
         if self.in_class_init():
-            self.errors.append(B037(node.lineno, node.col_offset))
+            self.add_error("B037", node)
         self.generic_visit(node)
 
     def visit(self, node) -> None:
@@ -452,7 +462,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node.type is None:
-            self.errors.append(B001(node.lineno, node.col_offset))
+            self.add_error("B001", node)
             self.generic_visit(node)
             return
 
@@ -468,7 +478,7 @@ class BugBearVisitor(ast.NodeVisitor):
             "BaseException" in names
             and not ExceptBaseExceptionVisitor(node).re_raised()
         ):
-            self.errors.append(B036(node.lineno, node.col_offset))
+            self.add_error("B036", node)
 
         self.generic_visit(node)
 
@@ -476,14 +486,14 @@ class BugBearVisitor(ast.NodeVisitor):
             self.b040_caught_exception is not None
             and self.b040_caught_exception.has_note
         ):
-            self.errors.append(B040(node.lineno, node.col_offset))
+            self.add_error("B040", node)
         self.b040_caught_exception = old_b040_caught_exception
 
     def visit_UAdd(self, node: ast.UAdd) -> None:
         trailing_nodes = list(map(type, self.node_window[-4:]))
         if trailing_nodes == [ast.UnaryOp, ast.UAdd, ast.UnaryOp, ast.UAdd]:
             originator = cast(ast.UnaryOp, self.node_window[-4])
-            self.errors.append(B002(originator.lineno, originator.col_offset))
+            self.add_error("B002", originator)
         self.generic_visit(node)
 
     def visit_Call(self, node) -> None:
@@ -497,14 +507,14 @@ class BugBearVisitor(ast.NodeVisitor):
                     node.func.id in ("getattr", "hasattr")
                     and node.args[1].value == "__call__"
                 ):
-                    self.errors.append(B004(node.lineno, node.col_offset))
+                    self.add_error("B004", node)
                 if (
                     node.func.id == "getattr"
                     and len(node.args) == 2
                     and _is_identifier(node.args[1])
                     and not iskeyword(node.args[1].value)
                 ):
-                    self.errors.append(B009(node.lineno, node.col_offset))
+                    self.add_error("B009", node)
                 elif (
                     not any(isinstance(n, ast.Lambda) for n in self.node_stack)
                     and node.func.id == "setattr"
@@ -512,7 +522,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and _is_identifier(node.args[1])
                     and not iskeyword(node.args[1].value)
                 ):
-                    self.errors.append(B010(node.lineno, node.col_offset))
+                    self.add_error("B010", node)
 
         self.check_for_b026(node)
         self.check_for_b028(node)
@@ -545,7 +555,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
             if isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name):
                 if (t.value.id, t.attr) == ("os", "environ"):
-                    self.errors.append(B003(node.lineno, node.col_offset))
+                    self.add_error("B003", node)
         self.generic_visit(node)
 
     def visit_For(self, node: ast.For) -> None:
@@ -682,7 +692,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 value = convert_to_value(node.values[index])
                 if value in seen:
                     key_node = node.keys[index]
-                    self.errors.append(B041(key_node.lineno, key_node.col_offset))
+                    self.add_error("B041", key_node)
                 seen.add(value)
 
     def check_for_b005(self, node) -> None:
@@ -716,11 +726,13 @@ class BugBearVisitor(ast.NodeVisitor):
             if len(value) == len(set(value)):
                 return  # no characters appear more than once
 
-            self.errors.append(B005(node.lineno, node.col_offset))
+            self.add_error("B005", node)
 
     def check_for_b006_and_b008(self, node) -> None:
         visitor = FunctionDefDefaultsVisitor(
-            B006, B008, self.b008_b039_extend_immutable_calls
+            error_codes["B006"],
+            error_codes["B008"],
+            self.b008_b039_extend_immutable_calls,
         )
         visitor.visit(node.args.defaults + node.args.kw_defaults)
         self.errors.extend(visitor.errors)
@@ -744,7 +756,9 @@ class BugBearVisitor(ast.NodeVisitor):
             return
 
         visitor = FunctionDefDefaultsVisitor(
-            B039, B039, self.b008_b039_extend_immutable_calls
+            error_codes["B039"],
+            error_codes["B039"],
+            self.b008_b039_extend_immutable_calls,
         )
         visitor.visit(kw.value)
         self.errors.extend(visitor.errors)
@@ -759,11 +773,11 @@ class BugBearVisitor(ast.NodeVisitor):
         used_names = set(body.names)
         for name in sorted(ctrl_names - used_names):
             n = targets.names[name][0]
-            self.errors.append(B007(n.lineno, n.col_offset, vars=(name,)))
+            self.add_error("B007", n, name)
 
     def check_for_b011(self, node) -> None:
         if isinstance(node.test, ast.Constant) and node.test.value is False:
-            self.errors.append(B011(node.lineno, node.col_offset))
+            self.add_error("B011", node)
 
     def check_for_b012(self, node) -> None:
         def _loop(node, bad_node_types) -> None:
@@ -774,9 +788,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 bad_node_types = (ast.Return,)
 
             elif isinstance(node, bad_node_types):
-                self.errors.append(
-                    B012(node.lineno, node.col_offset, vars=(self.in_trystar,))
-                )
+                self.add_error("B012", node, self.in_trystar)
 
             for child in ast.iter_child_nodes(node):
                 _loop(child, bad_node_types)
@@ -802,10 +814,12 @@ class BugBearVisitor(ast.NodeVisitor):
             else:
                 bad_handlers.append(handler)
         if bad_handlers:
-            self.errors.append(B030(node.lineno, node.col_offset))
+            self.add_error("B030", node)
         if len(names) == 0 and not bad_handlers and not ignored_handlers:
-            self.errors.append(
-                B029(node.lineno, node.col_offset, vars=(self.in_trystar,))
+            self.add_error(
+                "B029",
+                node,
+                self.in_trystar,
             )
         elif (
             len(names) == 1
@@ -813,15 +827,11 @@ class BugBearVisitor(ast.NodeVisitor):
             and not ignored_handlers
             and isinstance(node.type, ast.Tuple)
         ):
-            self.errors.append(
-                B013(
-                    node.lineno,
-                    node.col_offset,
-                    vars=(
-                        *names,
-                        self.in_trystar,
-                    ),
-                )
+            self.add_error(
+                "B013",
+                node,
+                *names,
+                self.in_trystar,
             )
         else:
             maybe_error = _check_redundant_excepthandlers(names, node, self.in_trystar)
@@ -831,7 +841,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def check_for_b015(self, node) -> None:
         if isinstance(self.node_stack[-2], ast.Expr):
-            self.errors.append(B015(node.lineno, node.col_offset))
+            self.add_error("B015", node)
 
     def check_for_b016(self, node) -> None:
         if isinstance(node.exc, ast.JoinedStr) or (
@@ -841,7 +851,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 or node.exc.value is None
             )
         ):
-            self.errors.append(B016(node.lineno, node.col_offset))
+            self.add_error("B016", node)
 
     def check_for_b017(self, node) -> None:
         """Checks for use of the evil syntax 'with assertRaises(Exception):'
@@ -885,7 +895,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and item_context.args[0].id in {"Exception", "BaseException"}
             and not item.optional_vars
         ):
-            self.errors.append(B017(node.lineno, node.col_offset))
+            self.add_error("B017", node)
 
     def check_for_b019(self, node) -> None:
         if (
@@ -905,12 +915,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
 
             if decorator in B019_CACHES:
-                self.errors.append(
-                    B019(
-                        node.decorator_list[idx].lineno,
-                        node.decorator_list[idx].col_offset,
-                    )
-                )
+                self.add_error("B019", node.decorator_list[idx])
                 return
 
     def check_for_b020(self, node) -> None:
@@ -925,7 +930,7 @@ class BugBearVisitor(ast.NodeVisitor):
         for name in sorted(ctrl_names):
             if name in iterset_names:
                 n = targets.names[name][0]
-                self.errors.append(B020(n.lineno, n.col_offset, vars=(name,)))
+                self.add_error("B020", n, name)
 
     def check_for_b023(  # noqa: C901
         self,
@@ -1000,22 +1005,20 @@ class BugBearVisitor(ast.NodeVisitor):
                 for name in body_nodes:
                     if isinstance(name, ast.Name) and name.id not in argnames:
                         if isinstance(name.ctx, ast.Load):
-                            errors.append(
-                                B023(name.lineno, name.col_offset, vars=(name.id,))
-                            )
+                            errors.append(name)
                         elif isinstance(name.ctx, ast.Store):
                             argnames.add(name.id)
                 for err in errors:
-                    if err.vars[0] not in argnames and err not in self._b023_seen:
+                    if err.id not in argnames and err not in self._b023_seen:
                         self._b023_seen.add(err)  # dedupe across nested loops
                         suspicious_variables.append(err)
 
         if suspicious_variables:
             reassigned_in_loop = set(self._get_assigned_names(loop_node))
 
-        for err in sorted(suspicious_variables):
-            if reassigned_in_loop.issuperset(err.vars):
-                self.errors.append(err)
+        for err in sorted(suspicious_variables, key=lambda n: n.id):
+            if err.id in reassigned_in_loop:
+                self.add_error("B023", err, err.id)
 
     def check_for_b024_and_b027(self, node: ast.ClassDef) -> None:  # noqa: C901
         """Check for inheritance from abstract classes in abc and lack of
@@ -1092,12 +1095,10 @@ class BugBearVisitor(ast.NodeVisitor):
                 and empty_body(stmt.body)
                 and not any(map(is_overload, stmt.decorator_list))
             ):
-                self.errors.append(
-                    B027(stmt.lineno, stmt.col_offset, vars=(stmt.name,))
-                )
+                self.add_error("B027", stmt, stmt.name)
 
         if has_method and not has_abstract_method:
-            self.errors.append(B024(node.lineno, node.col_offset, vars=(node.name,)))
+            self.add_error("B024", node, node.name)
 
     def check_for_b026(self, call: ast.Call) -> None:
         if not call.keywords:
@@ -1113,7 +1114,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 first_keyword.lineno,
                 first_keyword.col_offset,
             ):
-                self.errors.append(B026(starred.lineno, starred.col_offset))
+                self.add_error("B026", starred)
 
     def check_for_b031(self, loop_node) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
@@ -1149,21 +1150,13 @@ class BugBearVisitor(ast.NodeVisitor):
                                 isinstance(nested_node, ast.Name)
                                 and nested_node.id == group_name
                             ):
-                                self.errors.append(
-                                    B031(
-                                        nested_node.lineno,
-                                        nested_node.col_offset,
-                                        vars=(nested_node.id,),
-                                    )
-                                )
+                                self.add_error("B031", nested_node, nested_node.id)
 
                     # Handle multiple uses
                     if isinstance(node, ast.Name) and node.id == group_name:
                         num_usages += 1
                         if num_usages > 1:
-                            self.errors.append(
-                                B031(node.lineno, node.col_offset, vars=(node.id,))
-                            )
+                            self.add_error("B031", node, node.id)
 
     def _get_names_from_tuple(self, node: ast.Tuple):
         for dim in node.elts:
@@ -1191,16 +1184,12 @@ class BugBearVisitor(ast.NodeVisitor):
         or a variable that isn't coming from the generator expression.
         """
         if isinstance(node.key, ast.Constant):
-            self.errors.append(
-                B035(node.key.lineno, node.key.col_offset, vars=(node.key.value,))
-            )
+            self.add_error("B035", node.key, node.key.value)
         elif isinstance(node.key, ast.Name):
             if node.key.id not in self._get_dict_comp_loop_and_named_expr_var_names(
                 node
             ):
-                self.errors.append(
-                    B035(node.key.lineno, node.key.col_offset, vars=(node.key.id,))
-                )
+                self.add_error("B035", node.key, node.key.id)
 
     def check_for_b040_add_note(self, node: ast.Attribute) -> bool:
         if (
@@ -1251,9 +1240,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and not (isinstance(node.exc, ast.Name) and node.exc.id.islower())
             and any(isinstance(n, ast.ExceptHandler) for n in self.node_stack)
         ):
-            self.errors.append(
-                B904(node.lineno, node.col_offset, vars=(self.in_trystar,))
-            )
+            self.add_error("B904", node, self.in_trystar)
 
     def walk_function_body(self, node):
         def _loop(parent, node):
@@ -1301,7 +1288,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 return_node = x
 
         if has_yield and return_node is not None:
-            self.errors.append(B901(return_node.lineno, return_node.col_offset))
+            self.add_error("B901", return_node)
 
     # taken from pep8-naming
     @classmethod
@@ -1361,30 +1348,25 @@ class BugBearVisitor(ast.NodeVisitor):
 
         if args:
             actual_first_arg = args[0].arg
-            lineno = args[0].lineno
-            col = args[0].col_offset
+            err_node = args[0]
         elif vararg:
             actual_first_arg = "*" + vararg.arg
-            lineno = vararg.lineno
-            col = vararg.col_offset
+            err_node = vararg
         elif kwarg:
             actual_first_arg = "**" + kwarg.arg
-            lineno = kwarg.lineno
-            col = kwarg.col_offset
+            err_node = kwarg
         elif kwonlyargs:
             actual_first_arg = "*, " + kwonlyargs[0].arg
-            lineno = kwonlyargs[0].lineno
-            col = kwonlyargs[0].col_offset
+            err_node = kwonlyargs[0]
         else:
             actual_first_arg = "(none)"
-            lineno = node.lineno
-            col = node.col_offset
+            err_node = node
 
         if actual_first_arg not in expected_first_args:
             if not actual_first_arg.startswith(("(", "*")):
                 actual_first_arg = repr(actual_first_arg)
-            self.errors.append(
-                B902(lineno, col, vars=(actual_first_arg, kind, expected_first_args[0]))
+            self.add_error(
+                "B902", err_node, actual_first_arg, kind, expected_first_args[0]
             )
 
     def check_for_b903(self, node) -> None:
@@ -1416,7 +1398,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if not isinstance(stmt.value, ast.Name):
                 return
 
-        self.errors.append(B903(node.lineno, node.col_offset))
+        self.add_error("B903", node)
 
     def check_for_b018(self, node) -> None:
         if not isinstance(node, ast.Expr):
@@ -1436,13 +1418,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 or node.value.value is None
             )
         ):
-            self.errors.append(
-                B018(
-                    node.lineno,
-                    node.col_offset,
-                    vars=(node.value.__class__.__name__,),
-                )
-            )
+            self.add_error("B018", node, node.value.__class__.__name__)
 
     def check_for_b021(self, node) -> None:
         if (
@@ -1450,9 +1426,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.body[0], ast.Expr)
             and isinstance(node.body[0].value, ast.JoinedStr)
         ):
-            self.errors.append(
-                B021(node.body[0].value.lineno, node.body[0].value.col_offset)
-            )
+            self.add_error("B021", node.body[0].value)
 
     def check_for_b022(self, node) -> None:
         item = node.items[0]
@@ -1466,7 +1440,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and item_context.func.attr == "suppress"
             and len(item_context.args) == 0
         ):
-            self.errors.append(B022(node.lineno, node.col_offset))
+            self.add_error("B022", node)
 
     @staticmethod
     def _is_assertRaises_like(node: ast.withitem) -> bool:
@@ -1499,7 +1473,7 @@ class BugBearVisitor(ast.NodeVisitor):
             return
         for node_item in node.items:
             if self._is_assertRaises_like(node_item):
-                self.errors.append(B908(node.lineno, node.col_offset))
+                self.add_error("B908", node)
 
     def check_for_b025(self, node) -> None:
         seen = []
@@ -1517,9 +1491,7 @@ class BugBearVisitor(ast.NodeVisitor):
         # sort to have a deterministic output
         duplicates = sorted({x for x in seen if seen.count(x) > 1})
         for duplicate in duplicates:
-            self.errors.append(
-                B025(node.lineno, node.col_offset, vars=(duplicate, self.in_trystar))
-            )
+            self.add_error("B025", node, duplicate, self.in_trystar)
 
     @staticmethod
     def _is_infinite_iterator(node: ast.expr) -> bool:
@@ -1561,7 +1533,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if self._is_infinite_iterator(arg):
                 return
         if not any(kw.arg == "strict" for kw in node.keywords):
-            self.errors.append(B905(node.lineno, node.col_offset))
+            self.add_error("B905", node)
 
     def check_for_b906(self, node: ast.FunctionDef) -> None:
         if not node.name.startswith("visit_"):
@@ -1609,7 +1581,7 @@ class BugBearVisitor(ast.NodeVisitor):
             ):
                 break
         else:
-            self.errors.append(B906(node.lineno, node.col_offset))
+            self.add_error("B906", node)
 
     def check_for_b907(self, node: ast.JoinedStr) -> None:  # noqa: C901
         quote_marks = "'\""
@@ -1626,13 +1598,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and variable is not None
                     and value.value[0] == current_mark
                 ):
-                    self.errors.append(
-                        B907(
-                            variable.lineno,
-                            variable.col_offset,
-                            vars=(ast.unparse(variable.value),),
-                        )
-                    )
+                    self.add_error("B907", variable, ast.unparse(variable.value))
                     current_mark = variable = None
                     # don't continue with length>1, so we can detect a new pre-mark
                     # in the same string as a post-mark, e.g. `"{foo}" "{bar}"`
@@ -1711,7 +1677,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and not any(isinstance(a, ast.Starred) for a in node.args)
             and not any(kw.arg is None for kw in node.keywords)
         ):
-            self.errors.append(B028(node.lineno, node.col_offset))
+            self.add_error("B028", node)
 
     def check_for_b032(self, node) -> None:
         if (
@@ -1726,7 +1692,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 )
             )
         ):
-            self.errors.append(B032(node.lineno, node.col_offset))
+            self.add_error("B032", node)
 
     def check_for_b033(self, node) -> None:
         seen = set()
@@ -1734,9 +1700,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if not isinstance(elt, ast.Constant):
                 continue
             if elt.value in seen:
-                self.errors.append(
-                    B033(elt.lineno, elt.col_offset, vars=(repr(elt.value),))
-                )
+                self.add_error("B033", elt, repr(elt.value))
             else:
                 seen.add(elt.value)
 
@@ -1750,9 +1714,7 @@ class BugBearVisitor(ast.NodeVisitor):
         def check(num_args: int, param_name: str) -> None:
             if len(node.args) > num_args:
                 arg = node.args[num_args]
-                self.errors.append(
-                    B034(arg.lineno, arg.col_offset, vars=(func.attr, param_name))
-                )
+                self.add_error("B034", arg, func.attr, param_name)
 
         if func.attr in ("sub", "subn"):
             check(3, "count")
@@ -1773,7 +1735,7 @@ class BugBearVisitor(ast.NodeVisitor):
         for mutation in itertools.chain.from_iterable(
             m for m in checker.mutations.values()
         ):
-            self.errors.append(B909(mutation.lineno, mutation.col_offset))
+            self.add_error("B909", mutation)
 
     def check_for_b910(self, node: ast.Call) -> None:
         if (
@@ -1783,7 +1745,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.args[0], ast.Name)
             and node.args[0].id == "int"
         ):
-            self.errors.append(B910(node.lineno, node.col_offset))
+            self.add_error("B910", node)
 
     def check_for_b911(self, node: ast.Call) -> None:
         if (
@@ -1795,7 +1757,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 and node.func.value.id == "itertools"
             )
         ) and not any(kw.arg == "strict" for kw in node.keywords):
-            self.errors.append(B911(node.lineno, node.col_offset))
+            self.add_error("B911", node)
 
 
 def compose_call_path(node):
@@ -2057,71 +2019,7 @@ class B020NameFinder(NameFinder):
             self.names.pop(lambda_arg.arg, None)
 
 
-error = namedtuple("error", "lineno col message type vars")
-
-
-class Error:
-    def __init__(self, message: str):
-        self.message = message
-
-    def __call__(self, lineno: int, col: int, vars: tuple[str, ...] = ()) -> error:
-        return error(lineno, col, self.message, BugBearChecker, vars=vars)
-
-
-# note: bare except* is a syntax error, so B001 does not need to handle it
-B001 = Error(
-    message=(
-        "B001 Do not use bare `except:`, it also catches unexpected "
-        "events like memory errors, interrupts, system exit, and so on.  "
-        "Prefer excepting specific exceptions  If you're sure what you're "
-        "doing, be explicit and write `except BaseException:`."
-    )
-)
-
-B002 = Error(
-    message=(
-        "B002 Python does not support the unary prefix increment. Writing "
-        "++n is equivalent to +(+(n)), which equals n. You meant n += 1."
-    )
-)
-
-B003 = Error(
-    message=(
-        "B003 Assigning to `os.environ` doesn't clear the environment. "
-        "Subprocesses are going to see outdated variables, in disagreement "
-        "with the current process. Use `os.environ.clear()` or the `env=` "
-        "argument to Popen."
-    )
-)
-
-B004 = Error(
-    message=(
-        "B004 Using `hasattr(x, '__call__')` to test if `x` is callable "
-        "is unreliable. If `x` implements custom `__getattr__` or its "
-        "`__call__` is itself not callable, you might get misleading "
-        "results. Use `callable(x)` for consistent results."
-    )
-)
-
-B005 = Error(
-    message=(
-        "B005 Using .strip() with multi-character strings is misleading "
-        "the reader. It looks like stripping a substring. Move your "
-        "character set to a constant if this is deliberate. Use "
-        ".replace(), .removeprefix(), .removesuffix(), or regular "
-        "expressions to remove string fragments."
-    )
-)
 B005_METHODS = {"lstrip", "rstrip", "strip"}
-
-B006 = Error(
-    message=(
-        "B006 Do not use mutable data structures for argument defaults.  They "
-        "are created during function definition time. All calls to the function "
-        "reuse this one instance of that data structure, persisting changes "
-        "between them."
-    )
-)
 
 # Note: these are also used by B039
 B006_MUTABLE_LITERALS = ("Dict", "List", "Set")
@@ -2139,22 +2037,6 @@ B006_MUTABLE_CALLS = {
     "list",
     "set",
 }
-B007 = Error(
-    message=(
-        "B007 Loop control variable {!r} not used within the loop body. "
-        "If this is intended, start the name with an underscore."
-    )
-)
-B008 = Error(
-    message=(
-        "B008 Do not perform function calls in argument defaults.  The call is "
-        "performed only once at function definition time. All calls to your "
-        "function will reuse the result of that definition-time function call.  If "
-        "this is intended, assign the function call to a module-level variable and "
-        "use that variable as a default value."
-    )
-)
-
 # Note: these are also used by B039
 B008_IMMUTABLE_CALLS = {
     "tuple",
@@ -2169,43 +2051,6 @@ B008_IMMUTABLE_CALLS = {
     "itemgetter",
     "methodcaller",
 }
-B009 = Error(
-    message=(
-        "B009 Do not call getattr with a constant attribute value, "
-        "it is not any safer than normal property access."
-    )
-)
-B010 = Error(
-    message=(
-        "B010 Do not call setattr with a constant attribute value, "
-        "it is not any safer than normal property access."
-    )
-)
-B011 = Error(
-    message=(
-        "B011 Do not call assert False since python -O removes these calls. "
-        "Instead callers should raise AssertionError()."
-    )
-)
-B012 = Error(
-    message=(
-        "B012 return/continue/break inside finally blocks cause exceptions "
-        "to be silenced. Exceptions should be silenced in except{0} blocks. Control "
-        "statements can be moved outside the finally block."
-    )
-)
-B013 = Error(
-    message=(
-        "B013 A length-one tuple literal is redundant.  "
-        "Write `except{1} {0}:` instead of `except{1} ({0},):`."
-    )
-)
-B014 = Error(
-    message=(
-        "B014 Redundant exception types in `except{3} ({0}){1}:`.  "
-        "Write `except{3} {2}{1}:`, which catches exactly the same exceptions."
-    )
-)
 B014_REDUNDANT_EXCEPTIONS = {
     "OSError": {
         # All of these are actually aliases of OSError since Python 3.3
@@ -2220,237 +2065,336 @@ B014_REDUNDANT_EXCEPTIONS = {
         "binascii.Error",
     },
 }
-B015 = Error(
-    message=(
-        "B015 Result of comparison is not used. This line doesn't do "
-        "anything. Did you intend to prepend it with assert?"
-    )
-)
-B016 = Error(
-    message=(
-        "B016 Cannot raise a literal. Did you intend to return it or raise "
-        "an Exception?"
-    )
-)
-B017 = Error(
-    message=(
-        "B017 `assertRaises(Exception)` and `pytest.raises(Exception)` should "
-        "be considered evil. They can lead to your test passing even if the "
-        "code being tested is never executed due to a typo. Assert for a more "
-        "specific exception (builtin or custom), or use `assertRaisesRegex` "
-        "(if using `assertRaises`), or add the `match` keyword argument (if "
-        "using `pytest.raises`), or use the context manager form with a target."
-    )
-)
-B018 = Error(
-    message=(
-        "B018 Found useless {} expression. Consider either assigning it to a "
-        "variable or removing it."
-    )
-)
-B019 = Error(
-    message=(
-        "B019 Use of `functools.lru_cache` or `functools.cache` on methods "
-        "can lead to memory leaks. The cache may retain instance references, "
-        "preventing garbage collection."
-    )
-)
 B019_CACHES = {
     "functools.cache",
     "functools.lru_cache",
     "cache",
     "lru_cache",
 }
-B020 = Error(
-    message=(
-        "B020 Found for loop that reassigns the iterable it is iterating "
-        + "with each iterable value."
-    )
-)
-B021 = Error(
-    message=(
-        "B021 f-string used as docstring. "
-        "This will be interpreted by python as a joined string rather than a docstring."
-    )
-)
-B022 = Error(
-    message=(
-        "B022 No arguments passed to `contextlib.suppress`. "
-        "No exceptions will be suppressed and therefore this "
-        "context manager is redundant."
-    )
-)
-
-B023 = Error(message="B023 Function definition does not bind loop variable {!r}.")
-B024 = Error(
-    message=(
-        "B024 {} is an abstract base class, but none of the methods it defines are"
-        " abstract. This is not necessarily an error, but you might have forgotten to"
-        " add the @abstractmethod decorator, potentially in conjunction with"
-        " @classmethod, @property and/or @staticmethod."
-    )
-)
-B025 = Error(
-    message=(
-        "B025 Exception `{0}` has been caught multiple times. Only the first except{0}"
-        " will be considered and all other except{0} catches can be safely removed."
-    )
-)
-B026 = Error(
-    message=(
-        "B026 Star-arg unpacking after a keyword argument is strongly discouraged, "
-        "because it only works when the keyword parameter is declared after all "
-        "parameters supplied by the unpacked sequence, and this change of ordering can "
-        "surprise and mislead readers."
-    )
-)
-B027 = Error(
-    message=(
-        "B027 {} is an empty method in an abstract base class, but has no abstract"
-        " decorator. Consider adding @abstractmethod."
-    )
-)
-B028 = Error(
-    message=(
-        "B028 No explicit stacklevel argument found. The warn method from the"
-        " warnings module uses a stacklevel of 1 by default. This will only show a"
-        " stack trace for the line on which the warn method is called."
-        " It is therefore recommended to use a stacklevel of 2 or"
-        " greater to provide more information to the user."
-    )
-)
-B029 = Error(
-    message=(
-        "B029 Using `except{0} ():` with an empty tuple does not handle/catch "
-        "anything. Add exceptions to handle."
-    )
-)
-
-B030 = Error(message="B030 Except handlers should only be names of exception classes")
-
-B031 = Error(
-    message=(
-        "B031 Using the generator returned from `itertools.groupby()` more than once"
-        " will do nothing on the second usage. Save the result to a list, if the"
-        " result is needed multiple times."
-    )
-)
-
-B032 = Error(
-    message=(
-        "B032 Possible unintentional type annotation (using `:`). Did you mean to"
-        " assign (using `=`)?"
-    )
-)
-
-B033 = Error(
-    message=(
-        "B033 Set should not contain duplicate item {}. Duplicate items will be"
-        " replaced with a single item at runtime."
-    )
-)
-
-B034 = Error(
-    message=(
-        "B034 {} should pass `{}` and `flags` as keyword arguments to avoid confusion"
-        " due to unintuitive argument positions."
-    )
-)
-B035 = Error(message="B035 Static key in dict comprehension {!r}.")
-
-B036 = Error(
-    message="B036 Don't except `BaseException` unless you plan to re-raise it."
-)
-
-B037 = Error(
-    message="B037 Class `__init__` methods must not return or yield any values."
-)
-
-B039 = Error(
-    message=(
-        "B039 ContextVar with mutable literal or function call as default. "
-        "This is only evaluated once, and all subsequent calls to `.get()` "
-        "will return the same instance of the default."
-    )
-)
-
-B040 = Error(
-    message="B040 Exception with added note not used. Did you forget to raise it?"
-)
-
-B041 = Error(message=("B041 Repeated key-value pair in dictionary literal."))
-
-# Warnings disabled by default.
-B901 = Error(
-    message=(
-        "B901 Using `yield` together with `return x`. Use native "
-        "`async def` coroutines or put a `# noqa` comment on this "
-        "line if this was intentional."
-    )
-)
-B902 = Error(
-    message=(
-        "B902 Invalid first argument {} used for {} method. Use the "
-        "canonical first argument name in methods, i.e. {}."
-    )
-)
 B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
 B902_SELF = ["self"]  # it's a list because the first is preferred
 B902_CLS = ["cls", "klass"]  # ditto.
 B902_METACLS = ["metacls", "metaclass", "typ", "mcs"]  # ditto.
 
-B903 = Error(
-    message=(
-        "B903 Data class should either be immutable or use __slots__ to "
-        "save memory. Use collections.namedtuple to generate an immutable "
-        "class, or enumerate the attributes in a __slot__ declaration in "
-        "the class to leave attributes mutable."
-    )
-)
+error = namedtuple("error", "lineno col message type vars")
 
-B904 = Error(
-    message=(
-        "B904 Within an `except{0}` clause, raise exceptions with `raise ... from err` or"
-        " `raise ... from None` to distinguish them from errors in exception handling. "
-        " See https://docs.python.org/3/tutorial/errors.html#exception-chaining for"
-        " details."
-    )
-)
 
-B905 = Error(message="B905 `zip()` without an explicit `strict=` parameter.")
+class Error:
+    def __init__(self, message: str):
+        self.message = message
 
-B906 = Error(
-    message=(
-        "B906 `visit_` function with no further calls to a visit function, which might"
-        " prevent the `ast` visitor from properly visiting all nodes."
-        " Consider adding a call to `self.generic_visit(node)`."
-    )
-)
+    def __call__(self, lineno: int, col: int, vars: tuple[object, ...] = ()) -> error:
+        return error(lineno, col, self.message, BugBearChecker, vars=vars)
 
-B907 = Error(
-    message=(
-        "B907 {!r} is manually surrounded by quotes, consider using the `!r` conversion"
-        " flag."
-    )
-)
-B908 = Error(
-    message=(
-        "B908 assertRaises-type context should not contain more than one top-level"
-        " statement."
-    )
-)
-B909 = Error(
-    message=(
-        "B909 editing a loop's mutable iterable often leads to unexpected results/bugs"
-    )
-)
-B910 = Error(
-    message="B910 Use Counter() instead of defaultdict(int) to avoid excessive memory use"
-)
-B911 = Error(
-    message="B911 `itertools.batched()` without an explicit `strict=` parameter."
-)
-B950 = Error(message="B950 line too long ({} > {} characters)")
+
+error_codes = {
+    # note: bare except* is a syntax error, so B001 does not need to handle it
+    "B001": Error(
+        message=(
+            "B001 Do not use bare `except:`, it also catches unexpected "
+            "events like memory errors, interrupts, system exit, and so on.  "
+            "Prefer excepting specific exceptions  If you're sure what you're "
+            "doing, be explicit and write `except BaseException:`."
+        )
+    ),
+    "B002": Error(
+        message=(
+            "B002 Python does not support the unary prefix increment. Writing "
+            "++n is equivalent to +(+(n)), which equals n. You meant n += 1."
+        )
+    ),
+    "B003": Error(
+        message=(
+            "B003 Assigning to `os.environ` doesn't clear the environment. "
+            "Subprocesses are going to see outdated variables, in disagreement "
+            "with the current process. Use `os.environ.clear()` or the `env=` "
+            "argument to Popen."
+        )
+    ),
+    "B004": Error(
+        message=(
+            "B004 Using `hasattr(x, '__call__')` to test if `x` is callable "
+            "is unreliable. If `x` implements custom `__getattr__` or its "
+            "`__call__` is itself not callable, you might get misleading "
+            "results. Use `callable(x)` for consistent results."
+        )
+    ),
+    "B005": Error(
+        message=(
+            "B005 Using .strip() with multi-character strings is misleading "
+            "the reader. It looks like stripping a substring. Move your "
+            "character set to a constant if this is deliberate. Use "
+            ".replace(), .removeprefix(), .removesuffix(), or regular "
+            "expressions to remove string fragments."
+        )
+    ),
+    "B006": Error(
+        message=(
+            "B006 Do not use mutable data structures for argument defaults.  They "
+            "are created during function definition time. All calls to the function "
+            "reuse this one instance of that data structure, persisting changes "
+            "between them."
+        )
+    ),
+    "B007": Error(
+        message=(
+            "B007 Loop control variable {!r} not used within the loop body. "
+            "If this is intended, start the name with an underscore."
+        )
+    ),
+    "B008": Error(
+        message=(
+            "B008 Do not perform function calls in argument defaults.  The call is "
+            "performed only once at function definition time. All calls to your "
+            "function will reuse the result of that definition-time function call.  If "
+            "this is intended, assign the function call to a module-level variable and "
+            "use that variable as a default value."
+        )
+    ),
+    "B009": Error(
+        message=(
+            "B009 Do not call getattr with a constant attribute value, "
+            "it is not any safer than normal property access."
+        )
+    ),
+    "B010": Error(
+        message=(
+            "B010 Do not call setattr with a constant attribute value, "
+            "it is not any safer than normal property access."
+        )
+    ),
+    "B011": Error(
+        message=(
+            "B011 Do not call assert False since python -O removes these calls. "
+            "Instead callers should raise AssertionError()."
+        )
+    ),
+    "B012": Error(
+        message=(
+            "B012 return/continue/break inside finally blocks cause exceptions "
+            "to be silenced. Exceptions should be silenced in except{0} blocks. Control "
+            "statements can be moved outside the finally block."
+        )
+    ),
+    "B013": Error(
+        message=(
+            "B013 A length-one tuple literal is redundant.  "
+            "Write `except{1} {0}:` instead of `except{1} ({0},):`."
+        )
+    ),
+    "B014": Error(
+        message=(
+            "B014 Redundant exception types in `except{3} ({0}){1}:`.  "
+            "Write `except{3} {2}{1}:`, which catches exactly the same exceptions."
+        )
+    ),
+    "B015": Error(
+        message=(
+            "B015 Result of comparison is not used. This line doesn't do "
+            "anything. Did you intend to prepend it with assert?"
+        )
+    ),
+    "B016": Error(
+        message=(
+            "B016 Cannot raise a literal. Did you intend to return it or raise "
+            "an Exception?"
+        )
+    ),
+    "B017": Error(
+        message=(
+            "B017 `assertRaises(Exception)` and `pytest.raises(Exception)` should "
+            "be considered evil. They can lead to your test passing even if the "
+            "code being tested is never executed due to a typo. Assert for a more "
+            "specific exception (builtin or custom), or use `assertRaisesRegex` "
+            "(if using `assertRaises`), or add the `match` keyword argument (if "
+            "using `pytest.raises`), or use the context manager form with a target."
+        )
+    ),
+    "B018": Error(
+        message=(
+            "B018 Found useless {} expression. Consider either assigning it to a "
+            "variable or removing it."
+        )
+    ),
+    "B019": Error(
+        message=(
+            "B019 Use of `functools.lru_cache` or `functools.cache` on methods "
+            "can lead to memory leaks. The cache may retain instance references, "
+            "preventing garbage collection."
+        )
+    ),
+    "B020": Error(
+        message=(
+            "B020 Found for loop that reassigns the iterable it is iterating "
+            + "with each iterable value."
+        )
+    ),
+    "B021": Error(
+        message=(
+            "B021 f-string used as docstring. "
+            "This will be interpreted by python as a joined string rather than a docstring."
+        )
+    ),
+    "B022": Error(
+        message=(
+            "B022 No arguments passed to `contextlib.suppress`. "
+            "No exceptions will be suppressed and therefore this "
+            "context manager is redundant."
+        )
+    ),
+    "B023": Error(message="B023 Function definition does not bind loop variable {!r}."),
+    "B024": Error(
+        message=(
+            "B024 {} is an abstract base class, but none of the methods it defines are"
+            " abstract. This is not necessarily an error, but you might have forgotten to"
+            " add the @abstractmethod decorator, potentially in conjunction with"
+            " @classmethod, @property and/or @staticmethod."
+        )
+    ),
+    "B025": Error(
+        message=(
+            "B025 Exception `{0}` has been caught multiple times. Only the first except{0}"
+            " will be considered and all other except{0} catches can be safely removed."
+        )
+    ),
+    "B026": Error(
+        message=(
+            "B026 Star-arg unpacking after a keyword argument is strongly discouraged, "
+            "because it only works when the keyword parameter is declared after all "
+            "parameters supplied by the unpacked sequence, and this change of ordering can "
+            "surprise and mislead readers."
+        )
+    ),
+    "B027": Error(
+        message=(
+            "B027 {} is an empty method in an abstract base class, but has no abstract"
+            " decorator. Consider adding @abstractmethod."
+        )
+    ),
+    "B028": Error(
+        message=(
+            "B028 No explicit stacklevel argument found. The warn method from the"
+            " warnings module uses a stacklevel of 1 by default. This will only show a"
+            " stack trace for the line on which the warn method is called."
+            " It is therefore recommended to use a stacklevel of 2 or"
+            " greater to provide more information to the user."
+        )
+    ),
+    "B029": Error(
+        message=(
+            "B029 Using `except{0} ():` with an empty tuple does not handle/catch "
+            "anything. Add exceptions to handle."
+        )
+    ),
+    "B030": Error(
+        message="B030 Except handlers should only be names of exception classes"
+    ),
+    "B031": Error(
+        message=(
+            "B031 Using the generator returned from `itertools.groupby()` more than once"
+            " will do nothing on the second usage. Save the result to a list, if the"
+            " result is needed multiple times."
+        )
+    ),
+    "B032": Error(
+        message=(
+            "B032 Possible unintentional type annotation (using `:`). Did you mean to"
+            " assign (using `=`)?"
+        )
+    ),
+    "B033": Error(
+        message=(
+            "B033 Set should not contain duplicate item {}. Duplicate items will be"
+            " replaced with a single item at runtime."
+        )
+    ),
+    "B034": Error(
+        message=(
+            "B034 {} should pass `{}` and `flags` as keyword arguments to avoid confusion"
+            " due to unintuitive argument positions."
+        )
+    ),
+    "B035": Error(message="B035 Static key in dict comprehension {!r}."),
+    "B036": Error(
+        message="B036 Don't except `BaseException` unless you plan to re-raise it."
+    ),
+    "B037": Error(
+        message="B037 Class `__init__` methods must not return or yield any values."
+    ),
+    "B039": Error(
+        message=(
+            "B039 ContextVar with mutable literal or function call as default. "
+            "This is only evaluated once, and all subsequent calls to `.get()` "
+            "will return the same instance of the default."
+        )
+    ),
+    "B040": Error(
+        message="B040 Exception with added note not used. Did you forget to raise it?"
+    ),
+    "B041": Error(message=("B041 Repeated key-value pair in dictionary literal.")),
+    # Warnings disabled by default.
+    "B901": Error(
+        message=(
+            "B901 Using `yield` together with `return x`. Use native "
+            "`async def` coroutines or put a `# noqa` comment on this "
+            "line if this was intentional."
+        )
+    ),
+    "B902": Error(
+        message=(
+            "B902 Invalid first argument {} used for {} method. Use the "
+            "canonical first argument name in methods, i.e. {}."
+        )
+    ),
+    "B903": Error(
+        message=(
+            "B903 Data class should either be immutable or use __slots__ to "
+            "save memory. Use collections.namedtuple to generate an immutable "
+            "class, or enumerate the attributes in a __slot__ declaration in "
+            "the class to leave attributes mutable."
+        )
+    ),
+    "B904": Error(
+        message=(
+            "B904 Within an `except{0}` clause, raise exceptions with `raise ... from err` or"
+            " `raise ... from None` to distinguish them from errors in exception handling. "
+            " See https://docs.python.org/3/tutorial/errors.html#exception-chaining for"
+            " details."
+        )
+    ),
+    "B905": Error(message="B905 `zip()` without an explicit `strict=` parameter."),
+    "B906": Error(
+        message=(
+            "B906 `visit_` function with no further calls to a visit function, which might"
+            " prevent the `ast` visitor from properly visiting all nodes."
+            " Consider adding a call to `self.generic_visit(node)`."
+        )
+    ),
+    "B907": Error(
+        message=(
+            "B907 {!r} is manually surrounded by quotes, consider using the `!r` conversion"
+            " flag."
+        )
+    ),
+    "B908": Error(
+        message=(
+            "B908 assertRaises-type context should not contain more than one top-level"
+            " statement."
+        )
+    ),
+    "B909": Error(
+        message=(
+            "B909 editing a loop's mutable iterable often leads to unexpected results/bugs"
+        )
+    ),
+    "B910": Error(
+        message="B910 Use Counter() instead of defaultdict(int) to avoid excessive memory use"
+    ),
+    "B911": Error(
+        message="B911 `itertools.batched()` without an explicit `strict=` parameter."
+    ),
+    "B950": Error(message="B950 line too long ({} > {} characters)"),
+}
 
 
 disabled_by_default = [

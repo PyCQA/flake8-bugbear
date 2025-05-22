@@ -2,7 +2,7 @@ def a():
     try:
         pass
     finally:
-        return  # warning
+        return  # warning  # B012: 8, ""
 
 
 def b():
@@ -10,7 +10,7 @@ def b():
         pass
     finally:
         if 1 + 0 == 2 - 1:
-            return  # warning
+            return  # warning  # B012: 12, ""
 
 
 def c():
@@ -18,7 +18,7 @@ def c():
         pass
     finally:
         try:
-            return  # warning
+            return  # warning  # B012: 12, ""
         except Exception:
             pass
 
@@ -28,7 +28,7 @@ def d():
         try:
             pass
         finally:
-            return  # warning
+            return  # warning  # B012: 12, ""
     finally:
         pass
 
@@ -41,7 +41,7 @@ def e():
                 try:
                     pass
                 finally:
-                    return  # warning
+                    return  # warning  # B012: 20, ""
 
         finally:
             pass
@@ -63,7 +63,7 @@ def i():
         try:
             pass
         finally:
-            break  # warning
+            break  # warning  # B012: 12, ""
 
             def j():
                 while True:
@@ -75,7 +75,7 @@ def h():
         try:
             pass
         finally:
-            continue  # warning
+            continue  # warning  # B012: 12, ""
 
             def j():
                 while True:
@@ -91,17 +91,17 @@ def k():
         while True:
             continue  # no warning
         while True:
-            return  # warning
+            return  # warning  # B012: 12, ""
 
 
 while True:
     try:
         pass
     finally:
-        continue  # warning
+        continue  # warning  # B012: 8, ""
 
 while True:
     try:
         pass
     finally:
-        break  # warning
+        break  # warning  # B012: 8, ""

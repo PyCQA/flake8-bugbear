@@ -12,23 +12,23 @@ def foo2():
     a = 2
     "str"  # Str (no raise)
     f"{int}"  # JoinedStr (no raise)
-    1j  # Number (complex)
-    1  # Number (int)
-    1.0  # Number (float)
-    b"foo"  # Binary
-    True  # NameConstant (True)
-    False  # NameConstant (False)
-    None  # NameConstant (None)
-    [1, 2]  # list
-    {1, 2}  # set
-    {"foo": "bar"}  # dict
+    1j  # Number (complex)  # B018: 4, "Constant"
+    1  # Number (int)  # B018: 4, "Constant"
+    1.0  # Number (float)  # B018: 4, "Constant"
+    b"foo"  # Binary  # B018: 4, "Constant"
+    True  # NameConstant (True)  # B018: 4, "Constant"
+    False  # NameConstant (False)  # B018: 4, "Constant"
+    None  # NameConstant (None)  # B018: 4, "Constant"
+    [1, 2]  # list  # B018: 4, "List"
+    {1, 2}  # set  # B018: 4, "Set"
+    {"foo": "bar"}  # dict  # B018: 4, "Dict"
 
 
 def foo3():
-    123
+    123  # B018: 4, "Constant"
     a = 2
     "str"
-    3
-    (1,)  # bad
-    (2, 3)  # bad
+    3  # B018: 4, "Constant"
+    (1,)  # bad  # B018: 4, "Tuple"
+    (2, 3)  # bad  # B018: 4, "Tuple"
     t = (4, 5)  # good

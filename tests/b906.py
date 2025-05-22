@@ -6,7 +6,7 @@ import ast
 
 
 # error
-def visit_For(): ...
+def visit_For(): ... # B906: 0
 
 
 # has call to visit function

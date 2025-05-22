@@ -58,26 +58,26 @@ class Foo:
     def some_other_cached_property(self): ...
 
     # Remaining methods should emit B019
-    @functools.cache
+    @functools.cache  # B019: 5
     def cached_method(self, y): ...
 
-    @cache
+    @cache  # B019: 5
     def another_cached_method(self, y): ...
 
-    @functools.cache()
+    @functools.cache()  # B019: 5
     def called_cached_method(self, y): ...
 
-    @cache()
+    @cache()  # B019: 5
     def another_called_cached_method(self, y): ...
 
-    @functools.lru_cache
+    @functools.lru_cache  # B019: 5
     def lru_cached_method(self, y): ...
 
-    @lru_cache
+    @lru_cache  # B019: 5
     def another_lru_cached_method(self, y): ...
 
-    @functools.lru_cache()
+    @functools.lru_cache()  # B019: 5
     def called_lru_cached_method(self, y): ...
 
-    @lru_cache()
+    @lru_cache()  # B019: 5
     def another_called_lru_cached_method(self, y): ...

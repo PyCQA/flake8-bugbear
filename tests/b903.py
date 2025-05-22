@@ -28,13 +28,13 @@ class NoWarningsMoreStatements:
         self.bar = bar
 
 
-class Warnings:
+class Warnings: # B903: 0
     def __init__(self, foo, bar):
         self.foo = foo
         self.bar = bar
 
 
-class WarningsWithDocstring:
+class WarningsWithDocstring: # B903: 0
     """A docstring should not be an impediment to a warning"""
 
     def __init__(self, foo, bar):

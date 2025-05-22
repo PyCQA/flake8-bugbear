@@ -5,7 +5,7 @@ B022 - on lines 8
 
 import contextlib
 
-with contextlib.suppress():
+with contextlib.suppress():  # B022: 0
     raise ValueError
 
 with contextlib.suppress(ValueError):

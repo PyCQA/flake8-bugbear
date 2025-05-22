@@ -6,7 +6,7 @@ B003 - on line 10
 import os
 from os import environ
 
-os.environ = {}
+os.environ = {}  # B003: 0
 environ = {}  # that's fine, assigning a new meaning to the module-level name
 
 

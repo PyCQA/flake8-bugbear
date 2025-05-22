@@ -1,14 +1,14 @@
 
 try:
     pass
-except* BaseException:  # bad
+except* BaseException:  # bad # B036: 0
     print("aaa")
     pass
 
 
 try:
     pass
-except* BaseException as ex:  # bad
+except* BaseException as ex:  # bad # B036: 0
     print(ex)
     pass
 
@@ -17,7 +17,7 @@ try:
     pass
 except* ValueError:
     raise
-except* BaseException:  # bad
+except* BaseException:  # bad # B036: 0
     pass
 
 
@@ -30,7 +30,7 @@ except* BaseException:  # ok - reraised
 
 try:
     pass
-except* BaseException as ex:  # bad - raised something else
+except* BaseException as ex:  # bad - raised something else # B036: 0
     print("aaa")
     raise KeyError from ex
 
@@ -47,7 +47,7 @@ except* BaseException:
 
 try:
     pass
-except* BaseException:
+except* BaseException: # B036: 0
     try:  # nested try
         pass
     except* ValueError:
@@ -55,5 +55,5 @@ except* BaseException:
 
 try:
     pass
-except* BaseException:
+except* BaseException: # B036: 0
     raise a.b from None  # bad (regression test for #449)

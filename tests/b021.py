@@ -11,7 +11,7 @@ def foo1():
 
 
 def foo2():
-    f"""hello {VARIABLE}!"""
+    f"""hello {VARIABLE}!"""  # B021: 4
 
 
 class bar1:
@@ -19,7 +19,7 @@ class bar1:
 
 
 class bar2:
-    f"""hello {VARIABLE}!"""
+    f"""hello {VARIABLE}!"""  # B021: 4
 
 
 def foo1():
@@ -27,7 +27,7 @@ def foo1():
 
 
 def foo2():
-    f"""hello {VARIABLE}!"""
+    f"""hello {VARIABLE}!"""  # B021: 4
 
 
 class bar1:
@@ -35,7 +35,7 @@ class bar1:
 
 
 class bar2:
-    f"""hello {VARIABLE}!"""
+    f"""hello {VARIABLE}!"""  # B021: 4
 
 
 def foo1():
@@ -43,7 +43,7 @@ def foo1():
 
 
 def foo2():
-    f"hello {VARIABLE}!"
+    f"hello {VARIABLE}!"  # B021: 4
 
 
 class bar1:
@@ -51,7 +51,7 @@ class bar1:
 
 
 class bar2:
-    f"hello {VARIABLE}!"
+    f"hello {VARIABLE}!"  # B021: 4
 
 
 def foo1():
@@ -59,7 +59,7 @@ def foo1():
 
 
 def foo2():
-    f"hello {VARIABLE}!"
+    f"hello {VARIABLE}!"  # B021: 4
 
 
 class bar1:
@@ -67,10 +67,10 @@ class bar1:
 
 
 class bar2:
-    f"hello {VARIABLE}!"
+    f"hello {VARIABLE}!"  # B021: 4
 
 
 def baz():
-    f"""I'm probably a docstring: {VARIABLE}!"""
+    f"""I'm probably a docstring: {VARIABLE}!"""  # B021: 4
     print(f"""I'm a normal string""")
     f"""Don't detect me!"""

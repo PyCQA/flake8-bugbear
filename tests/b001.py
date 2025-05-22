@@ -1,11 +1,6 @@
-"""
-Should emit:
-B001 - on lines 8 and 40
-"""
-
 try:
     import something
-except:
+except:  # B001: 0
     # should be except ImportError:
     import something_else as something
 
@@ -37,6 +32,6 @@ except IndexError:
 def func(**kwargs):
     try:
         is_debug = kwargs["debug"]
-    except:
+    except:  # B001: 4
         # should be except KeyError:
         return

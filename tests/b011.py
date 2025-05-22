@@ -5,6 +5,6 @@ B011 - on line 10
 """
 
 assert 1 != 2
-assert False
+assert False  # B011: 0, "i"
 assert 1 != 2, "message"
-assert False, "message"
+assert False, "message"  # B011: 0, "k"

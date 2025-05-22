@@ -4,7 +4,7 @@ def a():
     except* Exception:
         pass
     finally:
-        return  # warning
+        return  # warning  # B012: 8, "*"
 
 
 def b():
@@ -14,7 +14,7 @@ def b():
         pass
     finally:
         if 1 + 0 == 2 - 1:
-            return  # warning
+            return  # warning  # B012: 12, "*"
 
 
 def c():
@@ -24,6 +24,6 @@ def c():
         pass
     finally:
         try:
-            return  # warning
+            return  # warning  # B012: 12, "*"
         except* Exception:
             pass

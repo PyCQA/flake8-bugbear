@@ -5,7 +5,7 @@ B901
 
 def broken():
     if True:
-        return [1, 2, 3]  # B901
+        return [1, 2, 3]  # B901 # B901: 8
 
     yield 3
     yield 2
@@ -32,7 +32,7 @@ def not_broken3():
 
 
 def broken2():
-    return [3, 2, 1]  # B901
+    return [3, 2, 1]  # B901 # B901: 4
 
     yield from not_broken()
 
@@ -79,19 +79,19 @@ class NotBroken9(object):
 
 def broken3():
     if True:
-        return [1, 2, 3]  # B901
+        return [1, 2, 3]  # B901 # B901: 8
     else:
         yield 3
 
 
 def broken4() -> Iterable[str]:
     yield "x"
-    return ["x"]  # B901
+    return ["x"]  # B901 # B901: 4
 
 
 def broken5() -> Generator[str]:
     yield "x"
-    return ["x"]  # B901
+    return ["x"]  # B901 # B901: 4
 
 
 def not_broken10() -> Generator[str, int, float]:

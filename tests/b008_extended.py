@@ -1,3 +1,4 @@
+# OPTIONS: extend_immutable_calls=["fastapi.Depends", "fastapi.Query"]
 from typing import List
 
 import fastapi
@@ -10,4 +11,5 @@ def this_is_okay_extended(db=fastapi.Depends(get_db)): ...
 def this_is_okay_extended_second(data: List[str] = fastapi.Query(None)): ...
 
 
-def this_is_not_okay_relative_import_not_listed(data: List[str] = Query(None)): ...
+# not okay, relative import not listed
+def not_okay(data: List[str] = Query(None)): ...  # B008: 31

@@ -28,11 +28,11 @@ def collect_shop_items(shopper, items):
 # Group by shopping section
 for _section, section_items in groupby(items, key=lambda p: p[1]):
     for shopper in shoppers:
-        collect_shop_items(shopper, section_items)
+        collect_shop_items(shopper, section_items) # B031: 36, "section_items"
 
 for _section, section_items in groupby(items, key=lambda p: p[1]):
     collect_shop_items("Jane", section_items)
-    collect_shop_items("Joe", section_items)
+    collect_shop_items("Joe", section_items) # B031: 30, "section_items"
 
 
 for _section, section_items in groupby(items, key=lambda p: p[1]):
@@ -41,7 +41,7 @@ for _section, section_items in groupby(items, key=lambda p: p[1]):
 
 for _section, section_items in itertools.groupby(items, key=lambda p: p[1]):
     for shopper in shoppers:
-        collect_shop_items(shopper, section_items)
+        collect_shop_items(shopper, section_items) # B031: 36, "section_items"
 
 for group in groupby(items, key=lambda p: p[1]):
     # This is bad, but not detected currently

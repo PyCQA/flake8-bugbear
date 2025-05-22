@@ -23,13 +23,13 @@ class Foo:
 
 class Foobar(unittest.TestCase):
     def evil_raises(self) -> None:
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception):  # B017: 8
             raise Exception("Evil I say!")
-        with self.assertRaises(Exception, msg="Generic exception"):
+        with self.assertRaises(Exception, msg="Generic exception"):  # B017: 8
             raise Exception("Evil I say!")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # B017: 8
             raise Exception("Evil I say!")
-        with raises(Exception):
+        with raises(Exception):  # B017: 8
             raise Exception("Evil I say!")
         # These are evil as well but we are only testing inside a with statement
         self.assertRaises(Exception, lambda x, y: x / y, 1, y=0)
@@ -70,9 +70,9 @@ class Foobar(unittest.TestCase):
             Foo()
 
     def raises_base_exception(self):
-        with self.assertRaises(BaseException):
+        with self.assertRaises(BaseException):  # B017: 8
             Foo()
-        with pytest.raises(BaseException):
+        with pytest.raises(BaseException):  # B017: 8
             Foo()
-        with raises(BaseException):
+        with raises(BaseException):  # B017: 8
             Foo()

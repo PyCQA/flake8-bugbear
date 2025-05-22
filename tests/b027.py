@@ -10,17 +10,17 @@ B027 - on lines 13, 16, 19, 23, 31
 
 
 class AbstractClass(ABC):
-    def empty_1(self):  # error
+    def empty_1(self):  # error # B027: 4, "empty_1"
         ...
 
-    def empty_2(self):  # error
+    def empty_2(self):  # error # B027: 4, "empty_2"
         pass
 
-    def empty_3(self):  # error
+    def empty_3(self):  # error # B027: 4, "empty_3"
         """docstring"""
         ...
 
-    def empty_4(self):  # error
+    def empty_4(self):  # error # B027: 4, "empty_4"
         """multiple ellipsis/pass"""
         ...
         pass
@@ -28,7 +28,7 @@ class AbstractClass(ABC):
         pass
 
     @notabstract
-    def empty_5(self):  # error
+    def empty_5(self):  # error # B027: 4, "empty_5"
         ...
 
     @abstractmethod

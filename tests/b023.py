@@ -10,11 +10,11 @@ z = 0
 for x in range(3):
     y = x + 1
     # Subject to late-binding problems
-    functions.append(lambda: x)
-    functions.append(lambda: y)  # not just the loop var
+    functions.append(lambda: x)  # B023: 29, "x"
+    functions.append(lambda: y)  # not just the loop var  # B023: 29, "y"
 
     def f_bad_1():
-        return x
+        return x  # B023: 15, "x"
 
     # Actually OK
     functions.append(lambda x: x * 2)
@@ -26,10 +26,10 @@ for x in range(3):
 
 
 def check_inside_functions_too():
-    ls = [lambda: x for x in range(2)]  # error
-    st = {lambda: x for x in range(2)}  # error
-    gn = (lambda: x for x in range(2))  # error
-    dt = {x: lambda: x for x in range(2)}  # error
+    ls = [lambda: x for x in range(2)]  # error  # B023: 18, "x"
+    st = {lambda: x for x in range(2)}  # error  # B023: 18, "x"
+    gn = (lambda: x for x in range(2))  # error  # B023: 18, "x"
+    dt = {x: lambda: x for x in range(2)}  # error  # B023: 21, "x"
 
 
 async def pointless_async_iterable():
@@ -38,9 +38,9 @@ async def pointless_async_iterable():
 
 async def container_for_problems():
     async for x in pointless_async_iterable():
-        functions.append(lambda: x)  # error
+        functions.append(lambda: x)  # error  # B023: 33, "x"
 
-    [lambda: x async for x in pointless_async_iterable()]  # error
+    [lambda: x async for x in pointless_async_iterable()]  # error  # B023: 13, "x"
 
 
 a = 10
@@ -48,10 +48,10 @@ b = 0
 while True:
     a = a_ = a - 1
     b += 1
-    functions.append(lambda: a)  # error
-    functions.append(lambda: a_)  # error
-    functions.append(lambda: b)  # error
-    functions.append(lambda: c)  # error, but not a name error due to late binding
+    functions.append(lambda: a)  # error  # B023: 29, "a"
+    functions.append(lambda: a_)  # error  # B023: 29, "a_"
+    functions.append(lambda: b)  # error  # B023: 29, "b"
+    functions.append(lambda: c)  # error, but not a name error due to late binding  # B023: 29, "c"
     c: bool = a > 3
     if not c:
         break
@@ -59,14 +59,14 @@ while True:
 # Nested loops should not duplicate reports
 for j in range(2):
     for k in range(3):
-        lambda: j * k  # error
+        lambda: j * k  # error  # B023: 16, "j"  # B023: 20, "k"
 
 
 for j, k, l in [(1, 2, 3)]:
 
     def f():
         j = None  # OK because it's an assignment
-        [l for k in range(2)]  # error for l, not for k
+        [l for k in range(2)]  # error for l, not for k  # B023: 9, "l"
 
         assert a and functions
 
@@ -111,11 +111,11 @@ _ = {
 # argument or in a consumed `filter()` (even if a comprehension is better style)
 for x in range(2):
     # It's not a complete get-out-of-linting-free construct - these should fail:
-    min([None, lambda: x], key=repr)
-    sorted([None, lambda: x], key=repr)
-    any(filter(bool, [None, lambda: x]))
-    list(filter(bool, [None, lambda: x]))
-    all(reduce(bool, [None, lambda: x]))
+    min([None, lambda: x], key=repr)  # B023: 23, "x"
+    sorted([None, lambda: x], key=repr)  # B023: 26, "x"
+    any(filter(bool, [None, lambda: x]))  # B023: 36, "x"
+    list(filter(bool, [None, lambda: x]))  # B023: 37, "x"
+    all(reduce(bool, [None, lambda: x]))  # B023: 36, "x"
 
     # But all these ones should be OK:
     min(range(3), key=lambda y: x * y)
@@ -166,7 +166,7 @@ def iter_f(names):
             return lambda: name if exists(name) else None
 
         if foo(name):
-            return [lambda: name]  # known false alarm
+            return [lambda: name]  # known false alarm  # B023: 28, "name"
 
         if False:
-            return [lambda: i for i in range(3)]  # error
+            return [lambda: i for i in range(3)]  # error  # B023: 28, "i"

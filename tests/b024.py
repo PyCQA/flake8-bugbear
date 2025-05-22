@@ -14,7 +14,7 @@ B024 - on lines 17, 52, 58, 69, 74, 123, 129
 """
 
 
-class Base_1(ABC):  # error
+class Base_1(ABC):  # error # B024: 0, "Base_1"
     def method(self):
         foo()
 
@@ -49,13 +49,13 @@ class Base_6(ABC):
         foo()
 
 
-class Base_7(ABC):  # error
+class Base_7(ABC):  # error # B024: 0, "Base_7"
     @notabstract
     def method(self):
         foo()
 
 
-class MetaBase_1(metaclass=ABCMeta):  # error
+class MetaBase_1(metaclass=ABCMeta):  # error # B024: 0, "MetaBase_1"
     def method(self):
         foo()
 
@@ -66,12 +66,12 @@ class MetaBase_2(metaclass=ABCMeta):
         foo()
 
 
-class abc_Base_1(abc.ABC):  # error
+class abc_Base_1(abc.ABC):  # error # B024: 0, "abc_Base_1"
     def method(self):
         foo()
 
 
-class abc_Base_2(metaclass=abc.ABCMeta):  # error
+class abc_Base_2(metaclass=abc.ABCMeta):  # error # B024: 0, "abc_Base_2"
     def method(self):
         foo()
 
@@ -120,13 +120,13 @@ class abc_annasign_empty_class_variable_1(ABC):
 
 
 # *not* safe, see https://github.com/PyCQA/flake8-bugbear/issues/471
-class abc_assign_class_variable(ABC):
+class abc_assign_class_variable(ABC): # B024: 0, "abc_assign_class_variable"
     foo = 2
     def method(self):
         foo()
 
 
-class abc_annassign_class_variable(ABC):  # *not* safe, see #471
+class abc_annassign_class_variable(ABC):  # *not* safe, see #471 # B024: 0, "abc_annassign_class_variable"
     foo: int = 2
     def method(self):
         foo()
