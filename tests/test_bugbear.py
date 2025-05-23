@@ -80,7 +80,7 @@ def _parse_eval_file(test: str, content: str) -> tuple[list[error], Namespace | 
         if "#" not in line:
             continue
 
-        # get text between `error:` and (end of line or another comment)
+        # get text between `B\d\d\d:` and (end of line or another comment)
         k = re.findall(r"(B\d\d\d):([^#]*)(?=#|$)", line)
         for err_code, err_args in k:
             # evaluate the arguments as if in a tuple
