@@ -60,8 +60,6 @@ def test_eval(
 
 
 def _parse_eval_file(test: str, content: str) -> tuple[list[error], Namespace | None]:
-
-    # error_class: Any = eval(error_code)
     expected: list[error] = []
     options: Namespace | None = None
 
