@@ -1,4 +1,4 @@
-# OPTIONS: classmethod_decorators=["mylibrary.makeclassmethod", "validator"], select=["B902"],
+# OPTIONS: classmethod_decorators=["mylibrary.makeclassmethod", "validator"], select=["B902"]
 class Errors:
     # correctly registered as classmethod
     @validator

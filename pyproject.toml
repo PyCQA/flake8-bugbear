@@ -72,6 +72,6 @@ profile = "black"
 [tool.black]
 force-exclude = '''
 (
-  ^/tests\/b.*
+  ^/tests\/eval_files\/.*
 )
 '''

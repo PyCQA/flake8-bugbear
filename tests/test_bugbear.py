@@ -20,10 +20,12 @@ from bugbear import (
     error_codes,
 )
 
+EVAL_FILES_DIR = Path(__file__).parent / "eval_files"
+
 test_files: list[tuple[str, Path]] = sorted(
     (f.stem.upper(), f)
-    for f in (Path(__file__).parent).iterdir()
-    if re.fullmatch(r"b\d\d\d.*\.py", f.name)
+    for f in EVAL_FILES_DIR.iterdir()
+    if re.fullmatch(r".*.py", f.name)
 )
 
 
@@ -65,6 +67,11 @@ def _parse_eval_file(test: str, content: str) -> tuple[list[error], Namespace | 
 
     for lineno, line in enumerate(content.split("\n"), start=1):
         if line.startswith("# OPTIONS:"):
+            assert options is None, (
+                "Multiple '# OPTIONS' found in file. You can specify multiple options"
+                " in the same line, but if you want something more readable you may"
+                " want to upgrade the logic in this function."
+            )
             options = eval(f"Namespace({line[10:]})")
 
         # skip commented out lines
@@ -149,7 +156,7 @@ class BugbearTestCase(unittest.TestCase):
                 ), f"b907 raised for {format_spec} that would look different with !r"
 
     def test_b9_select(self):
-        filename = Path(__file__).absolute().parent / "b950.py"
+        filename = EVAL_FILES_DIR / "b950.py"
 
         mock_options = Namespace(select=["B950"])
         bbc = BugBearChecker(filename=str(filename), options=mock_options)
@@ -168,7 +175,7 @@ class BugbearTestCase(unittest.TestCase):
         )
 
     def test_b9_extend_select(self):
-        filename = Path(__file__).absolute().parent / "b950.py"
+        filename = EVAL_FILES_DIR / "b950.py"
 
         # select is always going to have a value, usually the default codes, but can
         # also be empty
@@ -189,7 +196,7 @@ class BugbearTestCase(unittest.TestCase):
         )
 
     def test_b9_flake8_next_default_options(self):
-        filename = Path(__file__).absolute().parent / "b950.py"
+        filename = EVAL_FILES_DIR / "b950.py"
 
         # in flake8 next, unset select / extend_select will be `None` to
         # signify the default values
