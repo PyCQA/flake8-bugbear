@@ -46,7 +46,7 @@ cd flake8-bugbear
 
 flake8-bugbear has a test runner that will go through all files in `tests/eval_files/`, run them through the linter, and check that they emit the appropriate error messages.
 
-The expected errors are specified by adding comments on the line where the error is expected, using the format `# <error_code>: <col_offset>[, <var1>][, <var2>][...]`. E.g.
+The expected errors are specified by adding comments on the line where the error is expected. The format consists of the error code, followed by a comma-separated list of the `col_offset` as well as `vars` that are used when `str.format`ing the full error message.
 ```python
 x = ++n  # B002: 4
 try:
@@ -54,7 +54,7 @@ try:
 except* (ValueError,):  # B013: 0, "ValueError", "*"
     ...
 ```
-The error code should be in the `error_codes` dict, and the other values are passed to `eval` so should be valid python objects.
+The error code should be in the `error_codes` dict, and the other values are `eval`'d as if in a `tuple` and should be valid python objects. (I.e. remember to quote strings)
 
 You can also specify options to be passed to `BugBearChecker` with an `# OPTIONS` comments
 ```python
