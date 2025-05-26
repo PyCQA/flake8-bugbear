@@ -69,3 +69,6 @@ class MyWarning(Anything):
 
 class ExceptionHandler(Anything):
     def __init__(self, x): ...  # safe
+
+class FooException:
+    def __init__(self, x): ...

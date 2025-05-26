@@ -1735,8 +1735,8 @@ class BugBearVisitor(ast.NodeVisitor):
             for base in node.bases:
                 if isinstance(base, ast.Name) and is_exception(base.id):
                     break
-                else:
-                    return
+            else:
+                return
 
         # iterate body nodes looking for __init__
         for fun in node.body:
