@@ -523,6 +523,13 @@ class BugBearVisitor(ast.NodeVisitor):
                     and not iskeyword(node.args[1].value)
                 ):
                     self.add_error("B010", node)
+                elif (
+                    node.func.id == "delattr"
+                    and len(node.args) == 2
+                    and _is_identifier(node.args[1])
+                    and not iskeyword(node.args[1].value)
+                ):
+                    self.add_error("B043", node)
 
         self.check_for_b026(node)
         self.check_for_b028(node)
@@ -2332,6 +2339,12 @@ error_codes = {
         message="B040 Exception with added note not used. Did you forget to raise it?"
     ),
     "B041": Error(message=("B041 Repeated key-value pair in dictionary literal.")),
+    "B043": Error(
+        message=(
+            "B043 Do not call delattr with a constant attribute value, "
+            "it is not any safer than normal property access."
+        )
+    ),
     # Warnings disabled by default.
     "B901": Error(
         message=(

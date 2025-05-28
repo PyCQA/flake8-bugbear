@@ -288,6 +288,11 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B041**: Repeated key-value pair in dictionary literal. Only emits errors when the key's value is *also* the same, being the opposite of the pyflakes like check.
 
+.. _B043:
+
+**B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``. 
+There is no additional safety in using ``delattr`` if you know the attribute name ahead of time.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
