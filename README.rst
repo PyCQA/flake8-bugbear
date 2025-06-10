@@ -288,6 +288,8 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B041**: Repeated key-value pair in dictionary literal. Only emits errors when the key's value is *also* the same, being the opposite of the pyflakes like check.
 
+**B042**: Remember to call super().__init__() in custom exceptions initalizer.
+
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -475,6 +477,7 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B042: New check for reminding to call super().__init__ in custom exceptions
 * flake8-bugbear now requires at least Python 3.9, like flake8>=7.2.0
 * B028: Skip if skip_file_prefixes is used (#503)
 
