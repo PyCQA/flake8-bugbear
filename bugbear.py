@@ -531,6 +531,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b905(node)
         self.check_for_b910(node)
         self.check_for_b911(node)
+        self.check_for_b912(node)
 
         # no need for copying, if used in nested calls it will be set to None
         current_b040_caught_exception = self.b040_caught_exception
@@ -1536,6 +1537,12 @@ class BugBearVisitor(ast.NodeVisitor):
         if not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B905", node)
 
+    def check_for_b912(self, node) -> None:
+        if not (isinstance(node.func, ast.Name) and node.func.id == "map"):
+            return
+        if not any(kw.arg == "strict" for kw in node.keywords):
+            self.add_error("B912", node)
+
     def check_for_b906(self, node: ast.FunctionDef) -> None:
         if not node.name.startswith("visit_"):
             return
@@ -2465,6 +2472,7 @@ error_codes = {
     "B911": Error(
         message="B911 `itertools.batched()` without an explicit `strict=` parameter."
     ),
+    "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -2480,5 +2488,6 @@ disabled_by_default = [
     "B909",
     "B910",
     "B911",
+    "B912",
     "B950",
 ]
