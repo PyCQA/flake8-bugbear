@@ -367,6 +367,11 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 
 The ``strict=`` argument was added in Python 3.13, so don't enable this flag for code that should work on <3.13.
 
+.. _B912:
+
+**B912**: ``map()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
+to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
+
 .. _B950:
 
 **B950**: Line too long. This is a pragmatic equivalent of
@@ -480,6 +485,7 @@ UNRELEASED
 * B042: New check for reminding to call super().__init__ in custom exceptions
 * flake8-bugbear now requires at least Python 3.9, like flake8>=7.2.0
 * B028: Skip if skip_file_prefixes is used (#503)
+* Add B912: `map()` without an explicit `strict=` parameter. (#516)
 
 24.12.12
 ~~~~~~~~
