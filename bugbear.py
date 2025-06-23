@@ -1538,7 +1538,11 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B905", node)
 
     def check_for_b912(self, node) -> None:
-        if not (isinstance(node.func, ast.Name) and node.func.id == "map"):
+        if not (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "map"
+            and len(node.args) > 2
+        ):
             return
         if not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B912", node)
