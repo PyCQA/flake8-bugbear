@@ -369,7 +369,7 @@ The ``strict=`` argument was added in Python 3.13, so don't enable this flag for
 
 .. _B912:
 
-**B912**: ``map ()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
+**B912**: ``map()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
 to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
 
 .. _B950:
