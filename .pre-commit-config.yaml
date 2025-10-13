@@ -3,7 +3,7 @@ ci:
 
 repos:
   - repo: https://github.com/pycqa/isort
-    rev: 6.1.0
+    rev: 7.0.0
     hooks:
       - id: isort
 
