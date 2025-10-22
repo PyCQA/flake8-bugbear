@@ -479,13 +479,15 @@ MIT
 Change Log
 ----------
 
-UNRELEASED
+25.10.21
 ~~~~~~~~~~
 
 * B042: New check for reminding to call super().__init__ in custom exceptions
-* flake8-bugbear now requires at least Python 3.9, like flake8>=7.2.0
 * B028: Skip if skip_file_prefixes is used (#503)
-* Add B912: `map()` without an explicit `strict=` parameter. (#516)
+* B912: New check for `map()` without an explicit `strict=` parameter. (#516)
+* Add python3.14 Support / CI
+* Remove python3.9 support / CI
+* flake8-bugbear now requires at least Python 3.10, like the next release of flake8
 
 24.12.12
 ~~~~~~~~
