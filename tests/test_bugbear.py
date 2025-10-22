@@ -60,7 +60,9 @@ def test_eval(
     with warnings.catch_warnings():
         if test.startswith("B012"):
             warnings.filterwarnings("ignore", category=SyntaxWarning)
-        errors = [e for e in bbc.run() if (test == "B950" or not e[2].startswith("B950"))]
+        errors = [
+            e for e in bbc.run() if (test == "B950" or not e[2].startswith("B950"))
+        ]
     errors.sort()
     assert errors == tuple_expected
 
