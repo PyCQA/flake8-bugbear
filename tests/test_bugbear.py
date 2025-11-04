@@ -8,6 +8,7 @@ import site
 import subprocess
 import sys
 import unittest
+import warnings
 from argparse import Namespace
 from pathlib import Path
 
@@ -54,7 +55,14 @@ def test_eval(
     ]
 
     bbc = BugBearChecker(filename=str(path), options=options)
-    errors = [e for e in bbc.run() if (test == "B950" or not e[2].startswith("B950"))]
+    # Suppress SyntaxWarnings for B012 tests which intentionally contain
+    # return/break/continue in finally blocks (SyntaxWarning in Python 3.14+)
+    with warnings.catch_warnings():
+        if test.startswith("B012"):
+            warnings.filterwarnings("ignore", category=SyntaxWarning)
+        errors = [
+            e for e in bbc.run() if (test == "B950" or not e[2].startswith("B950"))
+        ]
     errors.sort()
     assert errors == tuple_expected
 

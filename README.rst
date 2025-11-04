@@ -286,12 +286,19 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B040**: Caught exception with call to ``add_note`` not used. Did you forget to ``raise`` it?
 
+.. _B041:
+
 **B041**: Repeated key-value pair in dictionary literal. Only emits errors when the key's value is *also* the same, being the opposite of the pyflakes like check.
+
+.. _B042:
+
+**B042**: Remember to call super().__init__() in custom exceptions initalizer.
 
 .. _B043:
 
 **B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``. 
 There is no additional safety in using ``delattr`` if you know the attribute name ahead of time.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -369,6 +376,11 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 **B911**: ``itertools.batched()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator to raise a ``ValueError`` if the final batch is shorter than ``n``.
 
 The ``strict=`` argument was added in Python 3.13, so don't enable this flag for code that should work on <3.13.
+
+.. _B912:
+
+**B912**: ``map()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
+to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
 
 .. _B950:
 
@@ -477,11 +489,15 @@ MIT
 Change Log
 ----------
 
-UNRELEASED
+25.10.21
 ~~~~~~~~~~
 
-* flake8-bugbear now requires at least Python 3.9, like flake8>=7.2.0
+* B042: New check for reminding to call super().__init__ in custom exceptions
 * B028: Skip if skip_file_prefixes is used (#503)
+* B912: New check for `map()` without an explicit `strict=` parameter. (#516)
+* Add python3.14 Support / CI
+* Remove python3.9 support / CI
+* flake8-bugbear now requires at least Python 3.10, like the next release of flake8
 
 24.12.12
 ~~~~~~~~

@@ -17,7 +17,7 @@ from typing import Dict, Iterable, Iterator, List, Protocol, Sequence, Set, Unio
 import attr
 import pycodestyle  # type: ignore[import-untyped]
 
-__version__ = "24.12.12"
+__version__ = "25.10.21"
 
 LOG = logging.getLogger("flake8.bugbear")
 CONTEXTFUL_NODES = (
@@ -538,6 +538,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b905(node)
         self.check_for_b910(node)
         self.check_for_b911(node)
+        self.check_for_b912(node)
 
         # no need for copying, if used in nested calls it will be set to None
         current_b040_caught_exception = self.b040_caught_exception
@@ -620,6 +621,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b903(node)
         self.check_for_b021(node)
         self.check_for_b024_and_b027(node)
+        self.check_for_b042(node)
         self.generic_visit(node)
 
     def visit_Try(self, node) -> None:
@@ -1542,6 +1544,16 @@ class BugBearVisitor(ast.NodeVisitor):
         if not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B905", node)
 
+    def check_for_b912(self, node) -> None:
+        if not (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "map"
+            and len(node.args) > 2
+        ):
+            return
+        if not any(kw.arg == "strict" for kw in node.keywords):
+            self.add_error("B912", node)
+
     def check_for_b906(self, node: ast.FunctionDef) -> None:
         if not node.name.startswith("visit_"):
             return
@@ -1727,6 +1739,70 @@ class BugBearVisitor(ast.NodeVisitor):
             check(3, "count")
         elif func.attr == "split":
             check(2, "maxsplit")
+
+    def check_for_b042(self, node: ast.ClassDef) -> None:  # noqa: C901 # too-complex
+        def is_exception(s: str):
+            for ending in "Exception", "Error", "Warning", "ExceptionGroup":
+                if s.endswith(ending):
+                    return True
+            return False
+
+        # A class must inherit from a super class to be an exception, and we also
+        # require the class name or any of the base names to look like an exception name.
+        if not (is_exception(node.name) and node.bases):
+            for base in node.bases:
+                if isinstance(base, ast.Name) and is_exception(base.id):
+                    break
+            else:
+                return
+
+        # iterate body nodes looking for __init__
+        for fun in node.body:
+            if not (isinstance(fun, ast.FunctionDef) and fun.name == "__init__"):
+                continue
+            if fun.args.kwonlyargs or fun.args.kwarg:
+                # kwargs cannot be passed to super().__init__()
+                self.add_error("B042", fun)
+                return
+            # -1 to exclude the `self` argument
+            expected_arg_count = (
+                len(fun.args.posonlyargs)
+                + len(fun.args.args)
+                - 1
+                + (1 if fun.args.vararg else 0)
+            )
+            if expected_arg_count == 0:
+                # no arguments, don't need to call super().__init__()
+                return
+
+            # Look for super().__init__()
+            # We only check top-level nodes instead of doing an `ast.walk`.
+            # Small risk of false alarm if the user does something weird.
+            for b in fun.body:
+                if (
+                    isinstance(b, ast.Expr)
+                    and isinstance(b.value, ast.Call)
+                    and isinstance(b.value.func, ast.Attribute)
+                    and isinstance(b.value.func.value, ast.Call)
+                    and isinstance(b.value.func.value.func, ast.Name)
+                    and b.value.func.value.func.id == "super"
+                    and b.value.func.attr == "__init__"
+                ):
+                    if len(b.value.args) != expected_arg_count:
+                        self.add_error("B042", fun)
+                    elif fun.args.vararg:
+                        for arg in b.value.args:
+                            if isinstance(arg, ast.Starred):
+                                return
+                        else:
+                            # no Starred argument despite vararg
+                            self.add_error("B042", fun)
+                    return
+            else:
+                # no super().__init__() found
+                self.add_error("B042", fun)
+                return
+        # no `def __init__` found, which is fine
 
     def check_for_b909(self, node: ast.For) -> None:
         if isinstance(node.iter, ast.Name):
@@ -2339,6 +2415,13 @@ error_codes = {
         message="B040 Exception with added note not used. Did you forget to raise it?"
     ),
     "B041": Error(message=("B041 Repeated key-value pair in dictionary literal.")),
+    "B042": Error(
+        message=(
+            "B042 Exception class with `__init__` should pass all args to "
+            "`super().__init__()` in order to work with `copy.copy()`. "
+            "It should also not take any kwargs."
+        )
+    ),
     "B043": Error(
         message=(
             "B043 Do not call delattr with a constant attribute value, "
@@ -2406,6 +2489,7 @@ error_codes = {
     "B911": Error(
         message="B911 `itertools.batched()` without an explicit `strict=` parameter."
     ),
+    "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -2421,5 +2505,6 @@ disabled_by_default = [
     "B909",
     "B910",
     "B911",
+    "B912",
     "B950",
 ]
