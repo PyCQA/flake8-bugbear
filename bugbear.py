@@ -614,7 +614,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b903(node)
         self.check_for_b021(node)
         self.check_for_b024_and_b027(node)
-        self.check_for_b042(node)
+        self.check_for_b913(node)
         self.generic_visit(node)
 
     def visit_Try(self, node) -> None:
@@ -1733,7 +1733,7 @@ class BugBearVisitor(ast.NodeVisitor):
         elif func.attr == "split":
             check(2, "maxsplit")
 
-    def check_for_b042(self, node: ast.ClassDef) -> None:  # noqa: C901 # too-complex
+    def check_for_b913(self, node: ast.ClassDef) -> None:  # noqa: C901 # too-complex
         def is_exception(s: str):
             for ending in "Exception", "Error", "Warning", "ExceptionGroup":
                 if s.endswith(ending):
@@ -1755,7 +1755,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 continue
             if fun.args.kwonlyargs or fun.args.kwarg:
                 # kwargs cannot be passed to super().__init__()
-                self.add_error("B042", fun)
+                self.add_error("B913", fun)
                 return
             # -1 to exclude the `self` argument
             expected_arg_count = (
@@ -1782,18 +1782,18 @@ class BugBearVisitor(ast.NodeVisitor):
                     and b.value.func.attr == "__init__"
                 ):
                     if len(b.value.args) != expected_arg_count:
-                        self.add_error("B042", fun)
+                        self.add_error("B913", fun)
                     elif fun.args.vararg:
                         for arg in b.value.args:
                             if isinstance(arg, ast.Starred):
                                 return
                         else:
                             # no Starred argument despite vararg
-                            self.add_error("B042", fun)
+                            self.add_error("B913", fun)
                     return
             else:
                 # no super().__init__() found
-                self.add_error("B042", fun)
+                self.add_error("B913", fun)
                 return
         # no `def __init__` found, which is fine
 
@@ -2408,13 +2408,6 @@ error_codes = {
         message="B040 Exception with added note not used. Did you forget to raise it?"
     ),
     "B041": Error(message=("B041 Repeated key-value pair in dictionary literal.")),
-    "B042": Error(
-        message=(
-            "B042 Exception class with `__init__` should pass all args to "
-            "`super().__init__()` in order to work with `copy.copy()`. "
-            "It should also not take any kwargs."
-        )
-    ),
     # Warnings disabled by default.
     "B901": Error(
         message=(
@@ -2477,6 +2470,13 @@ error_codes = {
         message="B911 `itertools.batched()` without an explicit `strict=` parameter."
     ),
     "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
+    "B913": Error(
+        message=(
+            "B913 Exception class with `__init__` should pass all args to "
+            "`super().__init__()` in order to work with `copy.copy()`. "
+            "It should also not take any kwargs."
+        )
+    ),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -2493,5 +2493,6 @@ disabled_by_default = [
     "B910",
     "B911",
     "B912",
+    "B913",
     "B950",
 ]

@@ -288,7 +288,7 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B041**: Repeated key-value pair in dictionary literal. Only emits errors when the key's value is *also* the same, being the opposite of the pyflakes like check.
 
-**B042**: Remember to call super().__init__() in custom exceptions initalizer.
+**B042**: Reserved for future use. This check has been moved to B913.
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -371,6 +371,11 @@ The ``strict=`` argument was added in Python 3.13, so don't enable this flag for
 
 **B912**: ``map()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
 to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
+
+.. _B913:
+
+**B913**: Exception class with ``__init__`` should pass all args to ``super().__init__()`` in order to work
+with ``copy.copy()``. It should also not take any kwargs.
 
 .. _B950:
 
@@ -479,10 +484,15 @@ MIT
 Change Log
 ----------
 
+UNRELEASED
+~~~~~~~~~~
+
+* B913: Move B042 to be optional by default. It checks for reminding to call super().__init__ in custom exceptions
+
 25.10.21
 ~~~~~~~~~~
 
-* B042: New check for reminding to call super().__init__ in custom exceptions
+* B042: New check for reminding to call super().__init__ in custom exceptions (moved to B913, B042 reserved for future use)
 * B028: Skip if skip_file_prefixes is used (#503)
 * B912: New check for `map()` without an explicit `strict=` parameter. (#516)
 * Add python3.14 Support / CI
