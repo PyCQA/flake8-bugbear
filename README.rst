@@ -292,7 +292,12 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 .. _B042:
 
-**B042**: Remember to call super().__init__() in custom exceptions initalizer.
+**B042**: Exception classes with a custom `__init__` should pass all args to `super().__init__()` to work correctly with `copy.copy` and `pickle`. 
+Both `BaseException.__reduce__` and `BaseException.__str__` rely on the `args` attribute being set correctly, which is set in `BaseException.__new__` and `BaseException.__init__`. 
+If you define `__init__` yourself without passing all arguments to `super().__init__` it is very easy to break pickling, especially if they pass keyword arguments which both 
+`BaseException.__new__` and `BaseException.__init__` ignore. It's also important that `__init__` not accept any keyword-only parameters. 
+Alternately you can define both `__str__` and `__reduce__` to bypass the need for correct handling of `args`. 
+If you define `__str__/__reduce__` in super classes this check is unable to detect it, and we advise disabling it.
 
 .. _B043:
 
