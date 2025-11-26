@@ -286,9 +286,19 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 **B040**: Caught exception with call to ``add_note`` not used. Did you forget to ``raise`` it?
 
+.. _B041:
+
 **B041**: Repeated key-value pair in dictionary literal. Only emits errors when the key's value is *also* the same, being the opposite of the pyflakes like check.
 
+.. _B042:
+
 **B042**: Remember to call super().__init__() in custom exceptions initalizer.
+
+.. _B043:
+
+**B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``. 
+There is no additional safety in using ``delattr`` if you know the attribute name ahead of time.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
