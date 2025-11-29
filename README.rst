@@ -494,8 +494,14 @@ MIT
 Change Log
 ----------
 
+25.11.29
+~~~~~~~~
+
+* B043: Add new check to state don't call delattr with constant (#514)
+* B042: ignore overloaded init, ignore if str+pickle dunder, improve README
+
 25.10.21
-~~~~~~~~~~
+~~~~~~~~
 
 * B042: New check for reminding to call super().__init__ in custom exceptions
 * B028: Skip if skip_file_prefixes is used (#503)
