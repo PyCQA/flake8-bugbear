@@ -8,14 +8,24 @@ import math
 import re
 import sys
 import warnings
-from collections import Counter, defaultdict, namedtuple
+from collections import Counter, defaultdict
 from contextlib import suppress
 from functools import lru_cache
 from keyword import iskeyword
-from typing import Dict, Iterable, Iterator, List, Protocol, Sequence, Set, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Protocol,
+    Sequence,
+    cast,
+)
 
-import attr
-import pycodestyle  # type: ignore[import-untyped]
+import attr  # type: ignore
+import pycodestyle  # type: ignore
 
 __version__ = "25.11.29"
 
@@ -43,7 +53,10 @@ B908_unittest_methods = {
 
 B902_default_decorators = {"classmethod"}
 
-Context = namedtuple("Context", ["node", "stack"])
+
+class Context(NamedTuple):
+    node: ast.AST
+    stack: list[ast.AST]
 
 
 @attr.s(unsafe_hash=False)
@@ -82,7 +95,7 @@ class BugBearChecker:
             if self.should_warn(e.message[:4]):
                 yield self.adapt_error(e)
 
-    def gen_line_based_checks(self):
+    def gen_line_based_checks(self) -> Iterator["error"]:
         """gen_line_based_checks() -> (error, error, error, ...)
 
         The following simple checks are based on the raw lines, not the AST.
@@ -147,7 +160,7 @@ class BugBearChecker:
             self.tree = ast.parse("".join(self.lines))
 
     @staticmethod
-    def add_options(optmanager) -> None:
+    def add_options(optmanager: Any) -> None:
         """Informs flake8 to ignore B9xx by default."""
         optmanager.extend_default_ignore(disabled_by_default)
         optmanager.add_option(
@@ -172,7 +185,7 @@ class BugBearChecker:
             )
 
     @lru_cache  # noqa: B019
-    def should_warn(self, code) -> bool:
+    def should_warn(self, code: str) -> bool:
         """Returns `True` if Bugbear should emit a particular warning.
 
         flake8 overrides default ignores when the user specifies
@@ -284,7 +297,7 @@ def _check_redundant_excepthandlers(
     return None
 
 
-def _to_name_str(node):
+def _to_name_str(node: ast.expr | None) -> str | None:
     # Turn Name and Attribute nodes to strings, e.g "ValueError" or
     # "pkg.mod.error", handling any depth of attribute accesses.
     # Return None for unrecognized nodes.
@@ -301,7 +314,7 @@ def _to_name_str(node):
         return None
 
 
-def names_from_assignments(assign_target):
+def names_from_assignments(assign_target: ast.expr) -> Iterator[str]:
     if isinstance(assign_target, ast.Name):
         yield assign_target.id
     elif isinstance(assign_target, ast.Starred):
@@ -311,19 +324,19 @@ def names_from_assignments(assign_target):
             yield from names_from_assignments(child)
 
 
-def children_in_scope(node):
+def children_in_scope(node: ast.AST) -> Iterator[ast.AST]:
     yield node
     if not isinstance(node, FUNCTION_NODES):
         for child in ast.iter_child_nodes(node):
             yield from children_in_scope(child)
 
 
-def walk_list(nodes):
+def walk_list(nodes: Sequence[ast.AST]) -> Iterator[ast.AST]:
     for node in nodes:
         yield from ast.walk(node)
 
 
-def _typesafe_issubclass(cls, class_or_tuple):
+def _typesafe_issubclass(cls: type, class_or_tuple: type | tuple[type, ...]) -> bool:
     try:
         return issubclass(cls, class_or_tuple)
     except TypeError:
@@ -343,7 +356,7 @@ class ExceptBaseExceptionVisitor(ast.NodeVisitor):
         self.visit(self.root)
         return self._re_raised
 
-    def visit_Raise(self, node: ast.Raise):
+    def visit_Raise(self, node: ast.Raise) -> None:
         """If we find a corresponding `raise` or `raise e` where e was from
         `except BaseException as e:` then we mark re_raised as True and can
         stop scanning."""
@@ -354,7 +367,7 @@ class ExceptBaseExceptionVisitor(ast.NodeVisitor):
             return
         return super().generic_visit(node)
 
-    def visit_ExceptHandler(self, node: ast.ExceptHandler):
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node is not self.root:
             return  # entered a nested except - stop searching
         return super().generic_visit(node)
@@ -411,7 +424,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.errors.append(error_codes[code](node.lineno, node.col_offset, vars=vars))
 
     @property
-    def node_stack(self):
+    def node_stack(self) -> list[ast.AST]:
         if len(self.contexts) == 0:
             return []
 
@@ -442,7 +455,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B037", node)
         self.generic_visit(node)
 
-    def visit(self, node) -> None:
+    def visit(self, node: ast.AST) -> None:
         is_contextful = isinstance(node, CONTEXTFUL_NODES)
 
         if is_contextful:
@@ -470,7 +483,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if node.name is None:
             self.b040_caught_exception = None
         else:
-            self.b040_caught_exception = B040CaughtException(node.name, False)
+            self.b040_caught_exception = B040CaughtException(node.name, False)  # type: ignore[call-arg]
 
         names = self.check_for_b013_b014_b029_b030(node)
 
@@ -496,15 +509,17 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B002", originator)
         self.generic_visit(node)
 
-    def visit_Call(self, node) -> None:
+    def visit_Call(self, node: ast.Call) -> None:
         is_b040_add_note = False
         if isinstance(node.func, ast.Attribute):
             self.check_for_b005(node)
             is_b040_add_note = self.check_for_b040_add_note(node.func)
-        else:
+        elif isinstance(node.func, ast.Name):
+            # Check for getattr/setattr/delattr with constant attribute names
             with suppress(AttributeError, IndexError):
                 if (
                     node.func.id in ("getattr", "hasattr")
+                    and isinstance(node.args[1], ast.Constant)
                     and node.args[1].value == "__call__"
                 ):
                     self.add_error("B004", node)
@@ -512,6 +527,8 @@ class BugBearVisitor(ast.NodeVisitor):
                     node.func.id == "getattr"
                     and len(node.args) == 2
                     and _is_identifier(node.args[1])
+                    and isinstance(node.args[1], ast.Constant)
+                    and isinstance(node.args[1].value, str)
                     and not iskeyword(node.args[1].value)
                 ):
                     self.add_error("B009", node)
@@ -520,6 +537,8 @@ class BugBearVisitor(ast.NodeVisitor):
                     and node.func.id == "setattr"
                     and len(node.args) == 3
                     and _is_identifier(node.args[1])
+                    and isinstance(node.args[1], ast.Constant)
+                    and isinstance(node.args[1].value, str)
                     and not iskeyword(node.args[1].value)
                 ):
                     self.add_error("B010", node)
@@ -527,6 +546,8 @@ class BugBearVisitor(ast.NodeVisitor):
                     node.func.id == "delattr"
                     and len(node.args) == 2
                     and _is_identifier(node.args[1])
+                    and isinstance(node.args[1], ast.Constant)
+                    and isinstance(node.args[1].value, str)
                     and not iskeyword(node.args[1].value)
                 ):
                     self.add_error("B043", node)
@@ -553,7 +574,7 @@ class BugBearVisitor(ast.NodeVisitor):
             # e.g. `e.add_note(str(e))`
             self.b040_caught_exception = current_b040_caught_exception
 
-    def visit_Module(self, node) -> None:
+    def visit_Module(self, node: ast.Module) -> None:
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -599,16 +620,16 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b023(node)
         self.generic_visit(node)
 
-    def visit_Assert(self, node) -> None:
+    def visit_Assert(self, node: ast.Assert) -> None:
         self.check_for_b011(node)
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node) -> None:
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.check_for_b902(node)
         self.check_for_b006_and_b008(node)
         self.generic_visit(node)
 
-    def visit_FunctionDef(self, node) -> None:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self.check_for_b901(node)
         self.check_for_b902(node)
         self.check_for_b006_and_b008(node)
@@ -624,18 +645,18 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b042(node)
         self.generic_visit(node)
 
-    def visit_Try(self, node) -> None:
+    def visit_Try(self, node: ast.Try | ast.TryStar) -> None:
         self.check_for_b012(node)
         self.check_for_b025(node)
         self.generic_visit(node)
 
-    def visit_TryStar(self, node) -> None:
+    def visit_TryStar(self, node: ast.TryStar) -> None:
         outer_trystar = self.in_trystar
         self.in_trystar = "*"
         self.visit_Try(node)
         self.in_trystar = outer_trystar
 
-    def visit_Compare(self, node) -> None:
+    def visit_Compare(self, node: ast.Compare) -> None:
         self.check_for_b015(node)
         self.generic_visit(node)
 
@@ -649,45 +670,46 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b904(node)
         self.generic_visit(node)
 
-    def visit_With(self, node) -> None:
+    def visit_With(self, node: ast.With) -> None:
         self.check_for_b017(node)
         self.check_for_b022(node)
         self.check_for_b908(node)
         self.generic_visit(node)
 
-    def visit_JoinedStr(self, node) -> None:
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
         self.check_for_b907(node)
         self.generic_visit(node)
 
-    def visit_AnnAssign(self, node) -> None:
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         self.check_for_b032(node)
         self.check_for_b040_usage(node.value)
         self.generic_visit(node)
 
-    def visit_Import(self, node) -> None:
+    def visit_Import(self, node: ast.Import) -> None:
         self.check_for_b005(node)
         self.generic_visit(node)
 
-    def visit_ImportFrom(self, node) -> None:
-        self.visit_Import(node)
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        self.check_for_b005(node)
+        self.generic_visit(node)
 
-    def visit_Set(self, node) -> None:
+    def visit_Set(self, node: ast.Set) -> None:
         self.check_for_b033(node)
         self.generic_visit(node)
 
-    def visit_Dict(self, node) -> None:
+    def visit_Dict(self, node: ast.Dict) -> None:
         self.check_for_b041(node)
         self.generic_visit(node)
 
-    def check_for_b041(self, node) -> None:
+    def check_for_b041(self, node: ast.Dict) -> None:
         # Complain if there are duplicate key-value pairs in a dictionary literal.
-        def convert_to_value(item):
+        def convert_to_value(item: ast.expr | None) -> Any:
             if isinstance(item, ast.Constant):
                 return item.value
             elif isinstance(item, ast.Tuple):
                 return tuple(convert_to_value(i) for i in item.elts)
             elif isinstance(item, ast.Name):
-                return B041VariableKeyType(item.id)
+                return B041VariableKeyType(item.id)  # type: ignore[call-arg]
             else:
                 return B041UnhandledKeyType()
 
@@ -701,10 +723,11 @@ class BugBearVisitor(ast.NodeVisitor):
                 value = convert_to_value(node.values[index])
                 if value in seen:
                     key_node = node.keys[index]
-                    self.add_error("B041", key_node)
+                    if key_node is not None:
+                        self.add_error("B041", key_node)
                 seen.add(value)
 
-    def check_for_b005(self, node) -> None:
+    def check_for_b005(self, node: ast.Import | ast.ImportFrom | ast.Call) -> None:
         if isinstance(node, ast.Import):
             for name in node.names:
                 self._b005_imports.add(name.asname or name.name)
@@ -737,7 +760,9 @@ class BugBearVisitor(ast.NodeVisitor):
 
             self.add_error("B005", node)
 
-    def check_for_b006_and_b008(self, node) -> None:
+    def check_for_b006_and_b008(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
         visitor = FunctionDefDefaultsVisitor(
             error_codes["B006"],
             error_codes["B008"],
@@ -772,7 +797,7 @@ class BugBearVisitor(ast.NodeVisitor):
         visitor.visit(kw.value)
         self.errors.extend(visitor.errors)
 
-    def check_for_b007(self, node) -> None:
+    def check_for_b007(self, node: ast.For) -> None:
         targets = NameFinder()
         targets.visit(node.target)
         ctrl_names = set(filter(lambda s: not s.startswith("_"), targets.names))
@@ -784,12 +809,12 @@ class BugBearVisitor(ast.NodeVisitor):
             n = targets.names[name][0]
             self.add_error("B007", n, name)
 
-    def check_for_b011(self, node) -> None:
+    def check_for_b011(self, node: ast.Assert) -> None:
         if isinstance(node.test, ast.Constant) and node.test.value is False:
             self.add_error("B011", node)
 
-    def check_for_b012(self, node) -> None:
-        def _loop(node, bad_node_types) -> None:
+    def check_for_b012(self, node: ast.Try | ast.TryStar) -> None:
+        def _loop(node: ast.AST, bad_node_types: tuple[type[ast.AST], ...]) -> None:
             if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
                 return
 
@@ -797,7 +822,8 @@ class BugBearVisitor(ast.NodeVisitor):
                 bad_node_types = (ast.Return,)
 
             elif isinstance(node, bad_node_types):
-                self.add_error("B012", node, self.in_trystar)
+                # All Return, Continue, Break nodes have lineno and col_offset
+                self.add_error("B012", cast(AstPositionNode, node), self.in_trystar)
 
             for child in ast.iter_child_nodes(node):
                 _loop(child, bad_node_types)
@@ -848,11 +874,11 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.errors.append(maybe_error)
         return names
 
-    def check_for_b015(self, node) -> None:
+    def check_for_b015(self, node: ast.Compare) -> None:
         if isinstance(self.node_stack[-2], ast.Expr):
             self.add_error("B015", node)
 
-    def check_for_b016(self, node) -> None:
+    def check_for_b016(self, node: ast.Raise) -> None:
         if isinstance(node.exc, ast.JoinedStr) or (
             isinstance(node.exc, ast.Constant)
             and (
@@ -862,7 +888,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B016", node)
 
-    def check_for_b017(self, node) -> None:
+    def check_for_b017(self, node: ast.With) -> None:
         """Checks for use of the evil syntax 'with assertRaises(Exception):'
         or 'with pytest.raises(Exception)'.
 
@@ -876,7 +902,7 @@ class BugBearVisitor(ast.NodeVisitor):
         item_context = item.context_expr
 
         if (
-            hasattr(item_context, "func")
+            isinstance(item_context, ast.Call)
             and (
                 (
                     isinstance(item_context.func, ast.Attribute)
@@ -906,7 +932,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B017", node)
 
-    def check_for_b019(self, node) -> None:
+    def check_for_b019(self, node: ast.FunctionDef) -> None:
         if (
             len(node.decorator_list) == 0
             or len(self.contexts) < 2
@@ -927,7 +953,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.add_error("B019", node.decorator_list[idx])
                 return
 
-    def check_for_b020(self, node) -> None:
+    def check_for_b020(self, node: ast.For) -> None:
         targets = NameFinder()
         targets.visit(node.target)
         ctrl_names = set(targets.names)
@@ -1023,7 +1049,22 @@ class BugBearVisitor(ast.NodeVisitor):
                         suspicious_variables.append(err)
 
         if suspicious_variables:
-            reassigned_in_loop = set(self._get_assigned_names(loop_node))
+            if isinstance(loop_node, (ast.For, ast.AsyncFor, ast.While)):
+                reassigned_in_loop = set(self._get_assigned_names(loop_node))
+            elif isinstance(
+                loop_node, (ast.GeneratorExp, ast.SetComp, ast.ListComp, ast.DictComp)
+            ):
+                # For comprehensions, the iteration variables are implicitly reassigned
+                reassigned_in_loop = set()
+                for generator in loop_node.generators:
+                    if isinstance(generator.target, ast.Name):
+                        reassigned_in_loop.add(generator.target.id)
+                    elif isinstance(generator.target, ast.Tuple):
+                        reassigned_in_loop.update(
+                            self._get_names_from_tuple(generator.target)
+                        )
+            else:
+                reassigned_in_loop = set()
 
         for err in sorted(suspicious_variables, key=lambda n: n.id):
             if err.id in reassigned_in_loop:
@@ -1125,7 +1166,7 @@ class BugBearVisitor(ast.NodeVisitor):
             ):
                 self.add_error("B026", starred)
 
-    def check_for_b031(self, loop_node) -> None:  # noqa: C901
+    def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
 
         We emit a warning when the generator returned by `groupby()` is used
@@ -1150,7 +1191,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     return
 
                 num_usages = 0
-                for node in walk_list(loop_node.body):
+                for node in walk_list(loop_node.body):  # type: ignore[assignment]
                     # Handled nested loops
                     if isinstance(node, ast.For):
                         for nested_node in walk_list(node.body):
@@ -1167,14 +1208,16 @@ class BugBearVisitor(ast.NodeVisitor):
                         if num_usages > 1:
                             self.add_error("B031", node, node.id)
 
-    def _get_names_from_tuple(self, node: ast.Tuple):
+    def _get_names_from_tuple(self, node: ast.Tuple) -> Iterator[str]:
         for dim in node.elts:
             if isinstance(dim, ast.Name):
                 yield dim.id
             elif isinstance(dim, ast.Tuple):
                 yield from self._get_names_from_tuple(dim)
 
-    def _get_dict_comp_loop_and_named_expr_var_names(self, node: ast.DictComp):
+    def _get_dict_comp_loop_and_named_expr_var_names(
+        self, node: ast.DictComp
+    ) -> Iterator[str]:
         finder = NamedExprFinder()
         for gen in node.generators:
             if isinstance(gen.target, ast.Name):
@@ -1211,8 +1254,12 @@ class BugBearVisitor(ast.NodeVisitor):
             return True
         return False
 
-    def check_for_b040_usage(self, node: ast.expr | None) -> None:
-        def superwalk(node: ast.AST | list[ast.AST]):
+    def check_for_b040_usage(
+        self, node: ast.expr | list[ast.expr] | list[ast.keyword] | None
+    ) -> None:
+        def superwalk(
+            node: ast.AST | list[ast.AST] | list[ast.expr] | list[ast.keyword],
+        ) -> Iterator[ast.AST]:
             if isinstance(node, list):
                 for n in node:
                     yield from ast.walk(n)
@@ -1227,7 +1274,9 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.b040_caught_exception = None
                 break
 
-    def _get_assigned_names(self, loop_node):
+    def _get_assigned_names(
+        self, loop_node: ast.For | ast.AsyncFor | ast.While
+    ) -> Iterator[str]:
         loop_targets = (ast.For, ast.AsyncFor, ast.comprehension)
         for node in children_in_scope(loop_node):
             if isinstance(node, (ast.Assign)):
@@ -1236,7 +1285,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(node, loop_targets + (ast.AnnAssign, ast.AugAssign)):
                 yield from names_from_assignments(node.target)
 
-    def check_for_b904(self, node) -> None:
+    def check_for_b904(self, node: ast.Raise) -> None:
         """Checks `raise` without `from` inside an `except` clause.
 
         In these cases, you should use explicit exception chaining from the
@@ -1251,8 +1300,10 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B904", node, self.in_trystar)
 
-    def walk_function_body(self, node):
-        def _loop(parent, node):
+    def walk_function_body(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> Iterator[tuple[ast.AST, ast.AST]]:
+        def _loop(parent: ast.AST, node: ast.AST) -> Iterator[tuple[ast.AST, ast.AST]]:
             if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
                 return
             yield parent, node
@@ -1301,18 +1352,19 @@ class BugBearVisitor(ast.NodeVisitor):
 
     # taken from pep8-naming
     @classmethod
-    def find_decorator_name(cls, d):
+    def find_decorator_name(cls, d: ast.expr) -> str | None:
         if isinstance(d, ast.Name):
             return d.id
         elif isinstance(d, ast.Attribute):
             return d.attr
         elif isinstance(d, ast.Call):
             return cls.find_decorator_name(d.func)
+        return None
 
     def check_for_b902(  # noqa: C901 (too complex)
-        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> None:
-        def is_classmethod(decorators: Set[str]) -> bool:
+        def is_classmethod(decorators: set[str]) -> bool:
             return (
                 any(name in decorators for name in self.b902_classmethod_decorators)
                 or node.name in B902_IMPLICIT_CLASSMETHODS
@@ -1326,7 +1378,9 @@ class BugBearVisitor(ast.NodeVisitor):
         cls = self.contexts[-2].node
 
         decorators: set[str] = {
-            self.find_decorator_name(d) for d in node.decorator_list
+            d
+            for d in (self.find_decorator_name(dec) for dec in node.decorator_list)
+            if d is not None
         }
 
         if "staticmethod" in decorators:
@@ -1378,7 +1432,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 "B902", err_node, actual_first_arg, kind, expected_first_args[0]
             )
 
-    def check_for_b903(self, node) -> None:
+    def check_for_b903(self, node: ast.ClassDef) -> None:
         body = node.body
         if (
             body
@@ -1409,7 +1463,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.add_error("B903", node)
 
-    def check_for_b018(self, node) -> None:
+    def check_for_b018(self, node: ast.AST) -> None:
         if not isinstance(node, ast.Expr):
             return
         if isinstance(
@@ -1429,7 +1483,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B018", node, node.value.__class__.__name__)
 
-    def check_for_b021(self, node) -> None:
+    def check_for_b021(self, node: ast.FunctionDef | ast.ClassDef) -> None:
         if (
             node.body
             and isinstance(node.body[0], ast.Expr)
@@ -1437,15 +1491,14 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B021", node.body[0].value)
 
-    def check_for_b022(self, node) -> None:
+    def check_for_b022(self, node: ast.With) -> None:
         item = node.items[0]
         item_context = item.context_expr
         if (
-            hasattr(item_context, "func")
-            and hasattr(item_context.func, "value")
-            and hasattr(item_context.func.value, "id")
+            isinstance(item_context, ast.Call)
+            and isinstance(item_context.func, ast.Attribute)
+            and isinstance(item_context.func.value, ast.Name)
             and item_context.func.value.id == "contextlib"
-            and hasattr(item_context.func, "attr")
             and item_context.func.attr == "suppress"
             and len(item_context.args) == 0
         ):
@@ -1484,7 +1537,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if self._is_assertRaises_like(node_item):
                 self.add_error("B908", node)
 
-    def check_for_b025(self, node) -> None:
+    def check_for_b025(self, node: ast.Try | ast.TryStar) -> None:
         seen = []
         for handler in node.handlers:
             if isinstance(handler.type, (ast.Name, ast.Attribute)):
@@ -1535,7 +1588,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
         return False
 
-    def check_for_b905(self, node) -> None:
+    def check_for_b905(self, node: ast.Call) -> None:
         if not (isinstance(node.func, ast.Name) and node.func.id == "zip"):
             return
         for arg in node.args:
@@ -1544,7 +1597,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B905", node)
 
-    def check_for_b912(self, node) -> None:
+    def check_for_b912(self, node: ast.Call) -> None:
         if not (
             isinstance(node.func, ast.Name)
             and node.func.id == "map"
@@ -1647,6 +1700,7 @@ class BugBearVisitor(ast.NodeVisitor):
                         # if there's variables in the format_spec, skip
                         len(value.format_spec.values) > 1
                         or not isinstance(value.format_spec.values[0], ast.Constant)
+                        or not isinstance(value.format_spec.values[0].value, str)
                     ):
                         current_mark = variable = None
                         continue
@@ -1684,7 +1738,7 @@ class BugBearVisitor(ast.NodeVisitor):
             # if no pre-mark or variable detected, reset state
             current_mark = variable = None
 
-    def check_for_b028(self, node) -> None:
+    def check_for_b028(self, node: ast.Call) -> None:
         if (
             isinstance(node.func, ast.Attribute)
             and node.func.attr == "warn"
@@ -1698,7 +1752,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B028", node)
 
-    def check_for_b032(self, node) -> None:
+    def check_for_b032(self, node: ast.AnnAssign) -> None:
         if (
             node.value is None
             and hasattr(node.target, "value")
@@ -1713,7 +1767,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B032", node)
 
-    def check_for_b033(self, node) -> None:
+    def check_for_b033(self, node: ast.Set) -> None:
         seen = set()
         for elt in node.elts:
             if not isinstance(elt, ast.Constant):
@@ -1842,6 +1896,10 @@ class BugBearVisitor(ast.NodeVisitor):
             key = _to_name_str(node.target)
         else:
             return
+
+        if name is None or key is None:
+            return
+
         checker = B909Checker(name, key)
         checker.visit(node.body)
         for mutation in itertools.chain.from_iterable(
@@ -1872,7 +1930,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B911", node)
 
 
-def compose_call_path(node):
+def compose_call_path(node: ast.expr) -> Iterator[str]:
     if isinstance(node, ast.Attribute):
         yield from compose_call_path(node.value)
         yield node.attr
@@ -1968,7 +2026,7 @@ class B909Checker(ast.NodeVisitor):
         self.visit(node.body)
         self._conditional_block += 1
 
-    def visit(self, node):
+    def visit(self, node: ast.AST | list[ast.stmt]) -> ast.AST | list[ast.stmt] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
             return super().visit(node)
@@ -2034,9 +2092,9 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
 
     def __init__(
         self,
-        error_code_calls,  # B006 or B039
-        error_code_literals,  # B008 or B039
-        b008_b039_extend_immutable_calls=None,
+        error_code_calls: "Error",  # B006 or B039
+        error_code_literals: "Error",  # B008 or B039
+        b008_b039_extend_immutable_calls: set[str] | None = None,
     ) -> None:
         self.b008_b039_extend_immutable_calls = (
             b008_b039_extend_immutable_calls or set()
@@ -2049,7 +2107,7 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
         self.arg_depth = 0
         super().__init__()
 
-    def visit_mutable_literal_or_comprehension(self, node) -> None:
+    def visit_mutable_literal_or_comprehension(self, node: ast.expr) -> None:
         # Flag B006 iff mutable literal/comprehension is not nested.
         # We only flag these at the top level of the expression as we
         # cannot easily guarantee that nested mutable structures are not
@@ -2065,7 +2123,7 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
         # Check for nested functions.
         self.generic_visit(node)
 
-    def visit_Call(self, node) -> None:
+    def visit_Call(self, node: ast.Call) -> None:
         call_path = ".".join(compose_call_path(node.func))
         if call_path in B006_MUTABLE_CALLS:
             self.errors.append(self.error_code_calls(node.lineno, node.col_offset))
@@ -2188,7 +2246,13 @@ B902_SELF = ["self"]  # it's a list because the first is preferred
 B902_CLS = ["cls", "klass"]  # ditto.
 B902_METACLS = ["metacls", "metaclass", "typ", "mcs"]  # ditto.
 
-error = namedtuple("error", "lineno col message type vars")
+
+class error(NamedTuple):
+    lineno: int
+    col: int
+    message: str
+    type: type
+    vars: tuple[object, ...]
 
 
 class Error:
