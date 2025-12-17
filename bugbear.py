@@ -622,6 +622,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Assert(self, node: ast.Assert) -> None:
         self.check_for_b011(node)
+        self.check_for_b044(node)
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
@@ -1887,6 +1888,10 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
         # no `def __init__` found, which is fine
 
+    def check_for_b044(self, node: ast.Assert) -> None:
+        if isinstance(node.test, ast.GeneratorExp):
+            self.add_error("B044", node)
+
     def check_for_b909(self, node: ast.For) -> None:
         if isinstance(node.iter, ast.Name):
             name = _to_name_str(node.iter)
@@ -2519,6 +2524,11 @@ error_codes = {
         message=(
             "B043 Do not call delattr with a constant attribute value, "
             "it is not any safer than normal property access."
+        )
+    ),
+    "B044": Error(
+        message=(
+            "B044 `assert <generator_expression>` is always true. Did you forget `all()`?"
         )
     ),
     # Warnings disabled by default.
