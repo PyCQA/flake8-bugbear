@@ -1745,7 +1745,11 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "warnings"
             and not any(kw.arg == "stacklevel" for kw in node.keywords)
-            and not any(kw.arg == "skip_file_prefixes" for kw in node.keywords)
+            and not any(
+                kw.arg == "skip_file_prefixes"
+                and not (isinstance(kw.value, ast.Tuple) and not kw.value.elts)
+                for kw in node.keywords
+            )
             and len(node.args) < 3
             and not any(isinstance(a, ast.Starred) for a in node.args)
             and not any(kw.arg is None for kw in node.keywords)
