@@ -63,3 +63,34 @@ for (_key1, _key2), (_value1, _value2) in groupby(
 ):
     collect_shop_items("Jane", group[1])
     collect_shop_items("Joe", group[1])
+
+
+# Safe: usage in mutually exclusive if/else branches
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    if True:
+        collect_shop_items("Jane", section_items)
+    else:
+        collect_shop_items("Joe", section_items)
+
+# Safe: usage in if/elif/else branches
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    if len(items) > 5:
+        collect_shop_items("Jane", section_items)
+    elif len(items) > 3:
+        collect_shop_items("Joe", section_items)
+    else:
+        collect_shop_items("Sarah", section_items)
+
+# Bad: usage before if AND inside if body
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    collect_shop_items("Jane", section_items)
+    if True:
+        collect_shop_items("Joe", section_items)  # B031: 34, "section_items"
+
+# Bad: usage in both branches of if/else PLUS outside
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    collect_shop_items("Jane", section_items)
+    if True:
+        collect_shop_items("Joe", section_items)  # B031: 34, "section_items"
+    else:
+        collect_shop_items("Sarah", section_items)  # B031: 36, "section_items"

@@ -1190,23 +1190,50 @@ class BugBearVisitor(ast.NodeVisitor):
                     # Ignore any `groupby()` invocation that isn't unpacked
                     return
 
-                num_usages = 0
-                for node in walk_list(loop_node.body):  # type: ignore[assignment]
-                    # Handled nested loops
-                    if isinstance(node, ast.For):
-                        for nested_node in walk_list(node.body):
-                            assert nested_node != node
-                            if (
-                                isinstance(nested_node, ast.Name)
-                                and nested_node.id == group_name
-                            ):
-                                self.add_error("B031", nested_node, nested_node.id)
+                self._check_b031_body(loop_node.body, group_name, 0)
 
-                    # Handle multiple uses
-                    if isinstance(node, ast.Name) and node.id == group_name:
-                        num_usages += 1
-                        if num_usages > 1:
-                            self.add_error("B031", node, node.id)
+    def _check_b031_body(
+        self, stmts: list[ast.stmt], group_name: str, prior_usages: int
+    ) -> int:
+        """Count usages of group_name, handling if/else as mutually exclusive.
+
+        Returns the number of new usages found in these statements.
+        """
+        num_usages = prior_usages
+        local_count = 0
+        for stmt in stmts:
+            # Nested loops: any usage inside is always bad
+            if isinstance(stmt, ast.For):
+                for nested_node in walk_list(stmt.body):
+                    if (
+                        isinstance(nested_node, ast.Name)
+                        and nested_node.id == group_name
+                    ):
+                        self.add_error("B031", nested_node, nested_node.id)
+                continue
+
+            # If/else: branches are mutually exclusive
+            if isinstance(stmt, ast.If):
+                body_new = self._check_b031_body(
+                    stmt.body, group_name, num_usages
+                )
+                else_new = self._check_b031_body(
+                    stmt.orelse, group_name, num_usages
+                ) if stmt.orelse else 0
+                branch_add = max(body_new, else_new)
+                num_usages += branch_add
+                local_count += branch_add
+                continue
+
+            # Regular statement: count Name references
+            for node in ast.walk(stmt):
+                if isinstance(node, ast.Name) and node.id == group_name:
+                    num_usages += 1
+                    local_count += 1
+                    if num_usages > 1:
+                        self.add_error("B031", node, node.id)
+
+        return local_count
 
     def _get_names_from_tuple(self, node: ast.Tuple) -> Iterator[str]:
         for dim in node.elts:
