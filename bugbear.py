@@ -2169,7 +2169,21 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
 
 
 class B020NameFinder(NameFinder):
-    """Ignore names defined within the local scope of a comprehension."""
+    """Ignore names defined within the local scope of a comprehension.
+
+    Also ignores names used as the base of attribute access or subscript
+    operations, since `for x in x.items` or `for x in x[0]` is safe —
+    the iterable expression is evaluated once before the loop starts.
+    """
+
+    def visit_Attribute(self, node) -> None:
+        # Don't record names used as attribute bases (e.g. `x` in `x.attr`).
+        # The attribute access produces a different object than `x` itself.
+        pass
+
+    def visit_Subscript(self, node) -> None:
+        # Don't record names used as subscript bases (e.g. `x` in `x[0]`).
+        pass
 
     def visit_GeneratorExp(self, node) -> None:
         self.visit(node.generators)
