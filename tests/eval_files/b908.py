@@ -35,8 +35,8 @@ class SomeTestCase(unittest.TestCase):
 
 
 with raises(Exception): # B017: 0 # B908: 0
-    "1" + 1
-    "2" + 2
+    "1" + 1  # B018: 4, "BinOp"
+    "2" + 2  # B018: 4, "BinOp"
 
 with pytest.warns(Warning): # B908: 0
     print("print before warning")

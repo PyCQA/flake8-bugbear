@@ -1,6 +1,6 @@
 """
 Should emit:
-B018 - on lines 16-25, 29, 32
+B018 - on lines 16-25, 29, 32, 42-50
 """
 
 def foo1():
@@ -32,3 +32,28 @@ def foo3():
     (1,)  # bad  # B018: 4, "Tuple"
     (2, 3)  # bad  # B018: 4, "Tuple"
     t = (4, 5)  # good
+
+
+def foo4():
+    a = 1
+    b = 2
+    c = 3
+    d = 4
+    result = a * b
+    +c * d  # B018: 4, "BinOp"
+    a * b  # B018: 4, "BinOp"
+    +a * b  # B018: 4, "BinOp"
+    -1 * 2  # B018: 4, "BinOp"
+    1 * 2 + 3  # B018: 4, "BinOp"
+    a + 1  # B018: 4, "BinOp"
+    ~a  # B018: 4, "UnaryOp"
+    not a  # B018: 4, "UnaryOp"
+    a.attr  # B018: 4, "Attribute"
+    return result
+
+
+def foo5():
+    a = [1, 2]
+    a.sort()  # good: method call has side effects
+    len(a)  # good: function call (could have side effects)
+    print(a)  # good: function call
