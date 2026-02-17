@@ -179,9 +179,9 @@ which is an unassigned tuple. Simply remove the comma to clear the error.
 
 .. _B019:
 
-**B019**: Use of ``functools.lru_cache`` or ``functools.cache`` on methods
-can lead to memory leaks. The cache may retain instance references, preventing
-garbage collection.
+**B019**: Use of ``functools.lru_cache`` or ``functools.cache``
+or ``async_lru.alru_cache`` on methods can lead to memory leaks. The cache may
+retain instance references, preventing garbage collection.
 
 .. _B020:
 

@@ -627,6 +627,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.check_for_b902(node)
         self.check_for_b006_and_b008(node)
+        self.check_for_b019(node)
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -932,7 +933,9 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B017", node)
 
-    def check_for_b019(self, node: ast.FunctionDef) -> None:
+    def check_for_b019(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
         if (
             len(node.decorator_list) == 0
             or len(self.contexts) < 2
@@ -2240,6 +2243,8 @@ B019_CACHES = {
     "functools.lru_cache",
     "cache",
     "lru_cache",
+    "async_lru.alru_cache",
+    "alru_cache",
 }
 B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
 B902_SELF = ["self"]  # it's a list because the first is preferred
@@ -2394,9 +2399,10 @@ error_codes = {
     ),
     "B019": Error(
         message=(
-            "B019 Use of `functools.lru_cache` or `functools.cache` on methods "
-            "can lead to memory leaks. The cache may retain instance references, "
-            "preventing garbage collection."
+            "B019 Use of `functools.lru_cache` or `functools.cache` "
+            "or `async_lru.alru_cache` on methods can lead to memory leaks. "
+            "The cache may retain instance references, preventing garbage "
+            "collection."
         )
     ),
     "B020": Error(
