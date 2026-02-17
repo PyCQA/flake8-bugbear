@@ -1476,6 +1476,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 ast.BinOp,
                 ast.UnaryOp,
                 ast.Attribute,
+                ast.GeneratorExp,
             ),
         ) or (
             isinstance(node.value, ast.Constant)

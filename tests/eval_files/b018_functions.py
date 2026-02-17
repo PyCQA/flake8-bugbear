@@ -49,6 +49,7 @@ def foo4():
     ~a  # B018: 4, "UnaryOp"
     not a  # B018: 4, "UnaryOp"
     a.attr  # B018: 4, "Attribute"
+    (x for x in range(10))  # B018: 4, "GeneratorExp"
     return result
 
 
@@ -57,3 +58,4 @@ def foo5():
     a.sort()  # good: method call has side effects
     len(a)  # good: function call (could have side effects)
     print(a)  # good: function call
+    list(x for x in a)  # good: function call wrapping generator
