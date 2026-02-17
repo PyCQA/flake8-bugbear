@@ -1214,12 +1214,12 @@ class BugBearVisitor(ast.NodeVisitor):
 
             # If/else: branches are mutually exclusive
             if isinstance(stmt, ast.If):
-                body_new = self._check_b031_body(
-                    stmt.body, group_name, num_usages
+                body_new = self._check_b031_body(stmt.body, group_name, num_usages)
+                else_new = (
+                    self._check_b031_body(stmt.orelse, group_name, num_usages)
+                    if stmt.orelse
+                    else 0
                 )
-                else_new = self._check_b031_body(
-                    stmt.orelse, group_name, num_usages
-                ) if stmt.orelse else 0
                 branch_add = max(body_new, else_new)
                 num_usages += branch_add
                 local_count += branch_add
