@@ -2176,12 +2176,12 @@ class B020NameFinder(NameFinder):
     the iterable expression is evaluated once before the loop starts.
     """
 
-    def visit_Attribute(self, node) -> None:
+    def visit_Attribute(self, node) -> None:  # noqa: B906
         # Don't record names used as attribute bases (e.g. `x` in `x.attr`).
         # The attribute access produces a different object than `x` itself.
         pass
 
-    def visit_Subscript(self, node) -> None:
+    def visit_Subscript(self, node) -> None:  # noqa: B906
         # Don't record names used as subscript bases (e.g. `x` in `x[0]`).
         pass
 
