@@ -933,9 +933,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B017", node)
 
-    def check_for_b019(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> None:
+    def check_for_b019(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         if (
             len(node.decorator_list) == 0
             or len(self.contexts) < 2
