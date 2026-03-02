@@ -111,50 +111,50 @@ _ = {
 # argument or in a consumed `filter()` (even if a comprehension is better style)
 for x in range(2):
     # It's not a complete get-out-of-linting-free construct - these should fail:
-    min([None, lambda: x], key=repr)  # B023: 23, "x"
-    sorted([None, lambda: x], key=repr)  # B023: 26, "x"
-    any(filter(bool, [None, lambda: x]))  # B023: 36, "x"
-    list(filter(bool, [None, lambda: x]))  # B023: 37, "x"
-    all(reduce(bool, [None, lambda: x]))  # B023: 36, "x"
+    _ = min([None, lambda: x], key=repr)  # B023: 27, "x"
+    _ = sorted([None, lambda: x], key=repr)  # B023: 30, "x"
+    _ = any(filter(bool, [None, lambda: x]))  # B023: 40, "x"
+    _ = list(filter(bool, [None, lambda: x]))  # B023: 41, "x"
+    _ = all(reduce(bool, [None, lambda: x]))  # B023: 40, "x"
 
     # But all these ones should be OK:
-    min(range(3), key=lambda y: x * y)
-    max(range(3), key=lambda y: x * y)
-    sorted(range(3), key=lambda y: x * y)
+    _ = min(range(3), key=lambda y: x * y)
+    _ = max(range(3), key=lambda y: x * y)
+    _ = sorted(range(3), key=lambda y: x * y)
 
-    any(map(lambda y: x < y, range(3)))
-    all(map(lambda y: x < y, range(3)))
-    set(map(lambda y: x < y, range(3)))
-    list(map(lambda y: x < y, range(3)))
-    tuple(map(lambda y: x < y, range(3)))
-    sorted(map(lambda y: x < y, range(3)))
-    frozenset(map(lambda y: x < y, range(3)))
+    _ = any(map(lambda y: x < y, range(3)))
+    _ = all(map(lambda y: x < y, range(3)))
+    _ = set(map(lambda y: x < y, range(3)))
+    _ = list(map(lambda y: x < y, range(3)))
+    _ = tuple(map(lambda y: x < y, range(3)))
+    _ = sorted(map(lambda y: x < y, range(3)))
+    _ = frozenset(map(lambda y: x < y, range(3)))
 
-    any(filter(lambda y: x < y, range(3)))
-    all(filter(lambda y: x < y, range(3)))
-    set(filter(lambda y: x < y, range(3)))
-    list(filter(lambda y: x < y, range(3)))
-    tuple(filter(lambda y: x < y, range(3)))
-    sorted(filter(lambda y: x < y, range(3)))
-    frozenset(filter(lambda y: x < y, range(3)))
+    _ = any(filter(lambda y: x < y, range(3)))
+    _ = all(filter(lambda y: x < y, range(3)))
+    _ = set(filter(lambda y: x < y, range(3)))
+    _ = list(filter(lambda y: x < y, range(3)))
+    _ = tuple(filter(lambda y: x < y, range(3)))
+    _ = sorted(filter(lambda y: x < y, range(3)))
+    _ = frozenset(filter(lambda y: x < y, range(3)))
 
-    any(reduce(lambda y: x | y, range(3)))
-    all(reduce(lambda y: x | y, range(3)))
-    set(reduce(lambda y: x | y, range(3)))
-    list(reduce(lambda y: x | y, range(3)))
-    tuple(reduce(lambda y: x | y, range(3)))
-    sorted(reduce(lambda y: x | y, range(3)))
-    frozenset(reduce(lambda y: x | y, range(3)))
+    _ = any(reduce(lambda y: x | y, range(3)))
+    _ = all(reduce(lambda y: x | y, range(3)))
+    _ = set(reduce(lambda y: x | y, range(3)))
+    _ = list(reduce(lambda y: x | y, range(3)))
+    _ = tuple(reduce(lambda y: x | y, range(3)))
+    _ = sorted(reduce(lambda y: x | y, range(3)))
+    _ = frozenset(reduce(lambda y: x | y, range(3)))
 
     import functools
 
-    any(functools.reduce(lambda y: x | y, range(3)))
-    all(functools.reduce(lambda y: x | y, range(3)))
-    set(functools.reduce(lambda y: x | y, range(3)))
-    list(functools.reduce(lambda y: x | y, range(3)))
-    tuple(functools.reduce(lambda y: x | y, range(3)))
-    sorted(functools.reduce(lambda y: x | y, range(3)))
-    frozenset(functools.reduce(lambda y: x | y, range(3)))
+    _ = any(functools.reduce(lambda y: x | y, range(3)))
+    _ = all(functools.reduce(lambda y: x | y, range(3)))
+    _ = set(functools.reduce(lambda y: x | y, range(3)))
+    _ = list(functools.reduce(lambda y: x | y, range(3)))
+    _ = tuple(functools.reduce(lambda y: x | y, range(3)))
+    _ = sorted(functools.reduce(lambda y: x | y, range(3)))
+    _ = frozenset(functools.reduce(lambda y: x | y, range(3)))
 
 
 # OK because the lambda which references a loop variable is defined in a `return`
