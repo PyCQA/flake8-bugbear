@@ -173,6 +173,7 @@ using ``pytest.raises``), or use the context manager form with a target
 .. _B018:
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
+The check also considers function calls without side-effects such as ``isinstance``.
 Note that dangling commas will cause things to be interpreted as useless tuples.
 For example, in the statement ``print(".."),`` is the same as ``(print(".."),)``
 which is an unassigned tuple. Simply remove the comma to clear the error.
@@ -292,16 +293,16 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 .. _B042:
 
-**B042**: Exception classes with a custom `__init__` should pass all args to `super().__init__()` to work correctly with `copy.copy` and `pickle`. 
-Both `BaseException.__reduce__` and `BaseException.__str__` rely on the `args` attribute being set correctly, which is set in `BaseException.__new__` and `BaseException.__init__`. 
-If you define `__init__` yourself without passing all arguments to `super().__init__` it is very easy to break pickling, especially if they pass keyword arguments which both 
-`BaseException.__new__` and `BaseException.__init__` ignore. It's also important that `__init__` not accept any keyword-only parameters. 
-Alternately you can define both `__str__` and `__reduce__` to bypass the need for correct handling of `args`. 
+**B042**: Exception classes with a custom `__init__` should pass all args to `super().__init__()` to work correctly with `copy.copy` and `pickle`.
+Both `BaseException.__reduce__` and `BaseException.__str__` rely on the `args` attribute being set correctly, which is set in `BaseException.__new__` and `BaseException.__init__`.
+If you define `__init__` yourself without passing all arguments to `super().__init__` it is very easy to break pickling, especially if they pass keyword arguments which both
+`BaseException.__new__` and `BaseException.__init__` ignore. It's also important that `__init__` not accept any keyword-only parameters.
+Alternately you can define both `__str__` and `__reduce__` to bypass the need for correct handling of `args`.
 If you define `__str__/__reduce__` in super classes this check is unable to detect it, and we advise disabling it.
 
 .. _B043:
 
-**B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``. 
+**B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``.
 There is no additional safety in using ``delattr`` if you know the attribute name ahead of time.
 
 
@@ -493,6 +494,11 @@ MIT
 
 Change Log
 ----------
+
+UNRELEASED
+~~~~~~~~~~
+
+* B018: handle also useless calls such as `isinstance(x, int)` without assigning or using the result
 
 25.11.29
 ~~~~~~~~

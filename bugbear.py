@@ -42,6 +42,22 @@ CONTEXTFUL_NODES = (
     ast.GeneratorExp,
 )
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+FUNCTIONS_WITHOUT_SIDE_EFFECTS = (
+    "all",
+    "any",
+    "dict",
+    "frozenset",
+    "isinstance",
+    "issubclass",
+    "len",
+    "max",
+    "min",
+    "repr",
+    "set",
+    "sorted",
+    "str",
+    "tuple",
+)
 B908_pytest_functions = {"raises", "warns"}
 B908_unittest_methods = {
     "assertRaises",
@@ -1466,19 +1482,27 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b018(self, node: ast.AST) -> None:
         if not isinstance(node, ast.Expr):
             return
-        if isinstance(
-            node.value,
-            (
-                ast.List,
-                ast.Set,
-                ast.Dict,
-                ast.Tuple,
-            ),
-        ) or (
-            isinstance(node.value, ast.Constant)
-            and (
-                isinstance(node.value.value, (int, float, complex, bytes, bool))
-                or node.value.value is None
+        if (
+            isinstance(
+                node.value,
+                (
+                    ast.List,
+                    ast.Set,
+                    ast.Dict,
+                    ast.Tuple,
+                ),
+            )
+            or (
+                isinstance(node.value, ast.Constant)
+                and (
+                    isinstance(node.value.value, (int, float, complex, bytes, bool))
+                    or node.value.value is None
+                )
+            )
+            or (
+                isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id in FUNCTIONS_WITHOUT_SIDE_EFFECTS
             )
         ):
             self.add_error("B018", node, node.value.__class__.__name__)
