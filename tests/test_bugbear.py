@@ -201,6 +201,30 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
+    def test_b912_suppressed_on_pre_3_14(self):
+        # `map(strict=...)` only exists on Python 3.14+, so the check should
+        # be a noop on older interpreters.
+        from unittest.mock import patch
+
+        import bugbear
+
+        filename = EVAL_FILES_DIR / "b912_py314.py"
+        with patch.object(bugbear.sys, "version_info", (3, 13, 0, "final", 0)):
+            bbc = BugBearChecker(filename=str(filename))
+            errors = [e for e in bbc.run() if e[2].startswith("B912")]
+        self.assertEqual(errors, [])
+
+    def test_b912_emitted_on_3_14(self):
+        from unittest.mock import patch
+
+        import bugbear
+
+        filename = EVAL_FILES_DIR / "b912_py314.py"
+        with patch.object(bugbear.sys, "version_info", (3, 14, 0, "final", 0)):
+            bbc = BugBearChecker(filename=str(filename))
+            errors = [e for e in bbc.run() if e[2].startswith("B912")]
+        self.assertEqual(len(errors), 2)
+
     def test_b9_flake8_next_default_options(self):
         filename = EVAL_FILES_DIR / "b950.py"
 
