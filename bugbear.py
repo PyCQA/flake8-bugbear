@@ -1622,6 +1622,10 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B905", node)
 
     def check_for_b912(self, node: ast.Call) -> None:
+        # `map(strict=...)` was added in Python 3.14; emitting on older
+        # interpreters would flag valid code.
+        if sys.version_info < (3, 14):
+            return
         if not (
             isinstance(node.func, ast.Name)
             and node.func.id == "map"
