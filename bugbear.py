@@ -593,6 +593,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b023(node)
         self.check_for_b031(node)
         self.check_for_b909(node)
+        self.check_for_b913(node)
         self.generic_visit(node)
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
@@ -1929,6 +1930,42 @@ class BugBearVisitor(ast.NodeVisitor):
         ) and not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B911", node)
 
+    def check_for_b913(self, node: ast.For) -> None:
+        # validate node shape
+        if (
+            not isinstance(node.target, (ast.Tuple, ast.List))
+            or not isinstance(node.iter, ast.Call)
+            or not isinstance(node.iter.func, ast.Name)
+            or node.iter.func.id != "zip"
+            or len(node.target.elts) == 0
+            or len(node.iter.args) == 0
+            or any(isinstance(elt, ast.Starred) for elt in node.target.elts)
+        ):
+            return
+        target_elts = node.target.elts
+        call = node.iter
+        # count trailing underscore names
+        trailing_underscore = 0
+        for elt in reversed(target_elts):
+            if isinstance(elt, ast.Name) and elt.id == "_":
+                trailing_underscore += 1
+            else:
+                break
+        if trailing_underscore == 0 or len(target_elts) - trailing_underscore < 2:
+            return
+        # check that underscore names are not used in the loop body
+        body_finder = NameFinder()
+        for stmt in node.body + node.orelse:
+            body_finder.visit(stmt)
+        for i in range(1, trailing_underscore + 1):
+            name_node = target_elts[-i]
+            assert isinstance(name_node, ast.Name)
+            if name_node.id in body_finder.names:
+                return
+        if len(call.args) != len(target_elts):
+            return
+        self.add_error("B913", node)
+
 
 def compose_call_path(node: ast.expr) -> Iterator[str]:
     if isinstance(node, ast.Attribute):
@@ -2583,6 +2620,13 @@ error_codes = {
         message="B911 `itertools.batched()` without an explicit `strict=` parameter."
     ),
     "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
+    "B913": Error(
+        message=(
+            "B913 Using `zip` with iterables whose values are immediately "
+            "discarded via `_` in the assignment. Remove the discarded "
+            "variables and the matching `zip()` arguments."
+        )
+    ),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -2599,5 +2643,6 @@ disabled_by_default = [
     "B910",
     "B911",
     "B912",
+    "B913",
     "B950",
 ]
