@@ -592,6 +592,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b020(node)
         self.check_for_b023(node)
         self.check_for_b031(node)
+        self.check_for_b038(node)
         self.check_for_b909(node)
         self.generic_visit(node)
 
@@ -1207,6 +1208,48 @@ class BugBearVisitor(ast.NodeVisitor):
                         num_usages += 1
                         if num_usages > 1:
                             self.add_error("B031", node, node.id)
+    def check_for_b038(self, node: ast.For) -> None:
+        """
+        Check that the number of variables unpacked from zip() matches the number of
+        arguments passed to zip(). Warn if there are unused variables (especially _).
+        """
+        # Only check for loops with zip() calls
+        if not (
+            isinstance(node.iter, ast.Call)
+            and isinstance(node.iter.func, ast.Name)
+            and node.iter.func.id == "zip"
+        ):
+            return
+
+        # Only check when unpacking (target is a tuple)
+        if not isinstance(node.target, ast.Tuple):
+            return
+
+        # Get the unpacked variables from the target tuple
+        unpacked_vars = [elt for elt in node.target.elts if isinstance(elt, ast.Name)]
+        if not unpacked_vars:
+            return
+
+        # Get the number of arguments to zip()
+        num_zip_args = len(node.iter.args)
+
+        # If counts don't match, it is always an error
+        if num_zip_args != len(unpacked_vars):
+            self.add_error("B038", node)
+            return
+
+        # If counts match but we have unused "_" variables
+        # Check if any unpacked variable is "_" and is not used in the body
+        body_finder = NameFinder()
+        for stmt in node.body:
+            body_finder.visit(stmt)
+
+        for var_node in unpacked_vars:
+            # If variable name is "_" and it is not used in the body
+            if var_node.id == "_" and "_" not in body_finder.names:
+                self.add_error("B038", node)
+                return
+
 
     def _get_names_from_tuple(self, node: ast.Tuple) -> Iterator[str]:
         for dim in node.elts:
@@ -2496,6 +2539,12 @@ error_codes = {
     ),
     "B037": Error(
         message="B037 Class `__init__` methods must not return or yield any values."
+    ),
+    "B038": Error(
+        message=(
+            "B038 Either the number of arguments to `zip()` does not match the number "
+            "of unpacked variables, or there is an unused `_` in the unpacking."
+        )
     ),
     "B039": Error(
         message=(
