@@ -1238,14 +1238,17 @@ class BugBearVisitor(ast.NodeVisitor):
                 def is_in_if_branch_where_other_branch_has(
                     name_node: ast.Name, name: str
                 ) -> bool:
-                    """Check if name_node is inside an if-else where the other branch also has name."""
+                    """Check if name_node is inside an if-else where
+                    the other branch also has name."""
                     current = name_node
                     while True:
                         parent = parent_map.get(current)
                         if parent is None:
                             return False
                         if isinstance(parent, ast.If) and parent.orelse:
-                            if branches_contain_same_name(parent, name):
+                            if branches_contain_same_name(
+                                parent, name
+                            ):
                                 return True
                         current = parent
 
