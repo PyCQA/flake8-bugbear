@@ -1206,6 +1206,49 @@ class BugBearVisitor(ast.NodeVisitor):
                     # Ignore any `groupby()` invocation that isn't unpacked
                     return
 
+                # Build parent map for this subtree so we can walk up
+                parent_map: dict[ast.AST, ast.AST] = {}
+
+                class ParentTracker(ast.NodeVisitor):
+                    def __init__(self) -> None:
+                        super().__init__()
+
+                    def generic_visit(self, node: ast.AST) -> None:
+                        for child in ast.iter_child_nodes(node):
+                            parent_map[child] = node
+                            self.generic_visit(child)
+
+                ParentTracker().visit(loop_node)
+
+                def branches_contain_same_name(if_node: ast.If, name: str) -> bool:
+                    """Check if name appears in BOTH branches of if_node."""
+                    body_contains = any(
+                        isinstance(n, ast.Name) and n.id == name
+                        for n in ast.walk(if_node.body[0])
+                    )
+                    else_contains = (
+                        bool(if_node.orelse)
+                        and any(
+                            isinstance(n, ast.Name) and n.id == name
+                            for n in ast.walk(if_node.orelse[0])
+                        )
+                    )
+                    return body_contains and else_contains
+
+                def is_in_if_branch_where_other_branch_has(
+                    name_node: ast.Name, name: str
+                ) -> bool:
+                    """Check if name_node is inside an if-else where the other branch also has name."""
+                    current = name_node
+                    while True:
+                        parent = parent_map.get(current)
+                        if parent is None:
+                            return False
+                        if isinstance(parent, ast.If) and parent.orelse:
+                            if branches_contain_same_name(parent, name):
+                                return True
+                        current = parent
+
                 num_usages = 0
                 for node in walk_list(loop_node.body):  # type: ignore[assignment]
                     # Handled nested loops
@@ -1220,6 +1263,12 @@ class BugBearVisitor(ast.NodeVisitor):
 
                     # Handle multiple uses
                     if isinstance(node, ast.Name) and node.id == group_name:
+                        # Skip if this name is in an if-else where the other
+                        # branch also uses it (only one branch executes)
+                        if is_in_if_branch_where_other_branch_has(
+                            node, group_name
+                        ):
+                            continue
                         num_usages += 1
                         if num_usages > 1:
                             self.add_error("B031", node, node.id)
