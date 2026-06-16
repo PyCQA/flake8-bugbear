@@ -63,3 +63,9 @@ for (_key1, _key2), (_value1, _value2) in groupby(
 ):
     collect_shop_items("Jane", group[1])
     collect_shop_items("Joe", group[1])
+
+
+# Annotating the loop variable is not a second usage of the generator (#465)
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    section_items: list
+    collect_shop_items("Jane", section_items)
