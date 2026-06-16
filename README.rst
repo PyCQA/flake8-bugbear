@@ -499,6 +499,7 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B018: handle also useless calls such as `isinstance(x, int)` without assigning or using the result
+* B031: don't count a store-context reference (e.g. an annotation target like `group: T`) as a use of the `groupby` generator (#465)
 
 25.11.29
 ~~~~~~~~

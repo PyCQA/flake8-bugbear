@@ -1215,11 +1215,18 @@ class BugBearVisitor(ast.NodeVisitor):
                             if (
                                 isinstance(nested_node, ast.Name)
                                 and nested_node.id == group_name
+                                and isinstance(nested_node.ctx, ast.Load)
                             ):
                                 self.add_error("B031", nested_node, nested_node.id)
 
-                    # Handle multiple uses
-                    if isinstance(node, ast.Name) and node.id == group_name:
+                    # Handle multiple uses. Count only loads: a store-context
+                    # reference, such as an annotation target (`group: T`), is
+                    # not a read of the generator (#465).
+                    if (
+                        isinstance(node, ast.Name)
+                        and node.id == group_name
+                        and isinstance(node.ctx, ast.Load)
+                    ):
                         num_usages += 1
                         if num_usages > 1:
                             self.add_error("B031", node, node.id)
