@@ -77,3 +77,25 @@ class ImplicitClassMethods:
     def __init_subclass__(cls, *args, **kwargs): ...
 
     def __class_getitem__(cls, key): ...
+
+
+# A metaclass written with a dotted base (abc.ABCMeta / enum.EnumMeta) is
+# still a metaclass, so cls/metacls/mcs first args are fine here.
+class DottedABCMeta(abc.ABCMeta):
+    def __init__(cls, name, bases, d): ...
+
+    @classmethod
+    def __prepare__(metacls, name, bases):
+        return {}
+
+    def __new__(mcs, name, bases, namespace): ...
+
+
+class DottedEnumMeta(enum.EnumMeta):
+    def __new__(mcs, name, bases, namespace): ...
+
+
+# Detection stays precise: a wrong first arg on a dotted metaclass is still
+# reported, as a metaclass instance method expecting cls.
+class DottedMetaWarnings(abc.ABCMeta):
+    def __init__(self, name, bases, d): ... # B902: 17, "'self'", "metaclass instance", "cls"
