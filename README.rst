@@ -328,7 +328,8 @@ to bugs.  Use native ``async def`` coroutines or mark intentional
 **B902**: Invalid first argument used for method. Use ``self`` for
 instance methods, and ``cls`` for class methods (which includes ``__new__``
 and ``__init_subclass__``) or instance methods of metaclasses (detected as
-classes directly inheriting from ``type``).
+classes inheriting from ``type``, ``ABCMeta`` or ``EnumMeta``, written
+either bare or dotted such as ``abc.ABCMeta``).
 
 .. _B903:
 
@@ -500,6 +501,7 @@ UNRELEASED
 
 * B018: handle also useless calls such as `isinstance(x, int)` without assigning or using the result
 * B031: don't count a store-context reference (e.g. an annotation target like `group: T`) as a use of the `groupby` generator (#465)
+* B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)
 
 25.11.29
 ~~~~~~~~
