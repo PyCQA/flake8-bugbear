@@ -26,6 +26,7 @@ from typing import (
 
 import attr  # type: ignore
 import pycodestyle  # type: ignore
+from flake8.exceptions import PluginExecutionFailed
 
 __version__ = "25.11.29"
 
@@ -106,7 +107,10 @@ class BugBearChecker:
             b008_b039_extend_immutable_calls=b008_b039_extend_immutable_calls,
             b902_classmethod_decorators=b902_classmethod_decorators,
         )
-        visitor.visit(self.tree)
+        try:
+            visitor.visit(self.tree)
+        except RecursionError as e:
+            raise PluginExecutionFailed(self.filename, self.name, e) from e
         for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
             if self.should_warn(e.message[:4]):
                 yield self.adapt_error(e)
