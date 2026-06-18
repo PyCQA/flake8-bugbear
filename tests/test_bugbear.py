@@ -13,6 +13,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import pytest
+from flake8.exceptions import PluginExecutionFailed
 
 from bugbear import (
     BugBearChecker,
@@ -234,6 +235,18 @@ class BugbearTestCase(unittest.TestCase):
         bbc = BugBearChecker(filename=str(filename), options=mock_options)
         errors = list(bbc.run())
         self.assertEqual(errors, [])
+
+    def test_recursion_error_is_wrapped(self):
+        from unittest.mock import patch
+
+        bbc = BugBearChecker(filename=str(EVAL_FILES_DIR / "b001.py"))
+        with patch.object(BugBearVisitor, "visit", side_effect=RecursionError("boom")):
+            with self.assertRaises(PluginExecutionFailed) as excinfo:
+                list(bbc.run())
+
+        self.assertEqual(excinfo.exception.filename, str(EVAL_FILES_DIR / "b001.py"))
+        self.assertEqual(excinfo.exception.plugin_name, "flake8-bugbear")
+        self.assertIsInstance(excinfo.exception.original_exception, RecursionError)
 
     def test_selfclean_bugbear(self):
         filename = Path(__file__).absolute().parent.parent / "bugbear.py"
