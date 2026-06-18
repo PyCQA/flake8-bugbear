@@ -109,8 +109,8 @@ class BugBearChecker:
         )
         try:
             visitor.visit(self.tree)
-        except RuntimeError as e:
-            raise PluginExecutionFailed(self.filename, self.name, e) from e
+        except RecursionError as exc:
+            raise PluginExecutionFailed(self.filename, self.name, exc) from exc
         for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
             if self.should_warn(e.message[:4]):
                 yield self.adapt_error(e)
