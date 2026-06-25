@@ -38,3 +38,8 @@ for vars in [i for i in vars]:  # B020: 4, "vars"
 
 for var in sorted(range(10), key=lambda var: var.real):
     print(var)
+
+# Attribute access on the loop target name is not iterating over the same
+# object, so it should not trigger B020.
+for smoother in smoother.smoothers:
+    print(smoother)
