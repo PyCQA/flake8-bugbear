@@ -2214,6 +2214,18 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
 class B020NameFinder(NameFinder):
     """Ignore names defined within the local scope of a comprehension."""
 
+    def visit_Attribute(self, node) -> None:  # noqa: B906
+        pass
+
+    def visit_Call(self, node) -> None:
+        if isinstance(node.func, ast.Attribute):
+            self.visit(node.func.value)
+            self.visit(node.args)
+            self.visit(node.keywords)
+            return
+
+        self.generic_visit(node)
+
     def visit_GeneratorExp(self, node) -> None:
         self.visit(node.generators)
 
