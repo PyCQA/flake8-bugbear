@@ -613,6 +613,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b023(node)
         self.check_for_b031(node)
         self.check_for_b909(node)
+        self.check_for_b913(node)
         self.generic_visit(node)
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
@@ -1650,6 +1651,43 @@ class BugBearVisitor(ast.NodeVisitor):
         if not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B912", node)
 
+    def check_for_b913(self, node: ast.For) -> None:
+        if not (
+            isinstance(node.target, (ast.Tuple, ast.List))
+            and isinstance(node.iter, ast.Call)
+            and isinstance(node.iter.func, ast.Name)
+            and node.iter.func.id == "zip"
+        ):
+            return
+
+        targets = node.target.elts
+        arguments = node.iter.args
+        if (
+            len(targets) != len(arguments)
+            or any(isinstance(target, ast.Starred) for target in targets)
+            or any(isinstance(argument, ast.Starred) for argument in arguments)
+            or node.iter.keywords
+        ):
+            return
+
+        trailing_underscores = 0
+        for target in reversed(targets):
+            if isinstance(target, ast.Name) and target.id == "_":
+                trailing_underscores += 1
+            else:
+                break
+        if trailing_underscores == 0 or trailing_underscores == len(targets):
+            return
+
+        if trailing_underscores == 1:
+            body_names = B913UsageFinder()
+            body_names.visit(node.body + node.orelse)
+            if "_" in body_names.names:
+                return
+
+        first_discarded = targets[-trailing_underscores]
+        self.add_error("B913", first_discarded)
+
     def check_for_b906(self, node: ast.FunctionDef) -> None:
         if not node.name.startswith("visit_"):
             return
@@ -2104,6 +2142,55 @@ class NameFinder(ast.NodeVisitor):
         for elem in node:
             super().visit(elem)
         return node
+
+
+class B913UsageFinder(NameFinder):
+    """Find loads of ``_`` that refer to a surrounding loop target."""
+
+    @staticmethod
+    def _binds_underscore(node: ast.expr) -> bool:
+        return "_" in names_from_assignments(node)
+
+    def visit_Name(self, node: ast.Name) -> None:  # noqa: B906
+        if node.id == "_" and isinstance(node.ctx, ast.Load):
+            super().visit_Name(node)
+
+    def _visit_comprehension(
+        self,
+        generators: list[ast.comprehension],
+        values: list[ast.expr],
+    ) -> None:
+        shadowed = False
+        for index, generator in enumerate(generators):
+            if index == 0 or not shadowed:
+                self.visit(generator.iter)
+            if not shadowed:
+                self.visit(generator.target)
+            if self._binds_underscore(generator.target):
+                shadowed = True
+            if not shadowed:
+                self.visit(generator.ifs)
+        if not shadowed:
+            self.visit(values)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._visit_comprehension(node.generators, [node.elt])
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._visit_comprehension(node.generators, [node.elt])
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._visit_comprehension(node.generators, [node.elt])
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._visit_comprehension(node.generators, [node.key, node.value])
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        self.visit(node.value)
+        if isinstance(node.target, ast.Name) and node.target.id == "_":
+            self.names.setdefault("_", []).append(node.target)
+        else:
+            self.visit(node.target)
 
 
 @attr.s
@@ -2626,6 +2713,13 @@ error_codes = {
         message="B911 `itertools.batched()` without an explicit `strict=` parameter."
     ),
     "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
+    "B913": Error(
+        message=(
+            "B913 Trailing `zip()` values are discarded by unused `_` targets. "
+            "If those iterables intentionally control loop length, use named "
+            "variables; otherwise remove the arguments and targets."
+        )
+    ),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -2642,5 +2736,6 @@ disabled_by_default = [
     "B910",
     "B911",
     "B912",
+    "B913",
     "B950",
 ]
