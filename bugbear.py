@@ -1015,6 +1015,7 @@ class BugBearVisitor(ast.NodeVisitor):
         # implement this "backwards": first we find all the candidate variable
         # uses, and then if there are any we check for assignment of those names
         # inside the loop body.
+        immediately_called = self._immediately_called_functions(loop_node)
         safe_functions = []
         suspicious_variables = []
         for node in ast.walk(loop_node):
@@ -1047,6 +1048,15 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(node, ast.Return):
                 if isinstance(node.value, FUNCTION_NODES):
                     safe_functions.append(node.value)
+
+            # a function that is only ever *called* in the loop body cannot
+            # outlive the iteration its free variables were assigned in
+            if (
+                isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+                and not node.decorator_list
+                and node.name in immediately_called
+            ):
+                safe_functions.append(node)
 
             # find unsafe functions
             if isinstance(node, FUNCTION_NODES) and node not in safe_functions:
@@ -1090,6 +1100,68 @@ class BugBearVisitor(ast.NodeVisitor):
         for err in sorted(suspicious_variables, key=lambda n: n.id):
             if err.id in reassigned_in_loop:
                 self.add_error("B023", err, err.id)
+
+    def _immediately_called_functions(
+        self,
+        loop_node: (
+            ast.For
+            | ast.AsyncFor
+            | ast.While
+            | ast.GeneratorExp
+            | ast.SetComp
+            | ast.ListComp
+            | ast.DictComp
+        ),
+    ) -> set[str]:
+        """Names of functions defined in the loop that cannot outlive an iteration.
+
+        A function defined in a loop is only subject to the late-binding gotcha
+        B023 warns about if a reference to it survives the iteration it was
+        created in. So a name is reported here -- and thus exempted -- only when
+        every reference to it is a direct call placed in the loop body itself.
+        Being appended to a list, returned, passed as an argument or called from
+        a nested function all let the function escape, and keep the warning.
+        """
+        candidates = {
+            node.name
+            for node in ast.walk(loop_node)
+            if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+            and not node.decorator_list  # a decorator may stash the original
+        }
+        if not candidates:
+            return candidates
+
+        # calls made from inside a nested function do not count: that function
+        # decides when they happen, which may be long after the loop finished
+        called_at_loop_level: set[str] = set()
+        stack = list(ast.iter_child_nodes(loop_node))
+        while stack:
+            node = stack.pop()
+            if isinstance(node, FUNCTION_NODES):
+                continue
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                called_at_loop_level.add(node.func.id)
+            stack.extend(ast.iter_child_nodes(node))
+        candidates &= called_at_loop_level
+
+        root = self.node_stack[0] if self.node_stack else loop_node
+        in_loop = {id(node) for node in ast.walk(loop_node)}
+        call_targets = {
+            id(node.func)
+            for node in ast.walk(root)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        for node in ast.walk(root):
+            if not isinstance(node, ast.Name) or node.id not in candidates:
+                continue
+            if (
+                not isinstance(node.ctx, ast.Load)
+                or id(node) not in call_targets
+                or id(node) not in in_loop
+            ):
+                candidates.discard(node.id)
+
+        return candidates
 
     def check_for_b024_and_b027(self, node: ast.ClassDef) -> None:  # noqa: C901
         """Check for inheritance from abstract classes in abc and lack of

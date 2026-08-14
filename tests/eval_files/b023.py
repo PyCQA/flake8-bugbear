@@ -170,3 +170,65 @@ def iter_f(names):
 
         if False:
             return [lambda: i for i in range(3)]  # error  # B023: 28, "i"
+
+# OK because the function is only ever *called* inside the loop body, so it can
+# never outlive the iteration in which its free variables were assigned.
+# https://github.com/PyCQA/flake8-bugbear/issues/468
+for _ in range(10):
+    foo = []
+
+    def immediately_called():
+        foo.append(42)
+
+    immediately_called()
+
+
+# still an error: the function escapes the iteration even though it is also called
+for _ in range(10):
+    bar = []
+
+    def called_and_escapes():
+        bar.append(42)  # B023: 8, "bar"
+
+    called_and_escapes()
+    functions.append(called_and_escapes)
+
+
+# still an error: a decorator can stash the original function somewhere
+for _ in range(10):
+    baz = []
+
+    @some_decorator
+    def decorated():
+        baz.append(42)  # B023: 8, "baz"
+
+    decorated()
+
+
+# still an error: the call happens whenever the *outer* function runs, which may
+# be long after the loop finished
+for _ in range(10):
+    qux = []
+
+    def target():
+        qux.append(42)  # B023: 8, "qux"
+
+    # (`target` itself is not reported: `_get_assigned_names` does not treat a
+    # `def` as an assignment -- pre-existing behaviour, unrelated to this fix)
+    def wrapper():
+        target()
+
+    functions.append(wrapper)
+
+
+# still an error: the function is also called after the loop, so the binding it
+# closes over is whatever the last iteration left behind
+for _ in range(10):
+    quux = []
+
+    def called_after_the_loop():
+        quux.append(42)  # B023: 8, "quux"
+
+    called_after_the_loop()
+
+called_after_the_loop()
