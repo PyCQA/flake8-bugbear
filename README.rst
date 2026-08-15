@@ -501,6 +501,8 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B019: also flag `async_lru.alru_cache` and check cache decorators on `async def` methods (#488)
+* B020: don't flag `for self.a in self.b`: rebinding an attribute is not rebinding the
+  base name, so two different attributes of the same object are two bindings (#248)
 * B018: handle also useless calls such as `isinstance(x, int)` without assigning or using the result
 * B031: don't count a store-context reference (e.g. an annotation target like `group: T`) as a use of the `groupby` generator (#465)
 * B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)

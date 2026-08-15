@@ -975,18 +975,32 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
 
     def check_for_b020(self, node: ast.For) -> None:
-        targets = NameFinder()
-        targets.visit(node.target)
-        ctrl_names = set(targets.names)
-
         iterset = B020NameFinder()
         iterset.visit(node.iter)
         iterset_names = set(iterset.names)
 
-        for name in sorted(ctrl_names):
+        # `for self.a in self.b` rebinds an attribute, not the name `self`, so
+        # comparing the bare base name reports every loop over a sibling
+        # attribute of the same object. Compare the whole dotted path instead.
+        candidates: dict[str, ast.expr] = dict(_dotted_targets(node.target))
+        if candidates:
+            for sub in ast.walk(node.iter):
+                if isinstance(sub, ast.Attribute):
+                    path = _dotted_name(sub)
+                    if path is not None:
+                        iterset_names.add(path)
+
+        # a name that only ever appears in load context is the *base* of an
+        # attribute or subscript target, not something the loop rebinds
+        targets = NameFinder()
+        targets.visit(node.target)
+        for name, names in targets.names.items():
+            if any(isinstance(n.ctx, ast.Store) for n in names):
+                candidates[name] = names[0]
+
+        for name in sorted(candidates):
             if name in iterset_names:
-                n = targets.names[name][0]
-                self.add_error("B020", n, name)
+                self.add_error("B020", candidates[name], name)
 
     def check_for_b023(  # noqa: C901
         self,
@@ -2080,6 +2094,31 @@ class B909Checker(ast.NodeVisitor):
                 self.mutations[self._conditional_block].clear()
             self.visit(elem)
         return node
+
+
+def _dotted_name(node: ast.AST) -> str | None:
+    """Return `"self.a.b"` for an attribute chain rooted in a name, else None."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
+    """Yield the attribute paths a `for` statement rebinds on each iteration."""
+    if isinstance(target, (ast.Tuple, ast.List)):
+        for element in target.elts:
+            yield from _dotted_targets(element)
+    elif isinstance(target, ast.Starred):
+        yield from _dotted_targets(target.value)
+    elif isinstance(target, ast.Attribute):
+        name = _dotted_name(target)
+        if name is not None:
+            yield name, target
 
 
 @attr.s
