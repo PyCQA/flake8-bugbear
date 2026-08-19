@@ -1,10 +1,14 @@
 """
 Should emit:
-B019 - on lines 73, 77, 81, 85, 89, 93, 97, 101
+B019 - on each of the cache-decorated instance methods below, both the
+synchronous methods and the `async def` methods (including `alru_cache`).
 """
 
 import functools
 from functools import cache, cached_property, lru_cache
+
+import async_lru
+from async_lru import alru_cache
 
 
 def some_other_cache(): ...
@@ -81,3 +85,43 @@ class Foo:
 
     @lru_cache()  # B019: 5
     def another_called_lru_cached_method(self, y): ...
+
+
+class AsyncFoo:
+    async def compute_method(self, y): ...
+
+    @some_other_cache
+    async def user_cached_method(self, y): ...
+
+    @classmethod
+    @alru_cache
+    async def cached_classmethod(cls, y): ...
+
+    @staticmethod
+    @alru_cache
+    async def cached_staticmethod(y): ...
+
+    # Remaining methods should emit B019
+    @functools.cache  # B019: 5
+    async def cached_method(self, y): ...
+
+    @cache  # B019: 5
+    async def another_cached_method(self, y): ...
+
+    @functools.lru_cache  # B019: 5
+    async def lru_cached_method(self, y): ...
+
+    @lru_cache  # B019: 5
+    async def another_lru_cached_method(self, y): ...
+
+    @async_lru.alru_cache  # B019: 5
+    async def alru_cached_method(self, y): ...
+
+    @alru_cache  # B019: 5
+    async def another_alru_cached_method(self, y): ...
+
+    @async_lru.alru_cache()  # B019: 5
+    async def called_alru_cached_method(self, y): ...
+
+    @alru_cache()  # B019: 5
+    async def another_called_alru_cached_method(self, y): ...

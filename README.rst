@@ -180,9 +180,10 @@ which is an unassigned tuple. Simply remove the comma to clear the error.
 
 .. _B019:
 
-**B019**: Use of ``functools.lru_cache`` or ``functools.cache`` on methods
-can lead to memory leaks. The cache may retain instance references, preventing
-garbage collection.
+**B019**: Use of ``functools.lru_cache``, ``functools.cache`` or
+``async_lru.alru_cache`` on methods can lead to memory leaks. The cache may
+retain instance references, preventing garbage collection. This is also checked
+on ``async def`` methods, where ``alru_cache`` is typically used.
 
 .. _B020:
 
@@ -499,6 +500,7 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B019: also flag `async_lru.alru_cache` and check cache decorators on `async def` methods (#488)
 * B018: handle also useless calls such as `isinstance(x, int)` without assigning or using the result
 * B031: don't count a store-context reference (e.g. an annotation target like `group: T`) as a use of the `groupby` generator (#465)
 * B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)
