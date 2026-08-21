@@ -975,7 +975,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
 
     def check_for_b020(self, node: ast.For) -> None:
-        iterset = B020NameFinder()
+        iterset = B020AttributeFinder()
         iterset.visit(node.iter)
         iterset_names = set(iterset.names)
 
@@ -984,11 +984,7 @@ class BugBearVisitor(ast.NodeVisitor):
         # attribute of the same object. Compare the whole dotted path instead.
         candidates: dict[str, ast.expr] = dict(_dotted_targets(node.target))
         if candidates:
-            for sub in ast.walk(node.iter):
-                if isinstance(sub, ast.Attribute):
-                    path = _dotted_name(sub)
-                    if path is not None:
-                        iterset_names.add(path)
+            iterset_names |= iterset.paths
 
         # a name that only ever appears in load context is the *base* of an
         # attribute or subscript target, not something the loop rebinds
@@ -2270,6 +2266,31 @@ class B020NameFinder(NameFinder):
         self.visit(node.body)
         for lambda_arg in node.args.args:
             self.names.pop(lambda_arg.arg, None)
+
+
+@attr.s
+class B020AttributeFinder(B020NameFinder):
+    """Dotted attribute paths, under the scope rules B020NameFinder uses for names.
+
+    Collecting the paths with a plain `ast.walk` would ignore lexical scope: in
+    `for obj.value in [obj.value for obj in objects]` the two `obj` bindings are
+    different objects, and the comprehension-local one must not be matched
+    against the loop target.
+    """
+
+    paths: set[str] = attr.ib(factory=set)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        path = _dotted_name(node)
+        if path is not None:
+            self.paths.add(path)
+        self.generic_visit(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        super().visit_Lambda(node)
+        for lambda_arg in node.args.args:
+            prefix = f"{lambda_arg.arg}."
+            self.paths = {path for path in self.paths if not path.startswith(prefix)}
 
 
 B005_METHODS = {"lstrip", "rstrip", "strip"}
