@@ -76,6 +76,29 @@ class Context(NamedTuple):
     stack: list[ast.AST]
 
 
+def _defines_a_generator(function_node: ast.FunctionDef) -> bool:
+    """Does this function's own body contain a yield? (nested ones do not count)"""
+    stack = list(function_node.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.Yield, ast.YieldFrom)):
+            return True
+        if isinstance(node, FUNCTION_NODES):
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+    return False
+
+
+def _is_rebound(
+    name: str, names_used: dict[str, list[ast.Name]], parents: dict[int, ast.AST]
+) -> bool:
+    """Is `name` bound anywhere in this scope other than by the definition?"""
+    return any(
+        isinstance(reference.ctx, (ast.Store, ast.Del))
+        for reference in names_used.get(name, ())
+    )
+
+
 @attr.s(unsafe_hash=False)
 class BugBearChecker:
     name = "flake8-bugbear"
@@ -428,6 +451,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     NODE_WINDOW_SIZE = 4
     _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
+    _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
@@ -1052,7 +1076,7 @@ class BugBearVisitor(ast.NodeVisitor):
             # a function that is only ever *called* in the loop body cannot
             # outlive the iteration its free variables were assigned in
             if (
-                isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+                isinstance(node, ast.FunctionDef)
                 and not node.decorator_list
                 and node.name in immediately_called
             ):
@@ -1118,50 +1142,124 @@ class BugBearVisitor(ast.NodeVisitor):
         A function defined in a loop is only subject to the late-binding gotcha
         B023 warns about if a reference to it survives the iteration it was
         created in. So a name is reported here -- and thus exempted -- only when
-        every reference to it is a direct call placed in the loop body itself.
-        Being appended to a list, returned, passed as an argument or called from
-        a nested function all let the function escape, and keep the warning.
+        every reference to it, anywhere in the enclosing scope, is a direct call
+        that runs in the same iteration as the definition. Being appended to a
+        list, returned, passed as an argument, or called from a nested function
+        all let the function escape, and keep the warning.
         """
-        candidates = {
-            node.name
-            for node in ast.walk(loop_node)
-            if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
-            and not node.decorator_list  # a decorator may stash the original
-        }
-        if not candidates:
-            return candidates
+        body = getattr(loop_node, "body", None)
+        if not isinstance(body, list):
+            return set()
 
-        # calls made from inside a nested function do not count: that function
-        # decides when they happen, which may be long after the loop finished
-        called_at_loop_level: set[str] = set()
-        stack = list(ast.iter_child_nodes(loop_node))
-        while stack:
-            node = stack.pop()
-            if isinstance(node, FUNCTION_NODES):
-                continue
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                called_at_loop_level.add(node.func.id)
-            stack.extend(ast.iter_child_nodes(node))
-        candidates &= called_at_loop_level
-
-        root = self.node_stack[0] if self.node_stack else loop_node
-        in_loop = {id(node) for node in ast.walk(loop_node)}
-        call_targets = {
-            id(node.func)
-            for node in ast.walk(root)
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-        }
-        for node in ast.walk(root):
-            if not isinstance(node, ast.Name) or node.id not in candidates:
-                continue
+        # Only a plain `def` runs to completion when it is called. Calling an
+        # `async def` builds a coroutine and calling a generator function builds
+        # a generator: both defer the body, so the free variables are read after
+        # the loop has moved on. A decorator may stash the original as well.
+        candidates: dict[str, list[ast.FunctionDef]] = {}
+        for statement in body:
             if (
-                not isinstance(node.ctx, ast.Load)
-                or id(node) not in call_targets
-                or id(node) not in in_loop
+                isinstance(statement, ast.FunctionDef)
+                and not statement.decorator_list
+                and not _defines_a_generator(statement)
             ):
-                candidates.discard(node.id)
+                candidates.setdefault(statement.name, []).append(statement)
+        if not candidates:
+            return set()
 
-        return candidates
+        parents, names_used, called_names = self._scope_reference_index(loop_node)
+
+        # the `else` suite of a loop runs once the loop is over, so a call there
+        # cannot be the call that keeps the function inside its iteration
+        in_body = set()
+        for statement in body:
+            for node in ast.walk(statement):
+                in_body.add(id(node))
+
+        safe: set[str] = set()
+        for name, definitions in candidates.items():
+            # matching a reference by its identifier alone is only sound while
+            # the name has exactly one binding in this scope
+            if len(definitions) != 1 or _is_rebound(name, names_used, parents):
+                continue
+            definition = definitions[0]
+            # a definition nothing refers to still leaves its name bound after
+            # the loop, so it can be called later with the last iteration's
+            # values -- exactly the bug, so it stays reported
+            references = names_used.get(name, ())
+            if references and all(
+                self._is_call_within_the_iteration(
+                    reference, definition, loop_node, parents, called_names, in_body
+                )
+                for reference in references
+            ):
+                safe.add(name)
+        return safe
+
+    def _scope_reference_index(
+        self, loop_node: ast.AST
+    ) -> tuple[dict[int, ast.AST], dict[str, list[ast.Name]], set[int]]:
+        """Parent links, name uses and call targets for the scope of `loop_node`.
+
+        Built once per scope and cached: walking the scope again for every loop
+        it contains turns a linear traversal into a quadratic one on files with
+        many sequential loops.
+        """
+        scope: ast.AST = loop_node
+        for ancestor in reversed(self.node_stack):
+            if isinstance(ancestor, (ast.Module, ast.ClassDef, *FUNCTION_NODES)):
+                scope = ancestor
+                break
+
+        cached = self._b023_scopes.get(id(scope))
+        if cached is not None:
+            return cached
+
+        parents: dict[int, ast.AST] = {}
+        names_used: dict[str, list[ast.Name]] = {}
+        called_names: set[int] = set()
+        for parent in ast.walk(scope):
+            if isinstance(parent, ast.Call) and isinstance(parent.func, ast.Name):
+                called_names.add(id(parent.func))
+            for child in ast.iter_child_nodes(parent):
+                parents[id(child)] = parent
+            if isinstance(parent, ast.Name):
+                names_used.setdefault(parent.id, []).append(parent)
+
+        index = (parents, names_used, called_names)
+        self._b023_scopes[id(scope)] = index
+        return index
+
+    def _is_call_within_the_iteration(
+        self,
+        reference: ast.Name,
+        definition: ast.FunctionDef,
+        loop_node: ast.AST,
+        parents: dict[int, ast.AST],
+        called_names: set[int],
+        in_body: set[int],
+    ) -> bool:
+        """Is this reference a call that runs in the iteration that defined it?"""
+        if id(reference) not in in_body:
+            return False
+        if not isinstance(reference.ctx, ast.Load):
+            return False
+        if id(reference) not in called_names:
+            return False
+        # a call placed above the `def` invokes the binding the previous
+        # iteration left behind, which is the very bug B023 is about
+        if (reference.lineno, reference.col_offset) < (
+            definition.lineno,
+            definition.col_offset,
+        ):
+            return False
+        # a call reached through another deferred body happens whenever that
+        # body is run, which may be long after the loop has finished
+        node: ast.AST | None = parents.get(id(reference))
+        while node is not None and node is not loop_node:
+            if isinstance(node, (*FUNCTION_NODES, ast.GeneratorExp)):
+                return False
+            node = parents.get(id(node))
+        return True
 
     def check_for_b024_and_b027(self, node: ast.ClassDef) -> None:  # noqa: C901
         """Check for inheritance from abstract classes in abc and lack of

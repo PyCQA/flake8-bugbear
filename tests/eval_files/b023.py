@@ -232,3 +232,44 @@ for _ in range(10):
     called_after_the_loop()
 
 called_after_the_loop()
+
+# still an error: calling an `async def` only builds a coroutine, so the body --
+# and with it the read of the loop variable -- runs whenever it is awaited
+for _ in range(10):
+    corge = []
+
+    async def awaited_later():
+        corge.append(42)  # B023: 8, "corge"
+
+    awaited_later()
+
+
+# still an error: calling a generator function only builds a generator
+for _ in range(10):
+    grault = []
+
+    def iterated_later():
+        yield grault  # B023: 14, "grault"
+
+    iterated_later()
+
+
+# still an error: a call above the `def` invokes the binding the previous
+# iteration left behind
+for _ in range(10):
+    waldo = []
+
+    called_above_the_def()
+
+    def called_above_the_def():
+        waldo.append(42)  # B023: 8, "waldo"
+
+
+# still an error: the `else` suite runs once the loop is over
+for _ in range(10):
+    garply = []
+
+    def called_in_the_else_suite():
+        garply.append(42)  # B023: 8, "garply"
+else:
+    called_in_the_else_suite()
