@@ -999,18 +999,28 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
 
     def check_for_b020(self, node: ast.For) -> None:
-        targets = NameFinder()
-        targets.visit(node.target)
-        ctrl_names = set(targets.names)
-
-        iterset = B020NameFinder()
+        iterset = B020AttributeFinder()
         iterset.visit(node.iter)
         iterset_names = set(iterset.names)
 
-        for name in sorted(ctrl_names):
+        # `for self.a in self.b` rebinds an attribute, not the name `self`, so
+        # comparing the bare base name reports every loop over a sibling
+        # attribute of the same object. Compare the whole dotted path instead.
+        candidates: dict[str, ast.expr] = dict(_dotted_targets(node.target))
+        if candidates:
+            iterset_names |= iterset.paths
+
+        # a name that only ever appears in load context is the *base* of an
+        # attribute or subscript target, not something the loop rebinds
+        targets = NameFinder()
+        targets.visit(node.target)
+        for name, names in targets.names.items():
+            if any(isinstance(n.ctx, ast.Store) for n in names):
+                candidates[name] = names[0]
+
+        for name in sorted(candidates):
             if name in iterset_names:
-                n = targets.names[name][0]
-                self.add_error("B020", n, name)
+                self.add_error("B020", candidates[name], name)
 
     def check_for_b023(  # noqa: C901
         self,
@@ -2252,6 +2262,31 @@ class B909Checker(ast.NodeVisitor):
         return node
 
 
+def _dotted_name(node: ast.AST) -> str | None:
+    """Return `"self.a.b"` for an attribute chain rooted in a name, else None."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
+    """Yield the attribute paths a `for` statement rebinds on each iteration."""
+    if isinstance(target, (ast.Tuple, ast.List)):
+        for element in target.elts:
+            yield from _dotted_targets(element)
+    elif isinstance(target, ast.Starred):
+        yield from _dotted_targets(target.value)
+    elif isinstance(target, ast.Attribute):
+        name = _dotted_name(target)
+        if name is not None:
+            yield name, target
+
+
 @attr.s
 class NameFinder(ast.NodeVisitor):
     """Finds a name within a tree of nodes.
@@ -2401,6 +2436,31 @@ class B020NameFinder(NameFinder):
         self.visit(node.body)
         for lambda_arg in node.args.args:
             self.names.pop(lambda_arg.arg, None)
+
+
+@attr.s
+class B020AttributeFinder(B020NameFinder):
+    """Dotted attribute paths, under the scope rules B020NameFinder uses for names.
+
+    Collecting the paths with a plain `ast.walk` would ignore lexical scope: in
+    `for obj.value in [obj.value for obj in objects]` the two `obj` bindings are
+    different objects, and the comprehension-local one must not be matched
+    against the loop target.
+    """
+
+    paths: set[str] = attr.ib(factory=set)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        path = _dotted_name(node)
+        if path is not None:
+            self.paths.add(path)
+        self.generic_visit(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        super().visit_Lambda(node)
+        for lambda_arg in node.args.args:
+            prefix = f"{lambda_arg.arg}."
+            self.paths = {path for path in self.paths if not path.startswith(prefix)}
 
 
 B005_METHODS = {"lstrip", "rstrip", "strip"}
