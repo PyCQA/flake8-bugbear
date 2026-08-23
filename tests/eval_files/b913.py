@@ -1,6 +1,6 @@
 # OPTIONS: select=["B913"]
 
-# Errors: direct trailing underscore targets whose values are unused.
+# Errors: direct underscore targets whose values are unused.
 for left, right, _ in zip(xs, ys, limits):  # B913: 17
     consume(left, right)
 
@@ -12,6 +12,9 @@ for left, right, _, _ in zip(xs, ys, limits, extras):  # B913: 17
 
 for left, _ in zip(xs, limits):  # B913: 10
     consume(left)
+
+for left, _, right in zip(xs, limits, ys):  # B913: 10
+    consume(left, right)
 
 # Stores, nested bindings, and repeated targets do not use every zip value.
 for left, right, _ in zip(xs, ys, limits):  # B913: 17
@@ -46,8 +49,12 @@ for left, right, _ in zip(xs, *iterables):
 for left, right, (value, _) in zip(xs, ys, pairs):
     consume(left, right, value)
 
-for left, _, right in zip(xs, limits, ys):
-    consume(left, right)
+# No errors: nested or mixed repeated underscore targets are conservative skips.
+for left, (middle, right), _ in zip(xs, pairs, limits):
+    consume(left, middle, right)
+
+for _, left, _ in zip(xs, ys, limits):
+    consume(left)
 
 for _, _ in zip(xs, ys):
     pass

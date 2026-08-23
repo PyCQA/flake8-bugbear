@@ -1670,22 +1670,30 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             return
 
-        trailing_underscores = 0
-        for target in reversed(targets):
-            if isinstance(target, ast.Name) and target.id == "_":
-                trailing_underscores += 1
-            else:
-                break
-        if trailing_underscores == 0 or trailing_underscores == len(targets):
+        if any(not isinstance(target, ast.Name) for target in targets):
             return
 
-        if trailing_underscores == 1:
+        underscore_indexes = [
+            index for index, target in enumerate(targets) if target.id == "_"
+        ]
+        if not underscore_indexes or len(underscore_indexes) == len(targets):
+            return
+
+        # A single direct target has an unambiguous argument mapping wherever it
+        # appears.  For repeated ``_`` targets, retain the conservative original
+        # rule and only report a contiguous trailing group.
+        if len(underscore_indexes) > 1 and underscore_indexes != list(
+            range(underscore_indexes[0], len(targets))
+        ):
+            return
+
+        if len(underscore_indexes) == 1:
             body_names = B913UsageFinder()
             body_names.visit(node.body + node.orelse)
             if "_" in body_names.names:
                 return
 
-        first_discarded = targets[-trailing_underscores]
+        first_discarded = targets[underscore_indexes[0]]
         self.add_error("B913", first_discarded)
 
     def check_for_b906(self, node: ast.FunctionDef) -> None:
@@ -2715,7 +2723,7 @@ error_codes = {
     "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
     "B913": Error(
         message=(
-            "B913 Trailing `zip()` values are discarded by unused `_` targets. "
+            "B913 `zip()` values are discarded by unused `_` targets. "
             "If those iterables intentionally control loop length, use named "
             "variables; otherwise remove the arguments and targets."
         )
