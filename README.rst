@@ -342,6 +342,17 @@ exception that this one is a subclass of, e.g. ``except ValueError:`` after
 ``except Exception:``, or a bare ``except:`` after ``except BaseException:``. Only builtin
 exceptions are checked, since the hierarchy of other classes isn't known from the source.
 
+.. _B048:
+
+**B048**: Do not use the result of ``str.find()`` or ``str.rfind()`` directly as a boolean.
+They return ``-1`` when the substring is missing, which is truthy, and ``0`` when it is found at the
+start of the string, which is falsy, so ``if s.find(x):`` reads backwards from what it does. Compare
+the returned index explicitly instead, e.g. ``if s.find(x) != -1:`` or ``if s.find(x) == 0:``.
+This also applies when the result is only used through ``not``/``and``/``or`` or a walrus
+assignment in a condition (e.g. ``if (i := s.find(x)):``).
+This is a name-based check, so it can fire on unrelated objects that also define a ``find`` method
+(such as BeautifulSoup); add a ``# noqa: B048`` there if needed.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -603,6 +614,7 @@ UNRELEASED
 * B913: Add an optional check for unused ``_`` targets in ``zip()`` loops (#545)
 * B912: only emit on Python 3.14+ where ``map()`` supports ``strict=`` (#548)
 * Recursion errors raised during rules evaluation show a message instead of a raw traceback (#560)
+* B048: Add new check for using the result of `str.find()`/`str.rfind()` directly as a boolean (#170)
 
 25.11.29
 ~~~~~~~~

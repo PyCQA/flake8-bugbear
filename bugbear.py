@@ -974,6 +974,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b910(node)
         self.check_for_b911(node)
         self.check_for_b912(node)
+        self.check_for_b048(node)
 
         # no need for copying, if used in nested calls it will be set to None
         current_b040_caught_exception = self.b040_caught_exception
@@ -2046,6 +2047,47 @@ class BugBearVisitor(ast.NodeVisitor):
                     return
 
                 self._check_b031_group_usages(loop_node.body, group_name)
+
+    def check_for_b048(self, node: ast.Call) -> None:
+        # `str.find()`/`rfind()` return -1 when the substring is missing, which
+        # is truthy, and 0 when it is found at the start, which is falsy. Testing
+        # the result directly therefore inverts the intended logic, so require an
+        # explicit comparison against the returned index instead.
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in ("find", "rfind")
+            and (node.args or node.keywords)
+        ):
+            return
+        if self._is_used_as_boolean(node):
+            self.add_error("B048", node)
+
+    def _is_used_as_boolean(self, node: ast.expr) -> bool:
+        # node is the node currently being visited, so it sits on top of the
+        # stack. Walk the ancestors, stepping through wrappers that keep
+        # testing the value's truthiness (`not`/`and`/`or`, and a walrus
+        # whose value is itself tested that way), and report if we reach a
+        # place that uses it as a boolean. A `BoolOp`/`not` is itself such a
+        # place: ``x = s.find(y) or -1`` and ``x = not s.find(y)`` test the
+        # truthiness even outside an ``if`` (see #571 review). Anything
+        # else (comparison, arithmetic, plain assignment/return of the
+        # index, ``bool(...)`` call, ...) uses the value as an index, not
+        # as a boolean, so we stop without reporting.
+        child: ast.AST = node
+        for parent in reversed(self.node_stack[:-1]):
+            if isinstance(parent, ast.BoolOp):
+                return True
+            elif isinstance(parent, ast.UnaryOp) and isinstance(parent.op, ast.Not):
+                return True
+            elif isinstance(parent, ast.NamedExpr):
+                child = parent
+            elif isinstance(parent, (ast.If, ast.IfExp, ast.While, ast.Assert)):
+                return parent.test is child
+            elif isinstance(parent, ast.comprehension):
+                return child in parent.ifs
+            else:
+                return False
+        return False
 
     def _get_names_from_tuple(self, node: ast.Tuple) -> Iterator[str]:
         for dim in node.elts:
@@ -3798,6 +3840,14 @@ error_codes = {
             "B047 `{0}` is never caught by this handler, since the earlier "
             "`except{2} {1}` already catches it. Reorder the handlers or remove "
             "the unreachable one."
+        )
+    ),
+    "B048": Error(
+        message=(
+            "B048 Using the result of `.find()`/`.rfind()` as a boolean is "
+            "misleading: it returns -1 (truthy) when the substring is missing and "
+            "0 (falsy) when it is found at the start. Compare the returned index "
+            "explicitly instead."
         )
     ),
     # Warnings disabled by default.
