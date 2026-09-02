@@ -43,6 +43,7 @@ CONTEXTFUL_NODES = (
     ast.GeneratorExp,
 )
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+COMPREHENSION_NODES = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 FUNCTIONS_WITHOUT_SIDE_EFFECTS = (
     "all",
     "any",
@@ -448,6 +449,8 @@ class BugBearVisitor(ast.NodeVisitor):
     _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
     _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
+    # None marks an imported name that has since been rebound at module scope.
+    _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = attr.ib(default="")
@@ -469,6 +472,28 @@ class BugBearVisitor(ast.NodeVisitor):
 
         context, stack = self.contexts[-1]
         return stack
+
+    def _b008_shadow_imports(self, names: Iterable[str]) -> None:
+        for name in names:
+            if self._b008_imports.get(name) is not None:
+                self._b008_imports[name] = None
+
+    def _b008_shadow_named_expr_targets(self, nodes: Iterable[ast.AST]) -> None:
+        finder = B008NamedExprFinder()
+        finder.visit(list(nodes))
+        self._b008_shadow_imports(finder.names)
+
+    def _b008_in_module_scope(self) -> bool:
+        return len(self.contexts) == 1 and isinstance(self.contexts[0].node, ast.Module)
+
+    def _b008_is_direct_module_statement(self) -> bool:
+        return self._b008_in_module_scope() and len(self.node_stack) == 2
+
+    def _b008_in_module_child(self) -> bool:
+        return len(self.contexts) == 2 and isinstance(self.contexts[0].node, ast.Module)
+
+    def _b008_in_direct_module_child(self) -> bool:
+        return self._b008_in_module_child() and len(self.contexts[0].stack) == 1
 
     def in_class_init(self) -> bool:
         return (
@@ -540,6 +565,8 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B040", node)
         self.b040_caught_exception = old_b040_caught_exception
+        if self._b008_in_module_scope() and node.name is not None:
+            self._b008_shadow_imports((node.name,))
 
     def visit_UAdd(self, node: ast.UAdd) -> None:
         trailing_nodes = list(map(type, self.node_window[-4:]))
@@ -616,6 +643,21 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_Module(self, node: ast.Module) -> None:
         self.generic_visit(node)
 
+    def visit_Name(  # noqa: B906 # names don't contain other names
+        self, node: ast.Name
+    ) -> None:
+        if (
+            self._b008_in_module_scope()
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+            and not (
+                isinstance(node.ctx, ast.Store)
+                and len(self.node_stack) >= 2
+                and isinstance(self.node_stack[-2], ast.AnnAssign)
+                and self.node_stack[-2].value is None
+            )
+        ):
+            self._b008_shadow_imports((node.id,))
+
     def visit_Assign(self, node: ast.Assign) -> None:
         self.check_for_b040_usage(node.value)
         if len(node.targets) == 1:
@@ -665,25 +707,37 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.check_for_b902(node)
+        if self._b008_in_direct_module_child():
+            self._b008_shadow_named_expr_targets(node.decorator_list)
         self.check_for_b006_and_b008(node)
         self.check_for_b019(node)
         self.generic_visit(node)
+        if self._b008_in_module_child():
+            self._b008_shadow_imports((node.name,))
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self.check_for_b901(node)
         self.check_for_b902(node)
+        if self._b008_in_direct_module_child():
+            self._b008_shadow_named_expr_targets(node.decorator_list)
         self.check_for_b006_and_b008(node)
         self.check_for_b019(node)
         self.check_for_b021(node)
         self.check_for_b906(node)
         self.generic_visit(node)
+        if self._b008_in_module_child():
+            self._b008_shadow_imports((node.name,))
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.check_for_b903(node)
+        if self._b008_in_direct_module_child():
+            self._b008_shadow_named_expr_targets(node.decorator_list)
         self.check_for_b021(node)
         self.check_for_b024_and_b027(node)
         self.check_for_b042(node)
         self.generic_visit(node)
+        if self._b008_in_module_child():
+            self._b008_shadow_imports((node.name,))
 
     def visit_Try(self, node: ast.Try | ast.TryStar) -> None:
         self.check_for_b012(node)
@@ -716,6 +770,21 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b908(node)
         self.generic_visit(node)
 
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if self._b008_in_module_scope() and node.name is not None:
+            self._b008_shadow_imports((node.name,))
+        self.generic_visit(node)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if self._b008_in_module_scope() and node.rest is not None:
+            self._b008_shadow_imports((node.rest,))
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if self._b008_in_module_scope() and node.name is not None:
+            self._b008_shadow_imports((node.name,))
+        self.generic_visit(node)
+
     def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
         self.check_for_b907(node)
         self.generic_visit(node)
@@ -725,12 +794,46 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b040_usage(node.value)
         self.generic_visit(node)
 
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        if isinstance(node.target, ast.Name) and (
+            self._b008_in_module_scope()
+            or (
+                len(self.contexts) == 2
+                and isinstance(self.contexts[0].node, ast.Module)
+                and isinstance(self.contexts[1].node, COMPREHENSION_NODES)
+            )
+        ):
+            self._b008_shadow_imports((node.target.id,))
+        self.generic_visit(node)
+
     def visit_Import(self, node: ast.Import) -> None:
         self.check_for_b005(node)
+        if self.b008_b039_extend_immutable_calls and self._b008_in_module_scope():
+            for name in node.names:
+                bound_name = name.asname or name.name.partition(".")[0]
+                qualified_name = name.name if name.asname else bound_name
+                if self._b008_is_direct_module_statement():
+                    self._b008_imports[bound_name] = qualified_name
+                else:
+                    self._b008_shadow_imports((bound_name,))
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self.check_for_b005(node)
+        if self.b008_b039_extend_immutable_calls and self._b008_in_module_scope():
+            for name in node.names:
+                if name.name == "*":
+                    self._b008_shadow_imports(self._b008_imports)
+                elif (
+                    self._b008_is_direct_module_statement()
+                    and node.level == 0
+                    and node.module is not None
+                ):
+                    self._b008_imports[name.asname or name.name] = (
+                        f"{node.module}.{name.name}"
+                    )
+                else:
+                    self._b008_shadow_imports((name.asname or name.name,))
         self.generic_visit(node)
 
     def visit_Set(self, node: ast.Set) -> None:
@@ -803,12 +906,21 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b006_and_b008(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> None:
+        imported_names = None
+        if (
+            self.b008_b039_extend_immutable_calls
+            and self._b008_in_direct_module_child()
+        ):
+            imported_names = self._b008_imports
         visitor = FunctionDefDefaultsVisitor(
             error_codes["B006"],
             error_codes["B008"],
             self.b008_b039_extend_immutable_calls,
+            imported_names,
         )
-        visitor.visit(node.args.defaults + node.args.kw_defaults)
+        for default in node.args.defaults + node.args.kw_defaults:
+            if default is not None:
+                visitor.visit(default)
         self.errors.extend(visitor.errors)
 
     def check_for_b039(self, node: ast.Call) -> None:
@@ -2387,6 +2499,11 @@ class NamedExprFinder(ast.NodeVisitor):
         return node
 
 
+class B008NamedExprFinder(NamedExprFinder):
+    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: B906
+        pass
+
+
 class FunctionDefDefaultsVisitor(ast.NodeVisitor):
     """Used by B006, B008, and B039. B039 is essentially B006+B008 but for ContextVar."""
 
@@ -2395,12 +2512,14 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
         error_code_calls: "Error",  # B006 or B039
         error_code_literals: "Error",  # B008 or B039
         b008_b039_extend_immutable_calls: set[str] | None = None,
+        imported_names: dict[str, str | None] | None = None,
     ) -> None:
         self.b008_b039_extend_immutable_calls = (
             b008_b039_extend_immutable_calls or set()
         )
         self.error_code_calls = error_code_calls
         self.error_code_literals = error_code_literals
+        self.imported_names = imported_names or {}
         for node in B006_MUTABLE_LITERALS + B006_MUTABLE_COMPREHENSIONS:
             setattr(self, f"visit_{node}", self.visit_mutable_literal_or_comprehension)
         self.errors: list[error] = []
@@ -2430,7 +2549,22 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
             self.generic_visit(node)
             return
 
-        if call_path in B008_IMMUTABLE_CALLS | self.b008_b039_extend_immutable_calls:
+        if call_path in B008_IMMUTABLE_CALLS:
+            self.generic_visit(node)
+            return
+
+        head, separator, tail = call_path.partition(".")
+        if head not in self.imported_names:
+            extended_call_paths = {call_path}
+        elif (qualified_name := self.imported_names[head]) is None:
+            extended_call_paths = set()
+        else:
+            resolved_call_path = qualified_name
+            if separator:
+                resolved_call_path = f"{resolved_call_path}.{tail}"
+            extended_call_paths = {call_path, resolved_call_path}
+
+        if extended_call_paths & self.b008_b039_extend_immutable_calls:
             self.generic_visit(node)
             return
 
@@ -2449,6 +2583,11 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
             self.errors.append(self.error_code_literals(node.lineno, node.col_offset))
 
         # Check for nested functions.
+        self.generic_visit(node)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        if isinstance(node.target, ast.Name):
+            self.imported_names[node.target.id] = None
         self.generic_visit(node)
 
     def visit_Lambda(self, node) -> None:  # noqa: B906

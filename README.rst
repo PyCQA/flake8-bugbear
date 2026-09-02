@@ -501,6 +501,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B008: resolve direct module-level imports and aliases when matching
+  ``extend-immutable-calls`` (#252)
 * B028: report ``warnings.warn`` calls that pass an explicitly empty
   ``skip_file_prefixes`` tuple (#510)
 * B019: also flag `async_lru.alru_cache` and check cache decorators on `async def` methods (#488)
