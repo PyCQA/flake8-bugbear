@@ -517,6 +517,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B008: resolve direct module-level imports and aliases when matching
+  ``extend-immutable-calls`` (#252)
 * B015: allow comparisons inside pytest/unittest exception and warning assertion
   context managers, where an overloaded comparison may intentionally raise (#462).
 * B020: stop flagging names bound inside nested destructuring patterns, like
