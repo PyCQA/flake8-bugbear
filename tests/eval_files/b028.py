@@ -2,7 +2,7 @@ import warnings
 
 """
 Should emit:
-B028 - on lines 8 and 9
+B028 - on lines 8, 9, and 20
 """
 
 warnings.warn("test", DeprecationWarning) # B028: 0
@@ -17,3 +17,6 @@ kwargs = {"message": "test", "category": DeprecationWarning, "stacklevel": 1}
 warnings.warn(**kwargs)
 warnings.warn(*args, **kwargs)
 warnings.warn("test", DeprecationWarning, skip_file_prefixes=["foo"])
+warnings.warn("test", DeprecationWarning, skip_file_prefixes=()) # B028: 0
+skip_file_prefixes = ()
+warnings.warn("test", DeprecationWarning, skip_file_prefixes=skip_file_prefixes)

@@ -237,7 +237,8 @@ limitations make it difficult.
 **B028**: No explicit stacklevel argument found. The warn method from the warnings module uses a
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
-The check is skipped when skip_file_prefixes is used.
+The check is skipped when ``skip_file_prefixes`` is used, except for an explicitly empty tuple,
+which does not affect ``stacklevel``.
 
 .. _B029:
 
@@ -500,6 +501,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B028: report ``warnings.warn`` calls that pass an explicitly empty
+  ``skip_file_prefixes`` tuple (#510)
 * B019: also flag `async_lru.alru_cache` and check cache decorators on `async def` methods (#488)
 * B023: don't flag a function whose every reference is a direct call inside the loop body:
   such a function cannot outlive the iteration it was defined in (#468, #380)
