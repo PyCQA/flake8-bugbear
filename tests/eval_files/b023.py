@@ -111,50 +111,50 @@ _ = {
 # argument or in a consumed `filter()` (even if a comprehension is better style)
 for x in range(2):
     # It's not a complete get-out-of-linting-free construct - these should fail:
-    min([None, lambda: x], key=repr)  # B023: 23, "x"
-    sorted([None, lambda: x], key=repr)  # B023: 26, "x"
-    any(filter(bool, [None, lambda: x]))  # B023: 36, "x"
-    list(filter(bool, [None, lambda: x]))  # B023: 37, "x"
-    all(reduce(bool, [None, lambda: x]))  # B023: 36, "x"
+    _ = min([None, lambda: x], key=repr)  # B023: 27, "x"
+    _ = sorted([None, lambda: x], key=repr)  # B023: 30, "x"
+    _ = any(filter(bool, [None, lambda: x]))  # B023: 40, "x"
+    _ = list(filter(bool, [None, lambda: x]))  # B023: 41, "x"
+    _ = all(reduce(bool, [None, lambda: x]))  # B023: 40, "x"
 
     # But all these ones should be OK:
-    min(range(3), key=lambda y: x * y)
-    max(range(3), key=lambda y: x * y)
-    sorted(range(3), key=lambda y: x * y)
+    _ = min(range(3), key=lambda y: x * y)
+    _ = max(range(3), key=lambda y: x * y)
+    _ = sorted(range(3), key=lambda y: x * y)
 
-    any(map(lambda y: x < y, range(3)))
-    all(map(lambda y: x < y, range(3)))
-    set(map(lambda y: x < y, range(3)))
-    list(map(lambda y: x < y, range(3)))
-    tuple(map(lambda y: x < y, range(3)))
-    sorted(map(lambda y: x < y, range(3)))
-    frozenset(map(lambda y: x < y, range(3)))
+    _ = any(map(lambda y: x < y, range(3)))
+    _ = all(map(lambda y: x < y, range(3)))
+    _ = set(map(lambda y: x < y, range(3)))
+    _ = list(map(lambda y: x < y, range(3)))
+    _ = tuple(map(lambda y: x < y, range(3)))
+    _ = sorted(map(lambda y: x < y, range(3)))
+    _ = frozenset(map(lambda y: x < y, range(3)))
 
-    any(filter(lambda y: x < y, range(3)))
-    all(filter(lambda y: x < y, range(3)))
-    set(filter(lambda y: x < y, range(3)))
-    list(filter(lambda y: x < y, range(3)))
-    tuple(filter(lambda y: x < y, range(3)))
-    sorted(filter(lambda y: x < y, range(3)))
-    frozenset(filter(lambda y: x < y, range(3)))
+    _ = any(filter(lambda y: x < y, range(3)))
+    _ = all(filter(lambda y: x < y, range(3)))
+    _ = set(filter(lambda y: x < y, range(3)))
+    _ = list(filter(lambda y: x < y, range(3)))
+    _ = tuple(filter(lambda y: x < y, range(3)))
+    _ = sorted(filter(lambda y: x < y, range(3)))
+    _ = frozenset(filter(lambda y: x < y, range(3)))
 
-    any(reduce(lambda y: x | y, range(3)))
-    all(reduce(lambda y: x | y, range(3)))
-    set(reduce(lambda y: x | y, range(3)))
-    list(reduce(lambda y: x | y, range(3)))
-    tuple(reduce(lambda y: x | y, range(3)))
-    sorted(reduce(lambda y: x | y, range(3)))
-    frozenset(reduce(lambda y: x | y, range(3)))
+    _ = any(reduce(lambda y: x | y, range(3)))
+    _ = all(reduce(lambda y: x | y, range(3)))
+    _ = set(reduce(lambda y: x | y, range(3)))
+    _ = list(reduce(lambda y: x | y, range(3)))
+    _ = tuple(reduce(lambda y: x | y, range(3)))
+    _ = sorted(reduce(lambda y: x | y, range(3)))
+    _ = frozenset(reduce(lambda y: x | y, range(3)))
 
     import functools
 
-    any(functools.reduce(lambda y: x | y, range(3)))
-    all(functools.reduce(lambda y: x | y, range(3)))
-    set(functools.reduce(lambda y: x | y, range(3)))
-    list(functools.reduce(lambda y: x | y, range(3)))
-    tuple(functools.reduce(lambda y: x | y, range(3)))
-    sorted(functools.reduce(lambda y: x | y, range(3)))
-    frozenset(functools.reduce(lambda y: x | y, range(3)))
+    _ = any(functools.reduce(lambda y: x | y, range(3)))
+    _ = all(functools.reduce(lambda y: x | y, range(3)))
+    _ = set(functools.reduce(lambda y: x | y, range(3)))
+    _ = list(functools.reduce(lambda y: x | y, range(3)))
+    _ = tuple(functools.reduce(lambda y: x | y, range(3)))
+    _ = sorted(functools.reduce(lambda y: x | y, range(3)))
+    _ = frozenset(functools.reduce(lambda y: x | y, range(3)))
 
 
 # OK because the lambda which references a loop variable is defined in a `return`
@@ -170,3 +170,106 @@ def iter_f(names):
 
         if False:
             return [lambda: i for i in range(3)]  # error  # B023: 28, "i"
+
+# OK because the function is only ever *called* inside the loop body, so it can
+# never outlive the iteration in which its free variables were assigned.
+# https://github.com/PyCQA/flake8-bugbear/issues/468
+for _ in range(10):
+    foo = []
+
+    def immediately_called():
+        foo.append(42)
+
+    immediately_called()
+
+
+# still an error: the function escapes the iteration even though it is also called
+for _ in range(10):
+    bar = []
+
+    def called_and_escapes():
+        bar.append(42)  # B023: 8, "bar"
+
+    called_and_escapes()
+    functions.append(called_and_escapes)
+
+
+# still an error: a decorator can stash the original function somewhere
+for _ in range(10):
+    baz = []
+
+    @some_decorator
+    def decorated():
+        baz.append(42)  # B023: 8, "baz"
+
+    decorated()
+
+
+# still an error: the call happens whenever the *outer* function runs, which may
+# be long after the loop finished
+for _ in range(10):
+    qux = []
+
+    def target():
+        qux.append(42)  # B023: 8, "qux"
+
+    # (`target` itself is not reported: `_get_assigned_names` does not treat a
+    # `def` as an assignment -- pre-existing behaviour, unrelated to this fix)
+    def wrapper():
+        target()
+
+    functions.append(wrapper)
+
+
+# still an error: the function is also called after the loop, so the binding it
+# closes over is whatever the last iteration left behind
+for _ in range(10):
+    quux = []
+
+    def called_after_the_loop():
+        quux.append(42)  # B023: 8, "quux"
+
+    called_after_the_loop()
+
+called_after_the_loop()
+
+# still an error: calling an `async def` only builds a coroutine, so the body --
+# and with it the read of the loop variable -- runs whenever it is awaited
+for _ in range(10):
+    corge = []
+
+    async def awaited_later():
+        corge.append(42)  # B023: 8, "corge"
+
+    awaited_later()
+
+
+# still an error: calling a generator function only builds a generator
+for _ in range(10):
+    grault = []
+
+    def iterated_later():
+        yield grault  # B023: 14, "grault"
+
+    iterated_later()
+
+
+# still an error: a call above the `def` invokes the binding the previous
+# iteration left behind
+for _ in range(10):
+    waldo = []
+
+    called_above_the_def()
+
+    def called_above_the_def():
+        waldo.append(42)  # B023: 8, "waldo"
+
+
+# still an error: the `else` suite runs once the loop is over
+for _ in range(10):
+    garply = []
+
+    def called_in_the_else_suite():
+        garply.append(42)  # B023: 8, "garply"
+else:
+    called_in_the_else_suite()

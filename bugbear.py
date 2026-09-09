@@ -26,6 +26,7 @@ from typing import (
 
 import attr  # type: ignore
 import pycodestyle  # type: ignore
+from flake8.exceptions import PluginExecutionFailed
 
 __version__ = "25.11.29"
 
@@ -42,6 +43,22 @@ CONTEXTFUL_NODES = (
     ast.GeneratorExp,
 )
 FUNCTION_NODES = (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+FUNCTIONS_WITHOUT_SIDE_EFFECTS = (
+    "all",
+    "any",
+    "dict",
+    "frozenset",
+    "isinstance",
+    "issubclass",
+    "len",
+    "max",
+    "min",
+    "repr",
+    "set",
+    "sorted",
+    "str",
+    "tuple",
+)
 B908_pytest_functions = {"raises", "warns"}
 B908_unittest_methods = {
     "assertRaises",
@@ -57,6 +74,29 @@ B902_default_decorators = {"classmethod"}
 class Context(NamedTuple):
     node: ast.AST
     stack: list[ast.AST]
+
+
+def _defines_a_generator(function_node: ast.FunctionDef) -> bool:
+    """Does this function's own body contain a yield? (nested ones do not count)"""
+    stack = list(function_node.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.Yield, ast.YieldFrom)):
+            return True
+        if isinstance(node, FUNCTION_NODES):
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+    return False
+
+
+def _is_rebound(
+    name: str, names_used: dict[str, list[ast.Name]], parents: dict[int, ast.AST]
+) -> bool:
+    """Is `name` bound anywhere in this scope other than by the definition?"""
+    return any(
+        isinstance(reference.ctx, (ast.Store, ast.Del))
+        for reference in names_used.get(name, ())
+    )
 
 
 @attr.s(unsafe_hash=False)
@@ -90,7 +130,10 @@ class BugBearChecker:
             b008_b039_extend_immutable_calls=b008_b039_extend_immutable_calls,
             b902_classmethod_decorators=b902_classmethod_decorators,
         )
-        visitor.visit(self.tree)
+        try:
+            visitor.visit(self.tree)
+        except RecursionError as exc:
+            raise PluginExecutionFailed(self.filename, self.name, exc) from exc
         for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
             if self.should_warn(e.message[:4]):
                 yield self.adapt_error(e)
@@ -331,11 +374,6 @@ def children_in_scope(node: ast.AST) -> Iterator[ast.AST]:
             yield from children_in_scope(child)
 
 
-def walk_list(nodes: Sequence[ast.AST]) -> Iterator[ast.AST]:
-    for node in nodes:
-        yield from ast.walk(node)
-
-
 def _typesafe_issubclass(cls: type, class_or_tuple: type | tuple[type, ...]) -> bool:
     try:
         return issubclass(cls, class_or_tuple)
@@ -408,6 +446,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
     NODE_WINDOW_SIZE = 4
     _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
+    _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
@@ -593,6 +632,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b023(node)
         self.check_for_b031(node)
         self.check_for_b909(node)
+        self.check_for_b913(node)
         self.generic_visit(node)
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
@@ -628,6 +668,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.check_for_b902(node)
         self.check_for_b006_and_b008(node)
+        self.check_for_b019(node)
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -933,7 +974,7 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B017", node)
 
-    def check_for_b019(self, node: ast.FunctionDef) -> None:
+    def check_for_b019(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         if (
             len(node.decorator_list) == 0
             or len(self.contexts) < 2
@@ -955,18 +996,28 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
 
     def check_for_b020(self, node: ast.For) -> None:
-        targets = NameFinder()
-        targets.visit(node.target)
-        ctrl_names = set(targets.names)
-
-        iterset = B020NameFinder()
+        iterset = B020AttributeFinder()
         iterset.visit(node.iter)
         iterset_names = set(iterset.names)
 
-        for name in sorted(ctrl_names):
+        # `for self.a in self.b` rebinds an attribute, not the name `self`, so
+        # comparing the bare base name reports every loop over a sibling
+        # attribute of the same object. Compare the whole dotted path instead.
+        candidates: dict[str, ast.expr] = dict(_dotted_targets(node.target))
+        if candidates:
+            iterset_names |= iterset.paths
+
+        # a name that only ever appears in load context is the *base* of an
+        # attribute or subscript target, not something the loop rebinds
+        targets = NameFinder()
+        targets.visit(node.target)
+        for name, names in targets.names.items():
+            if any(isinstance(n.ctx, ast.Store) for n in names):
+                candidates[name] = names[0]
+
+        for name in sorted(candidates):
             if name in iterset_names:
-                n = targets.names[name][0]
-                self.add_error("B020", n, name)
+                self.add_error("B020", candidates[name], name)
 
     def check_for_b023(  # noqa: C901
         self,
@@ -995,6 +1046,7 @@ class BugBearVisitor(ast.NodeVisitor):
         # implement this "backwards": first we find all the candidate variable
         # uses, and then if there are any we check for assignment of those names
         # inside the loop body.
+        immediately_called = self._immediately_called_functions(loop_node)
         safe_functions = []
         suspicious_variables = []
         for node in ast.walk(loop_node):
@@ -1027,6 +1079,15 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(node, ast.Return):
                 if isinstance(node.value, FUNCTION_NODES):
                     safe_functions.append(node.value)
+
+            # a function that is only ever *called* in the loop body cannot
+            # outlive the iteration its free variables were assigned in
+            if (
+                isinstance(node, ast.FunctionDef)
+                and not node.decorator_list
+                and node.name in immediately_called
+            ):
+                safe_functions.append(node)
 
             # find unsafe functions
             if isinstance(node, FUNCTION_NODES) and node not in safe_functions:
@@ -1070,6 +1131,142 @@ class BugBearVisitor(ast.NodeVisitor):
         for err in sorted(suspicious_variables, key=lambda n: n.id):
             if err.id in reassigned_in_loop:
                 self.add_error("B023", err, err.id)
+
+    def _immediately_called_functions(
+        self,
+        loop_node: (
+            ast.For
+            | ast.AsyncFor
+            | ast.While
+            | ast.GeneratorExp
+            | ast.SetComp
+            | ast.ListComp
+            | ast.DictComp
+        ),
+    ) -> set[str]:
+        """Names of functions defined in the loop that cannot outlive an iteration.
+
+        A function defined in a loop is only subject to the late-binding gotcha
+        B023 warns about if a reference to it survives the iteration it was
+        created in. So a name is reported here -- and thus exempted -- only when
+        every reference to it, anywhere in the enclosing scope, is a direct call
+        that runs in the same iteration as the definition. Being appended to a
+        list, returned, passed as an argument, or called from a nested function
+        all let the function escape, and keep the warning.
+        """
+        body = getattr(loop_node, "body", None)
+        if not isinstance(body, list):
+            return set()
+
+        # Only a plain `def` runs to completion when it is called. Calling an
+        # `async def` builds a coroutine and calling a generator function builds
+        # a generator: both defer the body, so the free variables are read after
+        # the loop has moved on. A decorator may stash the original as well.
+        candidates: dict[str, list[ast.FunctionDef]] = {}
+        for statement in body:
+            if (
+                isinstance(statement, ast.FunctionDef)
+                and not statement.decorator_list
+                and not _defines_a_generator(statement)
+            ):
+                candidates.setdefault(statement.name, []).append(statement)
+        if not candidates:
+            return set()
+
+        parents, names_used, called_names = self._scope_reference_index(loop_node)
+
+        # the `else` suite of a loop runs once the loop is over, so a call there
+        # cannot be the call that keeps the function inside its iteration
+        in_body = set()
+        for statement in body:
+            for node in ast.walk(statement):
+                in_body.add(id(node))
+
+        safe: set[str] = set()
+        for name, definitions in candidates.items():
+            # matching a reference by its identifier alone is only sound while
+            # the name has exactly one binding in this scope
+            if len(definitions) != 1 or _is_rebound(name, names_used, parents):
+                continue
+            definition = definitions[0]
+            # a definition nothing refers to still leaves its name bound after
+            # the loop, so it can be called later with the last iteration's
+            # values -- exactly the bug, so it stays reported
+            references = names_used.get(name, ())
+            if references and all(
+                self._is_call_within_the_iteration(
+                    reference, definition, loop_node, parents, called_names, in_body
+                )
+                for reference in references
+            ):
+                safe.add(name)
+        return safe
+
+    def _scope_reference_index(
+        self, loop_node: ast.AST
+    ) -> tuple[dict[int, ast.AST], dict[str, list[ast.Name]], set[int]]:
+        """Parent links, name uses and call targets for the scope of `loop_node`.
+
+        Built once per scope and cached: walking the scope again for every loop
+        it contains turns a linear traversal into a quadratic one on files with
+        many sequential loops.
+        """
+        scope: ast.AST = loop_node
+        for ancestor in reversed(self.node_stack):
+            if isinstance(ancestor, (ast.Module, ast.ClassDef, *FUNCTION_NODES)):
+                scope = ancestor
+                break
+
+        cached = self._b023_scopes.get(id(scope))
+        if cached is not None:
+            return cached
+
+        parents: dict[int, ast.AST] = {}
+        names_used: dict[str, list[ast.Name]] = {}
+        called_names: set[int] = set()
+        for parent in ast.walk(scope):
+            if isinstance(parent, ast.Call) and isinstance(parent.func, ast.Name):
+                called_names.add(id(parent.func))
+            for child in ast.iter_child_nodes(parent):
+                parents[id(child)] = parent
+            if isinstance(parent, ast.Name):
+                names_used.setdefault(parent.id, []).append(parent)
+
+        index = (parents, names_used, called_names)
+        self._b023_scopes[id(scope)] = index
+        return index
+
+    def _is_call_within_the_iteration(
+        self,
+        reference: ast.Name,
+        definition: ast.FunctionDef,
+        loop_node: ast.AST,
+        parents: dict[int, ast.AST],
+        called_names: set[int],
+        in_body: set[int],
+    ) -> bool:
+        """Is this reference a call that runs in the iteration that defined it?"""
+        if id(reference) not in in_body:
+            return False
+        if not isinstance(reference.ctx, ast.Load):
+            return False
+        if id(reference) not in called_names:
+            return False
+        # a call placed above the `def` invokes the binding the previous
+        # iteration left behind, which is the very bug B023 is about
+        if (reference.lineno, reference.col_offset) < (
+            definition.lineno,
+            definition.col_offset,
+        ):
+            return False
+        # a call reached through another deferred body happens whenever that
+        # body is run, which may be long after the loop has finished
+        node: ast.AST | None = parents.get(id(reference))
+        while node is not None and node is not loop_node:
+            if isinstance(node, (*FUNCTION_NODES, ast.GeneratorExp)):
+                return False
+            node = parents.get(id(node))
+        return True
 
     def check_for_b024_and_b027(self, node: ast.ClassDef) -> None:  # noqa: C901
         """Check for inheritance from abstract classes in abc and lack of
@@ -1167,6 +1364,115 @@ class BugBearVisitor(ast.NodeVisitor):
             ):
                 self.add_error("B026", starred)
 
+    @staticmethod
+    def _is_b031_group_materialization(node: ast.AST, group_name: str) -> bool:
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            return False
+
+        value = node.value
+        return (
+            any(isinstance(t, ast.Name) and t.id == group_name for t in targets)
+            and isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id in {"list", "tuple"}
+            and len(value.args) == 1
+            and isinstance(value.args[0], ast.Name)
+            and value.args[0].id == group_name
+            and not value.keywords
+        )
+
+    def _check_b031_group_usages(
+        self,
+        nodes: Sequence[ast.AST],
+        group_name: str,
+        num_usages: int = 0,
+        repeated: bool = False,
+    ) -> int:
+        for node in nodes:
+            num_usages = self._check_b031_group_usage(
+                node, group_name, num_usages, repeated
+            )
+            if self._is_b031_group_materialization(node, group_name):
+                # The RHS still consumes the generator. After the assignment,
+                # a negative count marks a path where the name is reusable.
+                return -1
+        return num_usages
+
+    def _check_b031_group_usage(
+        self,
+        node: ast.AST,
+        group_name: str,
+        num_usages: int,
+        repeated: bool,
+    ) -> int:
+        if num_usages < 0:
+            return num_usages
+
+        if isinstance(node, ast.Name):
+            if node.id == group_name and isinstance(node.ctx, ast.Load):
+                num_usages += 1
+                if repeated or num_usages > 1:
+                    self.add_error("B031", node, node.id)
+            return num_usages
+
+        if isinstance(node, ast.If):
+            num_usages = self._check_b031_group_usage(
+                node.test, group_name, num_usages, repeated
+            )
+            # Only one branch can execute, so keep the largest path count
+            # instead of adding usages from mutually exclusive branches.
+            return max(
+                self._check_b031_group_usages(
+                    node.body, group_name, num_usages, repeated
+                ),
+                self._check_b031_group_usages(
+                    node.orelse, group_name, num_usages, repeated
+                ),
+            )
+
+        if isinstance(node, (ast.For, ast.AsyncFor)):
+            num_usages = self._check_b031_group_usage(
+                node.target, group_name, num_usages, repeated
+            )
+            num_usages = self._check_b031_group_usage(
+                node.iter, group_name, num_usages, repeated
+            )
+            # Any body reference may run once per nested loop iteration.
+            # A nested loop may never run, so its assignments are not definite.
+            num_usages = max(
+                num_usages,
+                self._check_b031_group_usages(node.body, group_name, num_usages, True),
+            )
+            return self._check_b031_group_usages(
+                node.orelse, group_name, num_usages, repeated
+            )
+
+        if isinstance(node, ast.While):
+            num_usages = self._check_b031_group_usage(
+                node.test, group_name, num_usages, repeated
+            )
+            # A while body can also consume the group on every iteration.
+            num_usages = max(
+                num_usages,
+                self._check_b031_group_usages(node.body, group_name, num_usages, True),
+            )
+            return self._check_b031_group_usages(
+                node.orelse, group_name, num_usages, repeated
+            )
+
+        for child in ast.iter_child_nodes(node):
+            # Other constructs may contain optional or deferred execution.
+            # Keep usage counts, but do not assume their assignments ran.
+            num_usages = max(
+                num_usages,
+                self._check_b031_group_usage(child, group_name, num_usages, repeated),
+            )
+        return num_usages
+
     def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
 
@@ -1191,23 +1497,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     # Ignore any `groupby()` invocation that isn't unpacked
                     return
 
-                num_usages = 0
-                for node in walk_list(loop_node.body):  # type: ignore[assignment]
-                    # Handled nested loops
-                    if isinstance(node, ast.For):
-                        for nested_node in walk_list(node.body):
-                            assert nested_node != node
-                            if (
-                                isinstance(nested_node, ast.Name)
-                                and nested_node.id == group_name
-                            ):
-                                self.add_error("B031", nested_node, nested_node.id)
-
-                    # Handle multiple uses
-                    if isinstance(node, ast.Name) and node.id == group_name:
-                        num_usages += 1
-                        if num_usages > 1:
-                            self.add_error("B031", node, node.id)
+                self._check_b031_group_usages(loop_node.body, group_name)
 
     def _get_names_from_tuple(self, node: ast.Tuple) -> Iterator[str]:
         for dim in node.elts:
@@ -1389,7 +1679,11 @@ class BugBearVisitor(ast.NodeVisitor):
             # `cls`?
             return
 
-        bases = {b.id for b in cls.bases if isinstance(b, ast.Name)}
+        bases = {
+            b.id if isinstance(b, ast.Name) else b.attr
+            for b in cls.bases
+            if isinstance(b, (ast.Name, ast.Attribute))
+        }
         if any(basetype in bases for basetype in ("type", "ABCMeta", "EnumMeta")):
             if is_classmethod(decorators):
                 expected_first_args = B902_METACLS
@@ -1467,19 +1761,27 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b018(self, node: ast.AST) -> None:
         if not isinstance(node, ast.Expr):
             return
-        if isinstance(
-            node.value,
-            (
-                ast.List,
-                ast.Set,
-                ast.Dict,
-                ast.Tuple,
-            ),
-        ) or (
-            isinstance(node.value, ast.Constant)
-            and (
-                isinstance(node.value.value, (int, float, complex, bytes, bool))
-                or node.value.value is None
+        if (
+            isinstance(
+                node.value,
+                (
+                    ast.List,
+                    ast.Set,
+                    ast.Dict,
+                    ast.Tuple,
+                ),
+            )
+            or (
+                isinstance(node.value, ast.Constant)
+                and (
+                    isinstance(node.value.value, (int, float, complex, bytes, bool))
+                    or node.value.value is None
+                )
+            )
+            or (
+                isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id in FUNCTIONS_WITHOUT_SIDE_EFFECTS
             )
         ):
             self.add_error("B018", node, node.value.__class__.__name__)
@@ -1599,6 +1901,10 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B905", node)
 
     def check_for_b912(self, node: ast.Call) -> None:
+        # `map(strict=...)` was added in Python 3.14; emitting on older
+        # interpreters would flag valid code.
+        if sys.version_info < (3, 14):
+            return
         if not (
             isinstance(node.func, ast.Name)
             and node.func.id == "map"
@@ -1607,6 +1913,51 @@ class BugBearVisitor(ast.NodeVisitor):
             return
         if not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B912", node)
+
+    def check_for_b913(self, node: ast.For) -> None:
+        if not (
+            isinstance(node.target, (ast.Tuple, ast.List))
+            and isinstance(node.iter, ast.Call)
+            and isinstance(node.iter.func, ast.Name)
+            and node.iter.func.id == "zip"
+        ):
+            return
+
+        targets = node.target.elts
+        arguments = node.iter.args
+        if (
+            len(targets) != len(arguments)
+            or any(isinstance(target, ast.Starred) for target in targets)
+            or any(isinstance(argument, ast.Starred) for argument in arguments)
+            or node.iter.keywords
+        ):
+            return
+
+        if any(not isinstance(target, ast.Name) for target in targets):
+            return
+
+        underscore_indexes = [
+            index for index, target in enumerate(targets) if target.id == "_"
+        ]
+        if not underscore_indexes or len(underscore_indexes) == len(targets):
+            return
+
+        # A single direct target has an unambiguous argument mapping wherever it
+        # appears.  For repeated ``_`` targets, retain the conservative original
+        # rule and only report a contiguous trailing group.
+        if len(underscore_indexes) > 1 and underscore_indexes != list(
+            range(underscore_indexes[0], len(targets))
+        ):
+            return
+
+        if len(underscore_indexes) == 1:
+            body_names = B913UsageFinder()
+            body_names.visit(node.body + node.orelse)
+            if "_" in body_names.names:
+                return
+
+        first_discarded = targets[underscore_indexes[0]]
+        self.add_error("B913", first_discarded)
 
     def check_for_b906(self, node: ast.FunctionDef) -> None:
         if not node.name.startswith("visit_"):
@@ -1746,7 +2097,11 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "warnings"
             and not any(kw.arg == "stacklevel" for kw in node.keywords)
-            and not any(kw.arg == "skip_file_prefixes" for kw in node.keywords)
+            and all(
+                kw.arg != "skip_file_prefixes"
+                or (isinstance(kw.value, ast.Tuple) and not kw.value.elts)
+                for kw in node.keywords
+            )
             and len(node.args) < 3
             and not any(isinstance(a, ast.Starred) for a in node.args)
             and not any(kw.arg is None for kw in node.keywords)
@@ -2043,6 +2398,31 @@ class B909Checker(ast.NodeVisitor):
         return node
 
 
+def _dotted_name(node: ast.AST) -> str | None:
+    """Return `"self.a.b"` for an attribute chain rooted in a name, else None."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
+    """Yield the attribute paths a `for` statement rebinds on each iteration."""
+    if isinstance(target, (ast.Tuple, ast.List)):
+        for element in target.elts:
+            yield from _dotted_targets(element)
+    elif isinstance(target, ast.Starred):
+        yield from _dotted_targets(target.value)
+    elif isinstance(target, ast.Attribute):
+        name = _dotted_name(target)
+        if name is not None:
+            yield name, target
+
+
 @attr.s
 class NameFinder(ast.NodeVisitor):
     """Finds a name within a tree of nodes.
@@ -2066,6 +2446,55 @@ class NameFinder(ast.NodeVisitor):
         for elem in node:
             super().visit(elem)
         return node
+
+
+class B913UsageFinder(NameFinder):
+    """Find loads of ``_`` that refer to a surrounding loop target."""
+
+    @staticmethod
+    def _binds_underscore(node: ast.expr) -> bool:
+        return "_" in names_from_assignments(node)
+
+    def visit_Name(self, node: ast.Name) -> None:  # noqa: B906
+        if node.id == "_" and isinstance(node.ctx, ast.Load):
+            super().visit_Name(node)
+
+    def _visit_comprehension(
+        self,
+        generators: list[ast.comprehension],
+        values: list[ast.expr],
+    ) -> None:
+        shadowed = False
+        for index, generator in enumerate(generators):
+            if index == 0 or not shadowed:
+                self.visit(generator.iter)
+            if not shadowed:
+                self.visit(generator.target)
+            if self._binds_underscore(generator.target):
+                shadowed = True
+            if not shadowed:
+                self.visit(generator.ifs)
+        if not shadowed:
+            self.visit(values)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._visit_comprehension(node.generators, [node.elt])
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._visit_comprehension(node.generators, [node.elt])
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._visit_comprehension(node.generators, [node.elt])
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._visit_comprehension(node.generators, [node.key, node.value])
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        self.visit(node.value)
+        if isinstance(node.target, ast.Name) and node.target.id == "_":
+            self.names.setdefault("_", []).append(node.target)
+        else:
+            self.visit(node.target)
 
 
 @attr.s
@@ -2194,6 +2623,31 @@ class B020NameFinder(NameFinder):
             self.names.pop(lambda_arg.arg, None)
 
 
+@attr.s
+class B020AttributeFinder(B020NameFinder):
+    """Dotted attribute paths, under the scope rules B020NameFinder uses for names.
+
+    Collecting the paths with a plain `ast.walk` would ignore lexical scope: in
+    `for obj.value in [obj.value for obj in objects]` the two `obj` bindings are
+    different objects, and the comprehension-local one must not be matched
+    against the loop target.
+    """
+
+    paths: set[str] = attr.ib(factory=set)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        path = _dotted_name(node)
+        if path is not None:
+            self.paths.add(path)
+        self.generic_visit(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        super().visit_Lambda(node)
+        for lambda_arg in node.args.args:
+            prefix = f"{lambda_arg.arg}."
+            self.paths = {path for path in self.paths if not path.startswith(prefix)}
+
+
 B005_METHODS = {"lstrip", "rstrip", "strip"}
 
 # Note: these are also used by B039
@@ -2245,6 +2699,8 @@ B019_CACHES = {
     "functools.lru_cache",
     "cache",
     "lru_cache",
+    "async_lru.alru_cache",
+    "alru_cache",
 }
 B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
 B902_SELF = ["self"]  # it's a list because the first is preferred
@@ -2399,9 +2855,9 @@ error_codes = {
     ),
     "B019": Error(
         message=(
-            "B019 Use of `functools.lru_cache` or `functools.cache` on methods "
-            "can lead to memory leaks. The cache may retain instance references, "
-            "preventing garbage collection."
+            "B019 Use of `functools.lru_cache`, `functools.cache` or "
+            "`async_lru.alru_cache` on methods can lead to memory leaks. The cache "
+            "may retain instance references, preventing garbage collection."
         )
     ),
     "B020": Error(
@@ -2593,6 +3049,13 @@ error_codes = {
         message="B911 `itertools.batched()` without an explicit `strict=` parameter."
     ),
     "B912": Error(message="B912 `map()` without an explicit `strict=` parameter."),
+    "B913": Error(
+        message=(
+            "B913 `zip()` values are discarded by unused `_` targets. "
+            "If those iterables intentionally control loop length, use named "
+            "variables; otherwise remove the arguments and targets."
+        )
+    ),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -2609,5 +3072,6 @@ disabled_by_default = [
     "B910",
     "B911",
     "B912",
+    "B913",
     "B950",
 ]

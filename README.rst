@@ -173,15 +173,17 @@ using ``pytest.raises``), or use the context manager form with a target
 .. _B018:
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
+The check also considers function calls without side-effects such as ``isinstance``.
 Note that dangling commas will cause things to be interpreted as useless tuples.
 For example, in the statement ``print(".."),`` is the same as ``(print(".."),)``
 which is an unassigned tuple. Simply remove the comma to clear the error.
 
 .. _B019:
 
-**B019**: Use of ``functools.lru_cache`` or ``functools.cache`` on methods
-can lead to memory leaks. The cache may retain instance references, preventing
-garbage collection.
+**B019**: Use of ``functools.lru_cache``, ``functools.cache`` or
+``async_lru.alru_cache`` on methods can lead to memory leaks. The cache may
+retain instance references, preventing garbage collection. This is also checked
+on ``async def`` methods, where ``alru_cache`` is typically used.
 
 .. _B020:
 
@@ -235,7 +237,8 @@ limitations make it difficult.
 **B028**: No explicit stacklevel argument found. The warn method from the warnings module uses a
 stacklevel of 1 by default. This will only show a stack trace for the line on which the warn method is called.
 It is therefore recommended to use a stacklevel of 2 or greater to provide more information to the user.
-The check is skipped when skip_file_prefixes is used.
+The check is skipped when ``skip_file_prefixes`` is used, except for an explicitly empty tuple,
+which does not affect ``stacklevel``.
 
 .. _B029:
 
@@ -292,16 +295,16 @@ second usage. Save the result to a list if the result is needed multiple times.
 
 .. _B042:
 
-**B042**: Exception classes with a custom `__init__` should pass all args to `super().__init__()` to work correctly with `copy.copy` and `pickle`. 
-Both `BaseException.__reduce__` and `BaseException.__str__` rely on the `args` attribute being set correctly, which is set in `BaseException.__new__` and `BaseException.__init__`. 
-If you define `__init__` yourself without passing all arguments to `super().__init__` it is very easy to break pickling, especially if they pass keyword arguments which both 
-`BaseException.__new__` and `BaseException.__init__` ignore. It's also important that `__init__` not accept any keyword-only parameters. 
-Alternately you can define both `__str__` and `__reduce__` to bypass the need for correct handling of `args`. 
+**B042**: Exception classes with a custom `__init__` should pass all args to `super().__init__()` to work correctly with `copy.copy` and `pickle`.
+Both `BaseException.__reduce__` and `BaseException.__str__` rely on the `args` attribute being set correctly, which is set in `BaseException.__new__` and `BaseException.__init__`.
+If you define `__init__` yourself without passing all arguments to `super().__init__` it is very easy to break pickling, especially if they pass keyword arguments which both
+`BaseException.__new__` and `BaseException.__init__` ignore. It's also important that `__init__` not accept any keyword-only parameters.
+Alternately you can define both `__str__` and `__reduce__` to bypass the need for correct handling of `args`.
 If you define `__str__/__reduce__` in super classes this check is unable to detect it, and we advise disabling it.
 
 .. _B043:
 
-**B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``. 
+**B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``.
 There is no additional safety in using ``delattr`` if you know the attribute name ahead of time.
 
 .. _B044:
@@ -331,7 +334,8 @@ to bugs.  Use native ``async def`` coroutines or mark intentional
 **B902**: Invalid first argument used for method. Use ``self`` for
 instance methods, and ``cls`` for class methods (which includes ``__new__``
 and ``__init_subclass__``) or instance methods of metaclasses (detected as
-classes directly inheriting from ``type``).
+classes inheriting from ``type``, ``ABCMeta`` or ``EnumMeta``, written
+either bare or dotted such as ``abc.ABCMeta``).
 
 .. _B903:
 
@@ -390,6 +394,14 @@ The ``strict=`` argument was added in Python 3.13, so don't enable this flag for
 
 **B912**: ``map()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
 to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
+
+.. _B913:
+
+**B913**: In a ``zip()`` loop with at least one retained target, one or more
+values are discarded by unused ``_`` targets with a direct argument mapping. Those
+iterables still affect how many times the loop runs. If this is intentional, use
+descriptive variables; otherwise remove the matching arguments and targets.
+Calls with an explicit ``strict=`` argument or starred unpacking are not checked.
 
 .. _B950:
 
@@ -502,6 +514,21 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B044: New check for `assert <generator_expression>`, which is always true (#534)
+* B031: allow reusing a group after assigning ``list(group)`` or ``tuple(group)``
+  back to the same name (#395)
+* B028: report ``warnings.warn`` calls that pass an explicitly empty
+  ``skip_file_prefixes`` tuple (#510)
+* B019: also flag `async_lru.alru_cache` and check cache decorators on `async def` methods (#488)
+* B023: don't flag a function whose every reference is a direct call inside the loop body:
+  such a function cannot outlive the iteration it was defined in (#468, #380)
+* B020: don't flag `for self.a in self.b`: rebinding an attribute is not rebinding the
+  base name, so two different attributes of the same object are two bindings (#248)
+* B018: handle also useless calls such as `isinstance(x, int)` without assigning or using the result
+* B031: don't count a store-context reference (e.g. an annotation target like `group: T`) as a use of the `groupby` generator,
+  and don't treat references in mutually exclusive ``if``/``elif``/``else`` branches as multiple uses while preserving
+  warnings when the conditional can run repeatedly (#465)
+* B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)
+* B913: Add an optional check for unused ``_`` targets in ``zip()`` loops (#545)
 
 25.11.29
 ~~~~~~~~

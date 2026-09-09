@@ -3,12 +3,12 @@ ci:
 
 repos:
   - repo: https://github.com/pycqa/isort
-    rev: 7.0.0
+    rev: 9.0.1
     hooks:
       - id: isort
 
   - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.12.0
+    rev: 26.5.1
     hooks:
       - id: black
         args:
@@ -22,7 +22,7 @@ repos:
       exclude: ^tests/eval_files/.*
 
   - repo: https://github.com/rstcheck/rstcheck
-    rev: v6.2.5
+    rev: v6.3.0
     hooks:
     - id: rstcheck
       args:

@@ -82,7 +82,7 @@ class notabc_Base_1(notabc.ABC):  # safe
 
 
 class multi_super_1(notabc.ABC, abc.ABCMeta):  # safe
-    def method(self):
+    def method(cls):
         foo()
 
 
@@ -97,7 +97,7 @@ class non_keyword_abcmeta_1(ABCMeta):  # safe
 
 
 class non_keyword_abcmeta_2(abc.ABCMeta):  # safe
-    def method(self):
+    def method(cls):
         foo()
 
 
