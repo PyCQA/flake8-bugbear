@@ -391,6 +391,14 @@ The ``strict=`` argument was added in Python 3.13, so don't enable this flag for
 **B912**: ``map()`` without an explicit `strict=` parameter set. ``strict=True`` causes the resulting iterator
 to raise a ``ValueError`` if the arguments are exhausted at differing lengths.
 
+.. _B913:
+
+**B913**: In a ``zip()`` loop with at least one retained target, one or more
+values are discarded by unused ``_`` targets with a direct argument mapping. Those
+iterables still affect how many times the loop runs. If this is intentional, use
+descriptive variables; otherwise remove the matching arguments and targets.
+Calls with an explicit ``strict=`` argument or starred unpacking are not checked.
+
 .. _B950:
 
 **B950**: Line too long. This is a pragmatic equivalent of
@@ -515,6 +523,7 @@ UNRELEASED
   and don't treat references in mutually exclusive ``if``/``elif``/``else`` branches as multiple uses while preserving
   warnings when the conditional can run repeatedly (#465)
 * B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)
+* B913: Add an optional check for unused ``_`` targets in ``zip()`` loops (#545)
 
 25.11.29
 ~~~~~~~~
