@@ -599,6 +599,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b910(node)
         self.check_for_b911(node)
         self.check_for_b912(node)
+        self.check_for_b044(node)
 
         # no need for copying, if used in nested calls it will be set to None
         current_b040_caught_exception = self.b040_caught_exception
@@ -1496,6 +1497,39 @@ class BugBearVisitor(ast.NodeVisitor):
                     return
 
                 self._check_b031_group_usages(loop_node.body, group_name)
+
+    def check_for_b044(self, node: ast.Call) -> None:
+        # `str.find()`/`rfind()` return -1 when the substring is missing, which
+        # is truthy, and 0 when it is found at the start, which is falsy. Testing
+        # the result directly therefore inverts the intended logic, so require an
+        # explicit comparison against the returned index instead.
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr in ("find", "rfind")
+            and node.args
+        ):
+            return
+        if self._is_used_as_boolean(node):
+            self.add_error("B044", node)
+
+    def _is_used_as_boolean(self, node: ast.expr) -> bool:
+        # node is the node currently being visited, so it sits on top of the
+        # stack. Walk the ancestors, stepping through `not`/`and`/`or` wrappers
+        # that keep testing the value's truthiness, and report if we reach a
+        # place that uses it as a condition.
+        child: ast.AST = node
+        for parent in reversed(self.node_stack[:-1]):
+            if isinstance(parent, ast.BoolOp):
+                child = parent
+            elif isinstance(parent, ast.UnaryOp) and isinstance(parent.op, ast.Not):
+                child = parent
+            elif isinstance(parent, (ast.If, ast.IfExp, ast.While, ast.Assert)):
+                return parent.test is child
+            elif isinstance(parent, ast.comprehension):
+                return child in parent.ifs
+            else:
+                return False
+        return False
 
     def _get_names_from_tuple(self, node: ast.Tuple) -> Iterator[str]:
         for dim in node.elts:
@@ -2880,6 +2914,14 @@ error_codes = {
         message=(
             "B043 Do not call delattr with a constant attribute value, "
             "it is not any safer than normal property access."
+        )
+    ),
+    "B044": Error(
+        message=(
+            "B044 Using the result of `.find()`/`.rfind()` as a boolean is "
+            "misleading: it returns -1 (truthy) when the substring is missing and "
+            "0 (falsy) when it is found at the start. Compare the returned index "
+            "explicitly instead."
         )
     ),
     # Warnings disabled by default.
