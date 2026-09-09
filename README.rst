@@ -501,6 +501,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B031: allow reusing a group after assigning ``list(group)`` or ``tuple(group)``
+  back to the same name (#395)
 * B028: report ``warnings.warn`` calls that pass an explicitly empty
   ``skip_file_prefixes`` tuple (#510)
 * B019: also flag `async_lru.alru_cache` and check cache decorators on `async def` methods (#488)

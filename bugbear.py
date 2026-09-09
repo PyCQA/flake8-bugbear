@@ -1362,6 +1362,27 @@ class BugBearVisitor(ast.NodeVisitor):
             ):
                 self.add_error("B026", starred)
 
+    @staticmethod
+    def _is_b031_group_materialization(node: ast.AST, group_name: str) -> bool:
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            return False
+
+        value = node.value
+        return (
+            any(isinstance(t, ast.Name) and t.id == group_name for t in targets)
+            and isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id in {"list", "tuple"}
+            and len(value.args) == 1
+            and isinstance(value.args[0], ast.Name)
+            and value.args[0].id == group_name
+            and not value.keywords
+        )
+
     def _check_b031_group_usages(
         self,
         nodes: Sequence[ast.AST],
@@ -1373,6 +1394,10 @@ class BugBearVisitor(ast.NodeVisitor):
             num_usages = self._check_b031_group_usage(
                 node, group_name, num_usages, repeated
             )
+            if self._is_b031_group_materialization(node, group_name):
+                # The RHS still consumes the generator. After the assignment,
+                # a negative count marks a path where the name is reusable.
+                return -1
         return num_usages
 
     def _check_b031_group_usage(
@@ -1382,6 +1407,9 @@ class BugBearVisitor(ast.NodeVisitor):
         num_usages: int,
         repeated: bool,
     ) -> int:
+        if num_usages < 0:
+            return num_usages
+
         if isinstance(node, ast.Name):
             if node.id == group_name and isinstance(node.ctx, ast.Load):
                 num_usages += 1
@@ -1412,8 +1440,10 @@ class BugBearVisitor(ast.NodeVisitor):
                 node.iter, group_name, num_usages, repeated
             )
             # Any body reference may run once per nested loop iteration.
-            num_usages = self._check_b031_group_usages(
-                node.body, group_name, num_usages, True
+            # A nested loop may never run, so its assignments are not definite.
+            num_usages = max(
+                num_usages,
+                self._check_b031_group_usages(node.body, group_name, num_usages, True),
             )
             return self._check_b031_group_usages(
                 node.orelse, group_name, num_usages, repeated
@@ -1424,16 +1454,20 @@ class BugBearVisitor(ast.NodeVisitor):
                 node.test, group_name, num_usages, repeated
             )
             # A while body can also consume the group on every iteration.
-            num_usages = self._check_b031_group_usages(
-                node.body, group_name, num_usages, True
+            num_usages = max(
+                num_usages,
+                self._check_b031_group_usages(node.body, group_name, num_usages, True),
             )
             return self._check_b031_group_usages(
                 node.orelse, group_name, num_usages, repeated
             )
 
         for child in ast.iter_child_nodes(node):
-            num_usages = self._check_b031_group_usage(
-                child, group_name, num_usages, repeated
+            # Other constructs may contain optional or deferred execution.
+            # Keep usage counts, but do not assume their assignments ran.
+            num_usages = max(
+                num_usages,
+                self._check_b031_group_usage(child, group_name, num_usages, repeated),
             )
         return num_usages
 

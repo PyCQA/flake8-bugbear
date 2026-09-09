@@ -130,3 +130,89 @@ async def collect_async_groups():
                 collect_shop_items("Jane", section_items)  # B031: 43, "section_items"
             else:
                 collect_shop_items("Joe", section_items)  # B031: 42, "section_items"
+
+
+# Materializing the generator under its original name makes it reusable (#395)
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    section_items = list(section_items)
+    collect_shop_items("Jane", section_items)
+    collect_shop_items("Joe", section_items)
+
+for _section, section_items in groupby(items, key=lambda p: p[1]):
+    section_items = tuple(section_items)
+    for shopper in shoppers:
+        collect_shop_items(shopper, section_items)
+
+# Annotated and chained assignments also replace the original binding
+for _, group in groupby(items):
+    group: list = list(group)
+    print(group)
+    print(group)
+
+for _, group in groupby(items):
+    saved = group = list(group)
+    print(group)
+    print(saved)
+
+# The generator is reusable after every branch has materialized it
+for _, group in groupby(items):
+    if shoppers:
+        group = list(group)
+    else:
+        group = tuple(group)
+    print(group)
+    print(group)
+
+# A branch that only consumes the generator still makes later uses unsafe
+for _, group in groupby(items):
+    if shoppers:
+        group = list(group)
+    else:
+        print(group)
+    print(group)  # B031: 10, "group"
+
+# A branch can leave the original generator untouched
+for _, group in groupby(items):
+    if shoppers:
+        group = list(group)
+    print(group)
+    print(group)  # B031: 10, "group"
+
+# Materialization must still warn if the generator has already been used
+for _, group in groupby(items):
+    print(group)
+    group = list(group)  # B031: 17, "group"
+    print(group)
+
+# Saving to another name does not make the original generator reusable
+for _, group in groupby(items):
+    saved = list(group)
+    print(group)  # B031: 10, "group"
+
+# Arbitrary calls, including iter(), may return the original iterator
+for _, group in groupby(items):
+    group = iter(group)
+    print(group)  # B031: 10, "group"
+
+# Nested loops may execute zero times, leaving the original generator intact
+for _, group in groupby(items):
+    for _shopper in shoppers:
+        group = list(group)  # B031: 21, "group"
+    print(group)
+    print(group)  # B031: 10, "group"
+
+for _, group in groupby(items):
+    while shoppers:
+        group = tuple(group)  # B031: 22, "group"
+    print(group)
+    print(group)  # B031: 10, "group"
+
+# Assignments in deferred bodies do not replace the enclosing loop variable
+for _, group in groupby(items):
+    def materialize_later(group):
+        if shoppers:
+            group = list(group)
+        else:
+            group = tuple(group)
+    print(group)
+    print(group)  # B031: 10, "group"
