@@ -307,6 +307,10 @@ If you define `__str__/__reduce__` in super classes this check is unable to dete
 **B043**: Do not call ``delattr(x, 'attr')``, instead use ``del x.attr``.
 There is no additional safety in using ``delattr`` if you know the attribute name ahead of time.
 
+.. _B044:
+
+**B044**: `assert <generator_expression>` is always true. Did you forget `all()`?
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -509,6 +513,7 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B044: New check for `assert <generator_expression>`, which is always true (#534)
 * B031: allow reusing a group after assigning ``list(group)`` or ``tuple(group)``
   back to the same name (#395)
 * B028: report ``warnings.warn`` calls that pass an explicitly empty
