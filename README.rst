@@ -530,6 +530,7 @@ Change Log
 * B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)
 * B913: Add an optional check for unused ``_`` targets in ``zip()`` loops (#545)
 * B912: only emit on Python 3.14+ where ``map()`` supports ``strict=`` (#548)
+* Recursion errors raised during rules evaluation show a message instead of a raw traceback (#560)
 
 25.11.29
 ~~~~~~~~
