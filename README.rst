@@ -510,8 +510,8 @@ MIT
 Change Log
 ----------
 
-UNRELEASED
-~~~~~~~~~~
+26.9.9
+~~~~~~
 
 * B044: New check for `assert <generator_expression>`, which is always true (#534)
 * B031: allow reusing a group after assigning ``list(group)`` or ``tuple(group)``
@@ -529,6 +529,7 @@ UNRELEASED
   warnings when the conditional can run repeatedly (#465)
 * B902: don't raise a false positive on a metaclass defined with a dotted base such as `abc.ABCMeta` or `enum.EnumMeta` (#411)
 * B913: Add an optional check for unused ``_`` targets in ``zip()`` loops (#545)
+* B912: only emit on Python 3.14+ where ``map()`` supports ``strict=`` (#548)
 
 25.11.29
 ~~~~~~~~
