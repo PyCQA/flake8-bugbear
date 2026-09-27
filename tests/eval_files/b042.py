@@ -96,6 +96,16 @@ class ExceptionHandler(Anything):
 class FooException: # safe, doesn't inherit from anything
     def __init__(self, x): ...
 
+# a parameterized generic base is not an exception class unless its name says so
+class FailOnException(typing.ContextManager[int]):  # safe
+    def __init__(self, x): ...
+class FailOnError(typing.Iterator[int]):  # safe
+    def __init__(self, x): ...
+class MyGenericError(typing.Iterator[int], Anything):
+    def __init__(self, x): ...  # B042: 4
+class Anything5(MyError[int]):
+    def __init__(self, x): ...  # B042: 4
+
 ### Ignore classes that define __str__ + any pickle dunder
 class HasReduceStr(Exception):
     def __reduce__(self): ...

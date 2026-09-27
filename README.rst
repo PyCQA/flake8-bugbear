@@ -519,6 +519,9 @@ UNRELEASED
 
 * B018: also report unary and arithmetic operations used as statements, such as a
   ``+c * d`` continuation line that lost its parentheses (#452)
+* B042: don't treat a class named like an exception as one when its only bases are
+  parameterized generics such as ``ContextManager[T]``; a generic base named like an
+  exception, such as ``MyError[int]``, now counts (#538)
 
 26.9.9
 ~~~~~~
