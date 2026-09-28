@@ -517,6 +517,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* Add Python 3.15 support / CI
+* B913: fix crash on ``{**d for d in ...}`` dict unpacking in comprehensions, new in Python 3.15; B035 no longer mistakes the unpacked expression for a static key
 * B018: also report unary and arithmetic operations used as statements, such as a
   ``+c * d`` continuation line that lost its parentheses (#452)
 * B042: don't treat a class named like an exception as one when its only bases are

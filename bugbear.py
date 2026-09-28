@@ -1541,6 +1541,10 @@ class BugBearVisitor(ast.NodeVisitor):
         Emit a warning if a likely unchanging key is used - either a constant,
         or a variable that isn't coming from the generator expression.
         """
+        # `{**d for d in ...}` has no key on Python 3.15+, only an unpacked
+        # expression, so there is no static key to report.
+        if node.value is None:
+            return
         if isinstance(node.key, ast.Constant):
             self.add_error("B035", node.key, node.key.value)
         elif isinstance(node.key, ast.Name):
@@ -2535,7 +2539,9 @@ class B913UsageFinder(NameFinder):
         self._visit_comprehension(node.generators, [node.elt])
 
     def visit_DictComp(self, node: ast.DictComp) -> None:
-        self._visit_comprehension(node.generators, [node.key, node.value])
+        # `node.value` is None for `{**d for d in ...}` on Python 3.15+.
+        values = [node.key] if node.value is None else [node.key, node.value]
+        self._visit_comprehension(node.generators, values)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         self.visit(node.value)
