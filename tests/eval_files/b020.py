@@ -1,6 +1,6 @@
 """
 Should emit:
-B020 - on lines 8, 21, 32, 36, 58, and 75
+B020 - on lines 8, 21, 36, 58, 75, and 103
 """
 
 items = [1, 2, 3]
@@ -74,3 +74,31 @@ def ok_lambda_scope(obj, objects):
 def still_an_error_at_module_level(obj):
     for obj.value in obj.value:  # B020: 8, "obj.value"
         print(obj.value)
+
+
+# a name bound inside a nested destructuring pattern is not what the loop
+# rebinds: the iterable expression reads the outer value once, before any
+# iteration, so there is no self-referential loop.
+# https://github.com/PyCQA/flake8-bugbear/issues/521
+def ok_nested_unpacking(axs, series, xlim):
+    for i, (ax, (series, def_name)) in enumerate(zip(axs, series, strict=True)):
+        if def_name == "residual":
+            ax.plot(series)
+        ax.set_title(series.name if i == 0 else def_name)
+        ax.set_xlim(xlim)
+
+
+def ok_one_level_unpacking(items, value):
+    for key, (a, value) in items:
+        print(key, a, value)
+
+
+def ok_starred_nested_unpacking(items, value):
+    for key, [a, *value] in items:
+        print(key, a, value)
+
+
+# the top-level bindings of an unpacking target are still checked
+def still_an_error_top_level_of_tuple(items):
+    for key, items in list(items):  # B020: 13, "items"
+        print(key, items)

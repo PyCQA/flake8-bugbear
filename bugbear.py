@@ -1023,12 +1023,23 @@ class BugBearVisitor(ast.NodeVisitor):
             iterset_names |= iterset.paths
 
         # a name that only ever appears in load context is the *base* of an
-        # attribute or subscript target, not something the loop rebinds
-        targets = NameFinder()
-        targets.visit(node.target)
-        for name, names in targets.names.items():
-            if any(isinstance(n.ctx, ast.Store) for n in names):
-                candidates[name] = names[0]
+        # attribute or subscript target, not something the loop rebinds.
+        # Only the top-level bindings of the target share a name with the
+        # pre-existing iterable; a name bound inside a nested destructuring
+        # pattern, like `series` in
+        # `for i, (ax, (series, name)) in enumerate(zip(axs, series))`,
+        # shadows a value the iterable expression already read and is not
+        # what the loop rebinds on each iteration.
+        top_level: list[ast.expr] = (
+            node.target.elts
+            if isinstance(node.target, (ast.Tuple, ast.List))
+            else [node.target]
+        )
+        for element in top_level:
+            if isinstance(element, ast.Starred):
+                element = element.value
+            if isinstance(element, ast.Name):
+                candidates.setdefault(element.id, element)
 
         for name in sorted(candidates):
             if name in iterset_names:
