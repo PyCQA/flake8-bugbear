@@ -2535,7 +2535,9 @@ class B913UsageFinder(NameFinder):
         self._visit_comprehension(node.generators, [node.elt])
 
     def visit_DictComp(self, node: ast.DictComp) -> None:
-        self._visit_comprehension(node.generators, [node.key, node.value])
+        # `node.value` is None for `{**d for d in ...}` on Python 3.15+.
+        values = [node.key] if node.value is None else [node.key, node.value]
+        self._visit_comprehension(node.generators, values)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         self.visit(node.value)
