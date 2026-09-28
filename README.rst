@@ -173,7 +173,11 @@ using ``pytest.raises``), or use the context manager form with a target
 .. _B018:
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
-The check also considers function calls without side-effects such as ``isinstance``.
+The check also considers function calls without side-effects such as ``isinstance``,
+and unary and arithmetic operations such as ``-x`` or ``a * b``. Shifts, bitwise
+operators and ``@`` are left alone, since libraries overload them for their side
+effects, and so is an operation directly in a ``try`` or ``with`` block, where it may be
+run only to see it raise.
 Note that dangling commas will cause things to be interpreted as useless tuples.
 For example, in the statement ``print(".."),`` is the same as ``(print(".."),)``
 which is an unassigned tuple. Simply remove the comma to clear the error.
@@ -513,6 +517,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B018: also report unary and arithmetic operations used as statements, such as a
+  ``+c * d`` continuation line that lost its parentheses (#452)
 * B042: don't treat a class named like an exception as one when its only bases are
   parameterized generics such as ``ContextManager[T]``; a generic base named like an
   exception, such as ``MyError[int]``, now counts (#538)

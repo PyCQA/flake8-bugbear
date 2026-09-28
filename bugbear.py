@@ -59,6 +59,21 @@ FUNCTIONS_WITHOUT_SIDE_EFFECTS = (
     "str",
     "tuple",
 )
+# Arithmetic operators whose result is all a statement like `a * b` produces.
+# Shifts, bitwise operators and `@` are left out: libraries overload them for
+# their side effects, such as Airflow's `task1 >> task2`.
+B018_ARITHMETIC_OPERATORS = (
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+)
+B018_RAISING_BLOCKS: tuple[type[ast.stmt], ...] = (ast.Try, ast.With, ast.AsyncWith)
+if sys.version_info >= (3, 11):
+    B018_RAISING_BLOCKS += (ast.TryStar,)
 B908_pytest_functions = {"raises", "warns"}
 B908_unittest_methods = {
     "assertRaises",
@@ -1783,6 +1798,16 @@ class BugBearVisitor(ast.NodeVisitor):
                 and isinstance(node.value.func, ast.Name)
                 and node.value.func.id in FUNCTIONS_WITHOUT_SIDE_EFFECTS
             )
+            or (
+                isinstance(node.value, (ast.UnaryOp, ast.BinOp))
+                and _is_useless_operation(node.value)
+                # directly in a `try` or `with` block, an operation is often run
+                # only to see it raise: `with pytest.raises(TypeError): "1" + 1`
+                and not (
+                    self.node_stack
+                    and isinstance(self.node_stack[-1], B018_RAISING_BLOCKS)
+                )
+            )
         ):
             self.add_error("B018", node, node.value.__class__.__name__)
 
@@ -2401,6 +2426,24 @@ class B909Checker(ast.NodeVisitor):
                 self.mutations[self._conditional_block].clear()
             self.visit(elem)
         return node
+
+
+def _is_useless_operation(node: ast.expr) -> bool:
+    """Whether a unary or arithmetic operation, used as a statement, does nothing.
+
+    Every binary operator in it has to be arithmetic, and no operand may call,
+    await, yield or assign: `f() + 1` still calls `f`.
+    """
+    for child in ast.walk(node):
+        if isinstance(child, ast.BinOp) and not isinstance(
+            child.op, B018_ARITHMETIC_OPERATORS
+        ):
+            return False
+        if isinstance(
+            child, (ast.Call, ast.Await, ast.Yield, ast.YieldFrom, ast.NamedExpr)
+        ):
+            return False
+    return True
 
 
 def _dotted_name(node: ast.AST) -> str | None:
