@@ -932,8 +932,18 @@ class BugBearVisitor(ast.NodeVisitor):
         return names
 
     def check_for_b015(self, node: ast.Compare) -> None:
-        if isinstance(self.node_stack[-2], ast.Expr):
-            self.add_error("B015", node)
+        if not isinstance(self.node_stack[-2], ast.Expr):
+            return
+        # An overloaded comparison can intentionally raise or warn in a test.
+        # node_stack is local to the current scope, so nested function bodies
+        # do not inherit an outer assertion context manager.
+        if any(
+            isinstance(ancestor, ast.With)
+            and any(self._is_assertRaises_like(item) for item in ancestor.items)
+            for ancestor in self.node_stack
+        ):
+            return
+        self.add_error("B015", node)
 
     def check_for_b016(self, node: ast.Raise) -> None:
         if isinstance(node.exc, ast.JoinedStr) or (
