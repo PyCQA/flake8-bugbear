@@ -514,8 +514,8 @@ MIT
 Change Log
 ----------
 
-UNRELEASED
-~~~~~~~~~~
+26.9.30
+~~~~~~~
 
 * B008: resolve direct module-level imports and aliases when matching
   ``extend-immutable-calls`` (#252)
