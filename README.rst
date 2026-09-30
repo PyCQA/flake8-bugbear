@@ -517,6 +517,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B015: allow comparisons inside pytest/unittest exception and warning assertion
+  context managers, where an overloaded comparison may intentionally raise (#462).
 * B020: stop flagging names bound inside nested destructuring patterns, like
   ``series`` in ``for i, (ax, (series, name)) in enumerate(zip(axs, series))``;
   the loop rebinds the top-level targets, not those names (#521)
