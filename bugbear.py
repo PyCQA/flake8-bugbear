@@ -462,8 +462,15 @@ def _b031_module_groupby_is_itertools(module: ast.Module) -> bool:
                 other = True
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             for alias in node.names:
-                # ``import *`` does not bind ``groupby``. ``import groupby.sub`` does.
+                # Absolute ``from itertools import *`` binds ``groupby``.
+                # Other star imports do not. ``import groupby.sub`` does.
                 if alias.name == "*":
+                    if (
+                        isinstance(node, ast.ImportFrom)
+                        and node.level == 0
+                        and node.module == "itertools"
+                    ):
+                        from_itertools = True
                     continue
                 bound = alias.asname or alias.name.split(".", 1)[0]
                 if bound != "groupby":
@@ -482,6 +489,11 @@ def _b031_module_groupby_is_itertools(module: ast.Module) -> bool:
             and node.id == "groupby"
             and isinstance(node.ctx, ast.Store)
         ):
+            other = True
+        elif (
+            isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler))
+            and node.name == "groupby"
+        ) or (isinstance(node, ast.MatchMapping) and node.rest == "groupby"):
             other = True
     return from_itertools or not other
 
