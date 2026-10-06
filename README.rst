@@ -315,6 +315,13 @@ There is no additional safety in using ``delattr`` if you know the attribute nam
 
 **B044**: `assert <generator_expression>` is always true. Did you forget `all()`?
 
+.. _B047:
+
+**B047**: Unreachable ``except`` handler. An earlier handler already catches a builtin
+exception that this one is a subclass of, e.g. ``except ValueError:`` after
+``except Exception:``, or a bare ``except:`` after ``except BaseException:``. Only builtin
+exceptions are checked, since the hierarchy of other classes isn't known from the source.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -517,6 +524,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B047: New check for ``except`` handlers that can never run because an earlier
+  handler already catches a builtin parent exception (#349)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)
