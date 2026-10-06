@@ -449,6 +449,55 @@ class AstPositionNode(Protocol):
     col_offset: int
 
 
+def _b031_module_groupby_is_itertools(module: ast.Module) -> bool:
+    """Whether a bare ``groupby`` is ``itertools.groupby`` or never bound.
+
+    Whole-module ``ast.walk``; nested scopes are intentionally not modeled.
+    """
+    from_itertools = False
+    other = False
+    for node in ast.walk(module):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.name == "groupby":
+                other = True
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                # Absolute ``from itertools import *`` binds ``groupby``.
+                # Other star imports do not. ``import groupby.sub`` does.
+                if alias.name == "*":
+                    if (
+                        isinstance(node, ast.ImportFrom)
+                        and node.level == 0
+                        and node.module == "itertools"
+                    ):
+                        from_itertools = True
+                    continue
+                bound = alias.asname or alias.name.split(".", 1)[0]
+                if bound != "groupby":
+                    continue
+                if (
+                    isinstance(node, ast.ImportFrom)
+                    and node.level == 0
+                    and node.module == "itertools"
+                    and alias.name == "groupby"
+                ):
+                    from_itertools = True
+                else:
+                    other = True
+        elif (
+            isinstance(node, ast.Name)
+            and node.id == "groupby"
+            and isinstance(node.ctx, ast.Store)
+        ):
+            other = True
+        elif (
+            isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler))
+            and node.name == "groupby"
+        ) or (isinstance(node, ast.MatchMapping) and node.rest == "groupby"):
+            other = True
+    return from_itertools or not other
+
+
 @attr.s
 class BugBearVisitor(ast.NodeVisitor):
     filename = attr.ib()
@@ -468,6 +517,8 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
     _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
     _b008_class_globals: list[set[str]] = attr.ib(factory=list, init=False)
+    # None until the enclosing module has been scanned for bindings of groupby.
+    _b031_bare_groupby_is_itertools: bool | None = attr.ib(default=None, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = attr.ib(default="")
@@ -1742,16 +1793,33 @@ class BugBearVisitor(ast.NodeVisitor):
             )
         return num_usages
 
+    def _b031_groupby_is_itertools(self) -> bool:
+        """Whether a bare ``groupby()`` in this module is ``itertools.groupby``."""
+        if self._b031_bare_groupby_is_itertools is None:
+            module = self.contexts[0].node if self.contexts else None
+            # No module to inspect: keep the historical report.
+            self._b031_bare_groupby_is_itertools = (
+                _b031_module_groupby_is_itertools(module)
+                if isinstance(module, ast.Module)
+                else True
+            )
+        return self._b031_bare_groupby_is_itertools
+
     def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
 
         We emit a warning when the generator returned by `groupby()` is used
         more than once inside a loop body or when it's used in a nested loop.
+        A bare ``groupby()`` counts only when that name is itertools or unbound.
         """
         # for <loop_node.target> in <loop_node.iter>: ...
         if isinstance(loop_node.iter, ast.Call):
             node = loop_node.iter
-            if (isinstance(node.func, ast.Name) and node.func.id in ("groupby",)) or (
+            if (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "groupby"
+                and self._b031_groupby_is_itertools()
+            ) or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "groupby"
                 and isinstance(node.func.value, ast.Name)
