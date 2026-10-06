@@ -315,6 +315,12 @@ There is no additional safety in using ``delattr`` if you know the attribute nam
 
 **B044**: `assert <generator_expression>` is always true. Did you forget `all()`?
 
+.. _B046:
+
+**B046**: Mutable value passed to ``dict.fromkeys()``. The same object is shared by every key,
+so changing it for one key changes it for all of them. Use a dict comprehension instead, e.g.
+``{key: [] for key in keys}``.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -517,6 +523,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B046: New check for ``dict.fromkeys()`` called with a mutable value, which is
+  shared by every key (#387)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)
