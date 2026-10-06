@@ -314,6 +314,10 @@ There is no additional safety in using ``delattr`` if you know the attribute nam
 .. _B044:
 
 **B044**: `assert <generator_expression>` is always true. Did you forget `all()`?
+Also reported for other values that are always truthy, such as a non-empty string
+(often a message without its condition, like ``assert "x must be positive"``), a
+non-zero number, an f-string with literal text, a non-empty list, set or dict literal,
+or a lambda.
 
 
 Opinionated warnings
@@ -517,6 +521,9 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B044: also report asserts on other always-true values, such as a message
+  without a condition (``assert "x must be positive"``), non-zero numbers,
+  f-strings, non-empty list/set/dict literals and lambdas (#534, #440)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)
