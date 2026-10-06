@@ -1211,8 +1211,9 @@ class BugBearVisitor(ast.NodeVisitor):
                             item_context.func.attr == "raises"
                             and isinstance(item_context.func.value, ast.Name)
                             and item_context.func.value.id == "pytest"
-                            and "match"
-                            not in (kwd.arg for kwd in item_context.keywords)
+                            and "match" not in (
+                                kwd.arg for kwd in item_context.keywords
+                            )
                         )
                     )
                 )
@@ -2262,8 +2263,7 @@ class BugBearVisitor(ast.NodeVisitor):
             or not getattr(class_type, "_fields", None)
             # or can't contain any ast subnodes that could be visited
             # See https://docs.python.org/3/library/ast.html#abstract-grammar
-            or class_type.__name__
-            in (
+            or class_type.__name__ in (
                 "alias",
                 "Constant",
                 "Global",
