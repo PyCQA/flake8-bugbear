@@ -17,6 +17,7 @@ dict.fromkeys(keys, collections.defaultdict(list))  # B046: 20
 dict.fromkeys(keys, collections.Counter())  # B046: 20
 OrderedDict.fromkeys(keys, [])  # B046: 27
 collections.OrderedDict.fromkeys(keys, [])  # B046: 39
+OrderedDict.fromkeys(keys, value=[])  # B046: 33
 dict.fromkeys(["a", "b"], [])  # B046: 26
 
 # good
@@ -29,5 +30,6 @@ dict.fromkeys(keys, tuple())
 dict.fromkeys(keys, frozenset())
 dict.fromkeys(keys, value)
 dict.fromkeys(keys, make_default())
+OrderedDict.fromkeys(keys, value=None)
 {key: [] for key in keys}
 other.fromkeys(keys, [])

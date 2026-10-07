@@ -2608,11 +2608,17 @@ class BugBearVisitor(ast.NodeVisitor):
             isinstance(node.func, ast.Attribute)
             and node.func.attr == "fromkeys"
             and ".".join(compose_call_path(node.func.value)) in B046_DICT_TYPES
-            and len(node.args) == 2
         ):
             return
 
-        value = node.args[1]
+        if len(node.args) == 2:
+            value = node.args[1]
+        elif len(node.args) == 1:
+            # OrderedDict.fromkeys() also takes the value as a keyword argument
+            value = next((kw.value for kw in node.keywords if kw.arg == "value"), None)
+        else:
+            return
+
         if isinstance(
             value,
             (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp),
