@@ -3214,9 +3214,10 @@ error_codes = {
     ),
     "B005": Error(
         message=(
-            "B005 Using .strip() with multi-character strings is misleading "
-            "the reader. It looks like stripping a substring. Move your "
-            "character set to a constant if this is deliberate. Use "
+            "B005 Using .strip() with a multi-character string that repeats "
+            "characters is misleading the reader. It looks like stripping a "
+            "substring, but the argument is treated as a set of characters. "
+            "Move your character set to a constant if this is deliberate. Use "
             ".replace(), .removeprefix(), .removesuffix(), or regular "
             "expressions to remove string fragments."
         )

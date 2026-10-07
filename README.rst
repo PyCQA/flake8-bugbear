@@ -87,8 +87,9 @@ results.  Use ``callable(x)`` for consistent results.
 
 .. _B005:
 
-**B005**: Using ``.strip()`` with multi-character strings is misleading
-the reader. It looks like stripping a substring. Move your
+**B005**: Using ``.strip()`` with a multi-character string that repeats
+characters is misleading the reader. It looks like stripping a substring,
+but the argument is treated as a set of characters. Move your
 character set to a constant if this is deliberate. Use
 ``.replace()``, ``.removeprefix()``, ``.removesuffix()`` or regular
 expressions to remove string fragments.
@@ -536,6 +537,8 @@ UNRELEASED
   in the same scope (#360).
 * B046: New check for ``dict.fromkeys()`` called with a mutable value, which is
   shared by every key (#387)
+* B005: say in the message that only strings with repeated characters are
+  reported, since ``.strip("abc")`` style character sets are fine (#91)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)
