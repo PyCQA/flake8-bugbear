@@ -762,6 +762,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b028(node)
         self.check_for_b034(node)
         self.check_for_b039(node)
+        self.check_for_b046(node)
         self.check_for_b905(node)
         self.check_for_b910(node)
         self.check_for_b911(node)
@@ -2615,6 +2616,31 @@ class BugBearVisitor(ast.NodeVisitor):
         if isinstance(node.test, ast.GeneratorExp):
             self.add_error("B044", node)
 
+    def check_for_b046(self, node: ast.Call) -> None:
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "fromkeys"
+            and ".".join(compose_call_path(node.func.value)) in B046_DICT_TYPES
+        ):
+            return
+
+        if len(node.args) == 2:
+            value = node.args[1]
+        elif len(node.args) == 1:
+            # OrderedDict.fromkeys() also takes the value as a keyword argument
+            value = next((kw.value for kw in node.keywords if kw.arg == "value"), None)
+        else:
+            return
+
+        if isinstance(
+            value,
+            (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp),
+        ) or (
+            isinstance(value, ast.Call)
+            and ".".join(compose_call_path(value.func)) in B006_MUTABLE_CALLS
+        ):
+            self.add_error("B046", value)
+
     def check_for_b909(self, node: ast.For) -> None:
         if isinstance(node.iter, ast.Name):
             name = _to_name_str(node.iter)
@@ -3127,6 +3153,11 @@ B019_CACHES = {
     "async_lru.alru_cache",
     "alru_cache",
 }
+B046_DICT_TYPES = {
+    "dict",
+    "OrderedDict",
+    "collections.OrderedDict",
+}
 B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
 B902_SELF = ["self"]  # it's a list because the first is preferred
 B902_CLS = ["cls", "klass"]  # ditto.
@@ -3417,6 +3448,13 @@ error_codes = {
         message=(
             "B045 Loop control variable {} overrides a variable in an enclosing loop. "
             "Use a different name for the inner loop variable."
+        )
+    ),
+    "B046": Error(
+        message=(
+            "B046 Mutable value passed to `dict.fromkeys()`. The same object is "
+            "shared by every key, so changing it for one key changes it for all of "
+            "them. Use a dict comprehension instead, e.g. `{{key: [] for key in keys}}`."
         )
     ),
     # Warnings disabled by default.

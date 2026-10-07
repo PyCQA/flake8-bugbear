@@ -325,6 +325,12 @@ Names beginning with an underscore are ignored to allow intentional discards.
 Separate function/class/comprehension scopes and a loop's ``else`` suite do not
 count as active enclosing loops.
 
+.. _B046:
+
+**B046**: Mutable value passed to ``dict.fromkeys()``. The same object is shared by every key,
+so changing it for one key changes it for all of them. Use a dict comprehension instead, e.g.
+``{key: [] for key in keys}``.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -529,6 +535,8 @@ UNRELEASED
 
 * B045: detect reuse of an enclosing loop's control variable in a nested loop
   in the same scope (#360).
+* B046: New check for ``dict.fromkeys()`` called with a mutable value, which is
+  shared by every key (#387)
 * B005: say in the message that only strings with repeated characters are
   reported, since ``.strip("abc")`` style character sets are fine (#91)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
