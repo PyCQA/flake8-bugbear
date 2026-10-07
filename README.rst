@@ -528,6 +528,9 @@ UNRELEASED
 
 * B045: detect reuse of an enclosing loop's control variable in a nested loop
   in the same scope (#360).
+* B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
+  module doesn't bind ``groupby`` to something else, such as its own
+  ``def groupby`` (#356)
 
 26.9.30
 ~~~~~~~
