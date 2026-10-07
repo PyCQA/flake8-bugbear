@@ -102,6 +102,66 @@ def _parse_eval_file(test: str, content: str) -> tuple[list[error], Namespace | 
     return expected, options
 
 
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("for i in xs:\n    for i in ys:\n        print(i)\n    print(i)", ["i"]),
+        (
+            "for i in xs:\n    for j in ys:\n        for i in zs:\n            print(i)",
+            ["i"],
+        ),
+        ("for i, j in xs:\n    for j, i in ys:\n        print(i, j)", ["j", "i"]),
+        ("for i in xs:\n    for first, (*i,) in ys:\n        print(i)", ["i"]),
+        (
+            "for i in xs:\n    if flag:\n        for i in ys:\n            print(i)",
+            ["i"],
+        ),
+        (
+            "async def f():\n    async for i in xs:\n"
+            "        for i in ys:\n            print(i)",
+            ["i"],
+        ),
+        (
+            "async def f():\n    for i in xs:\n"
+            "        async for i in ys:\n            print(i)",
+            ["i"],
+        ),
+        (
+            "for i in xs:\n    for i in ys:\n        for i in zs:\n            print(i)",
+            ["i", "i"],
+        ),
+        ("for i in xs:\n    for j in ys:\n        print(i, j)", []),
+        ("for i in xs:\n    print(i)\nfor i in ys:\n    print(i)", []),
+        ("for _ in xs:\n    for _ in ys:\n        pass", []),
+        ("for _unused in xs:\n    for _unused in ys:\n        pass", []),
+        ("for obj in xs:\n    for obj.attr in ys:\n        pass", []),
+        ("for i in xs:\n    for values[i] in ys:\n        pass", []),
+        ("for i in xs:\n    for values[[i for i in zs][0]] in ys:\n        pass", []),
+        ("for values[[i for i in zs][0]] in xs:\n    for i in ys:\n        pass", []),
+        ("for obj.attr in xs:\n    for obj in ys:\n        pass", []),
+        ("for i in xs:\n    values = [i for i in ys]", []),
+        ("for i in xs:\n    def f():\n        for i in ys:\n            print(i)", []),
+        (
+            "for i in xs:\n    async def f():\n"
+            "        async for i in ys:\n            print(i)",
+            [],
+        ),
+        ("for i in xs:\n    class C:\n        for i in ys:\n            print(i)", []),
+        ("for i in xs:\n    print(i)\nelse:\n    for i in ys:\n        print(i)", []),
+        (
+            "for i in xs:\n    for j in ys:\n        pass\n"
+            "    else:\n        for i in zs:\n            print(i)",
+            ["i"],
+        ),
+    ],
+)
+def test_nested_loop_bindings(source, expected):
+    visitor = BugBearVisitor(filename="example.py", lines=source.splitlines())
+    visitor.visit(ast.parse(source))
+    errors = [error for error in visitor.errors if error.message.startswith("B045")]
+    assert [error.vars[0] for error in errors] == expected
+
+
 class BugbearTestCase(unittest.TestCase):
     maxDiff = None
 

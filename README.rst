@@ -315,6 +315,15 @@ There is no additional safety in using ``delattr`` if you know the attribute nam
 
 **B044**: `assert <generator_expression>` is always true. Did you forget `all()`?
 
+.. _B045:
+
+**B045**: A loop control variable overrides a variable in an enclosing loop.
+Python loops do not create a new scope, so the inner loop overwrites the outer
+loop's value. Use different names for nested ``for`` and ``async for`` targets.
+Names beginning with an underscore are ignored to allow intentional discards.
+Separate function/class/comprehension scopes and a loop's ``else`` suite do not
+count as active enclosing loops.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -517,6 +526,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B045: detect reuse of an enclosing loop's control variable in a nested loop
+  in the same scope (#360).
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)
