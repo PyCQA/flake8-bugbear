@@ -87,8 +87,9 @@ results.  Use ``callable(x)`` for consistent results.
 
 .. _B005:
 
-**B005**: Using ``.strip()`` with multi-character strings is misleading
-the reader. It looks like stripping a substring. Move your
+**B005**: Using ``.strip()`` with a multi-character string that repeats
+characters is misleading the reader. It looks like stripping a substring,
+but the argument is treated as a set of characters. Move your
 character set to a constant if this is deliberate. Use
 ``.replace()``, ``.removeprefix()``, ``.removesuffix()`` or regular
 expressions to remove string fragments.
@@ -315,6 +316,21 @@ There is no additional safety in using ``delattr`` if you know the attribute nam
 
 **B044**: `assert <generator_expression>` is always true. Did you forget `all()`?
 
+.. _B045:
+
+**B045**: A loop control variable overrides a variable in an enclosing loop.
+Python loops do not create a new scope, so the inner loop overwrites the outer
+loop's value. Use different names for nested ``for`` and ``async for`` targets.
+Names beginning with an underscore are ignored to allow intentional discards.
+Separate function/class/comprehension scopes and a loop's ``else`` suite do not
+count as active enclosing loops.
+
+.. _B046:
+
+**B046**: Mutable value passed to ``dict.fromkeys()``. The same object is shared by every key,
+so changing it for one key changes it for all of them. Use a dict comprehension instead, e.g.
+``{key: [] for key in keys}``.
+
 .. _B047:
 
 **B047**: Unreachable ``except`` handler. An earlier handler already catches a builtin
@@ -524,6 +540,12 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B045: detect reuse of an enclosing loop's control variable in a nested loop
+  in the same scope (#360).
+* B046: New check for ``dict.fromkeys()`` called with a mutable value, which is
+  shared by every key (#387)
+* B005: say in the message that only strings with repeated characters are
+  reported, since ``.strip("abc")`` style character sets are fine (#91)
 * B047: New check for ``except`` handlers that can never run because an earlier
   handler already catches a builtin parent exception (#349)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the

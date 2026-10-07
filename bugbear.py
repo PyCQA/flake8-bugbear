@@ -762,6 +762,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b028(node)
         self.check_for_b034(node)
         self.check_for_b039(node)
+        self.check_for_b046(node)
         self.check_for_b905(node)
         self.check_for_b910(node)
         self.check_for_b911(node)
@@ -810,6 +811,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_For(self, node: ast.For) -> None:
+        self.check_for_b045(node)
         self.check_for_b007(node)
         self.check_for_b020(node)
         self.check_for_b023(node)
@@ -819,6 +821,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
+        self.check_for_b045(node)
         self.check_for_b023(node)
         self.generic_visit(node)
 
@@ -2633,9 +2636,45 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
         # no `def __init__` found, which is fine
 
+    def check_for_b045(self, node: ast.For | ast.AsyncFor) -> None:
+        # The stack belongs to the current scope: nested functions, classes,
+        # and comprehensions cannot overwrite an enclosing loop's binding.
+        outer_names = set()
+        for ancestor, child in zip(self.node_stack, self.node_stack[1:], strict=False):
+            if isinstance(ancestor, (ast.For, ast.AsyncFor)) and child in ancestor.body:
+                outer_names.update(names_from_assignments(ancestor.target))
+        for name in names_from_assignments(node.target):
+            if name in outer_names and not name.startswith("_"):
+                self.add_error("B045", node.target, name)
+
     def check_for_b044(self, node: ast.Assert) -> None:
         if isinstance(node.test, ast.GeneratorExp):
             self.add_error("B044", node)
+
+    def check_for_b046(self, node: ast.Call) -> None:
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "fromkeys"
+            and ".".join(compose_call_path(node.func.value)) in B046_DICT_TYPES
+        ):
+            return
+
+        if len(node.args) == 2:
+            value = node.args[1]
+        elif len(node.args) == 1:
+            # OrderedDict.fromkeys() also takes the value as a keyword argument
+            value = next((kw.value for kw in node.keywords if kw.arg == "value"), None)
+        else:
+            return
+
+        if isinstance(
+            value,
+            (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp),
+        ) or (
+            isinstance(value, ast.Call)
+            and ".".join(compose_call_path(value.func)) in B006_MUTABLE_CALLS
+        ):
+            self.add_error("B046", value)
 
     def check_for_b909(self, node: ast.For) -> None:
         if isinstance(node.iter, ast.Name):
@@ -3149,6 +3188,11 @@ B019_CACHES = {
     "async_lru.alru_cache",
     "alru_cache",
 }
+B046_DICT_TYPES = {
+    "dict",
+    "OrderedDict",
+    "collections.OrderedDict",
+}
 B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
 B902_SELF = ["self"]  # it's a list because the first is preferred
 B902_CLS = ["cls", "klass"]  # ditto.
@@ -3205,9 +3249,10 @@ error_codes = {
     ),
     "B005": Error(
         message=(
-            "B005 Using .strip() with multi-character strings is misleading "
-            "the reader. It looks like stripping a substring. Move your "
-            "character set to a constant if this is deliberate. Use "
+            "B005 Using .strip() with a multi-character string that repeats "
+            "characters is misleading the reader. It looks like stripping a "
+            "substring, but the argument is treated as a set of characters. "
+            "Move your character set to a constant if this is deliberate. Use "
             ".replace(), .removeprefix(), .removesuffix(), or regular "
             "expressions to remove string fragments."
         )
@@ -3432,6 +3477,19 @@ error_codes = {
     "B044": Error(
         message=(
             "B044 `assert <generator_expression>` is always true. Did you forget `all()`?"
+        )
+    ),
+    "B045": Error(
+        message=(
+            "B045 Loop control variable {} overrides a variable in an enclosing loop. "
+            "Use a different name for the inner loop variable."
+        )
+    ),
+    "B046": Error(
+        message=(
+            "B046 Mutable value passed to `dict.fromkeys()`. The same object is "
+            "shared by every key, so changing it for one key changes it for all of "
+            "them. Use a dict comprehension instead, e.g. `{{key: [] for key in keys}}`."
         )
     ),
     "B047": Error(
