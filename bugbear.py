@@ -810,6 +810,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_For(self, node: ast.For) -> None:
+        self.check_for_b045(node)
         self.check_for_b007(node)
         self.check_for_b020(node)
         self.check_for_b023(node)
@@ -819,6 +820,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
+        self.check_for_b045(node)
         self.check_for_b023(node)
         self.generic_visit(node)
 
@@ -2598,6 +2600,17 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
         # no `def __init__` found, which is fine
 
+    def check_for_b045(self, node: ast.For | ast.AsyncFor) -> None:
+        # The stack belongs to the current scope: nested functions, classes,
+        # and comprehensions cannot overwrite an enclosing loop's binding.
+        outer_names = set()
+        for ancestor, child in zip(self.node_stack, self.node_stack[1:], strict=False):
+            if isinstance(ancestor, (ast.For, ast.AsyncFor)) and child in ancestor.body:
+                outer_names.update(names_from_assignments(ancestor.target))
+        for name in names_from_assignments(node.target):
+            if name in outer_names and not name.startswith("_"):
+                self.add_error("B045", node.target, name)
+
     def check_for_b044(self, node: ast.Assert) -> None:
         if isinstance(node.test, ast.GeneratorExp):
             self.add_error("B044", node)
@@ -3398,6 +3411,12 @@ error_codes = {
     "B044": Error(
         message=(
             "B044 `assert <generator_expression>` is always true. Did you forget `all()`?"
+        )
+    ),
+    "B045": Error(
+        message=(
+            "B045 Loop control variable {} overrides a variable in an enclosing loop. "
+            "Use a different name for the inner loop variable."
         )
     ),
     # Warnings disabled by default.
