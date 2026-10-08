@@ -1,5 +1,10 @@
 import ast
 
+import libcst
+import libcst as cst
+from libcst import CSTTransformer
+from libcst import CSTVisitor as Visitor
+
 # error if method name starts with `visit_`, the type is a valid `ast` type
 # which has subfields, and contains no call to a method name containing `visit`
 # anywhere in it's body
@@ -81,3 +86,61 @@ def visit_Num(): ...
 
 
 def visit_Str(): ...
+
+
+# methods of ast visitors are checked
+class AstVisitor(ast.NodeVisitor):
+    def visit_For(self, node): ...  # B906: 4
+
+
+# a base we can't resolve might be an ast visitor, so it's still checked
+class SubVisitor(AstVisitor):
+    def visit_For(self, node): ...  # B906: 4
+
+
+# libcst visitors have no generic_visit and visit children automatically
+class LibcstVisitor(libcst.CSTVisitor):
+    def visit_ClassDef(self, node): ...
+
+
+class AliasedLibcstVisitor(cst.CSTVisitor):
+    def visit_For(self, node): ...
+
+
+class ImportedLibcstTransformer(CSTTransformer):
+    def visit_If(self, node): ...
+
+
+class ImportedAliasedLibcstVisitor(Visitor):
+    def visit_While(self, node): ...
+
+
+# a name shadowed in the scope where the class is defined is not the
+# libcst import, so these are still checked (see #590 review)
+def _shadowed_libcst():
+    libcst = object()
+
+    class ShadowedVisitor(libcst.CSTVisitor):
+        def visit_For(self, node): ...  # B906: 8
+
+
+def _shadowed_visitor(Visitor=None):
+    class ParamShadowedVisitor(Visitor):
+        def visit_For(self, node): ...  # B906: 8
+
+
+# rebinding at module scope after the import also shadows it; classes
+# defined before a rebinding (above) are unaffected, this one is not
+cst = object()
+
+
+class ReboundAliasedVisitor(cst.CSTVisitor):
+    def visit_For(self, node): ...  # B906: 4
+
+
+# an enclosing class body is in scope for a nested class's bases
+class OuterShadow:
+    CSTTransformer = object()
+
+    class InnerVisitor(CSTTransformer):
+        def visit_For(self, node): ...  # B906: 8
