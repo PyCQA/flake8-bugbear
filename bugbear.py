@@ -513,6 +513,9 @@ class BugBearVisitor(ast.NodeVisitor):
     _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
     _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
+    # Local names bound to the `libcst` module and to names imported from it.
+    _b906_libcst_modules: set[str] = attr.ib(factory=set, init=False)
+    _b906_libcst_names: set[str] = attr.ib(factory=set, init=False)
     # None marks an imported name that has since been rebound at module scope.
     _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
     _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
@@ -990,6 +993,9 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_Import(self, node: ast.Import) -> None:
         self.check_for_b005(node)
+        for name in node.names:
+            if name.name == "libcst" or name.name.startswith("libcst."):
+                self._b906_libcst_modules.add(name.asname or "libcst")
         if self.b008_b039_extend_immutable_calls and self._b008_in_module_scope():
             for name in node.names:
                 bound_name = name.asname or name.name.partition(".")[0]
@@ -1007,6 +1013,14 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self.check_for_b005(node)
+        if (
+            node.level == 0
+            and node.module is not None
+            and (node.module == "libcst" or node.module.startswith("libcst."))
+        ):
+            self._b906_libcst_names.update(
+                name.asname or name.name for name in node.names
+            )
         if self.b008_b039_extend_immutable_calls and self._b008_in_module_scope():
             for name in node.names:
                 if name.name == "*":
@@ -2317,6 +2331,9 @@ class BugBearVisitor(ast.NodeVisitor):
         if not node.name.startswith("visit_"):
             return
 
+        if self._b906_in_libcst_visitor():
+            return
+
         # extract what's visited
         class_name = node.name[len("visit_") :]
 
@@ -2359,6 +2376,27 @@ class BugBearVisitor(ast.NodeVisitor):
                 break
         else:
             self.add_error("B906", node)
+
+    def _b906_in_libcst_visitor(self) -> bool:
+        """Whether the function is a method of a class that directly inherits from
+        libcst (e.g. ``libcst.CSTVisitor``). libcst visitors have no
+        ``generic_visit`` and visit children automatically, so B906 does not apply.
+        """
+        if len(self.contexts) < 2 or not isinstance(
+            self.contexts[-2].node, ast.ClassDef
+        ):
+            return False
+        for base in self.contexts[-2].node.bases:
+            root = base
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            if not isinstance(root, ast.Name):
+                continue
+            if root is base and root.id in self._b906_libcst_names:
+                return True
+            if root is not base and root.id in self._b906_libcst_modules:
+                return True
+        return False
 
     def check_for_b907(self, node: ast.JoinedStr) -> None:  # noqa: C901
         quote_marks = "'\""
