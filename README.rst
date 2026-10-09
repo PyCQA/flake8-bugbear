@@ -540,6 +540,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B906: don't flag ``visit_`` methods of libcst visitors (classes inheriting
+  from ``libcst``), which have no ``generic_visit`` (#359)
 * B045: detect reuse of an enclosing loop's control variable in a nested loop
   in the same scope (#360).
 * B046: New check for ``dict.fromkeys()`` called with a mutable value, which is
