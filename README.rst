@@ -331,6 +331,13 @@ count as active enclosing loops.
 so changing it for one key changes it for all of them. Use a dict comprehension instead, e.g.
 ``{key: [] for key in keys}``.
 
+.. _B047:
+
+**B047**: Unreachable ``except`` handler. An earlier handler already catches a builtin
+exception that this one is a subclass of, e.g. ``except ValueError:`` after
+``except Exception:``, or a bare ``except:`` after ``except BaseException:``. Only builtin
+exceptions are checked, since the hierarchy of other classes isn't known from the source.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -539,6 +546,8 @@ UNRELEASED
   shared by every key (#387)
 * B005: say in the message that only strings with repeated characters are
   reported, since ``.strip("abc")`` style character sets are fine (#91)
+* B047: New check for ``except`` handlers that can never run because an earlier
+  handler already catches a builtin parent exception (#349)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)

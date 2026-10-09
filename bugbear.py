@@ -914,6 +914,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_Try(self, node: ast.Try | ast.TryStar) -> None:
         self.check_for_b012(node)
         self.check_for_b025(node)
+        self.check_for_b047(node)
         self.generic_visit(node)
 
     def visit_TryStar(self, node: ast.TryStar) -> None:
@@ -2212,6 +2213,40 @@ class BugBearVisitor(ast.NodeVisitor):
         for duplicate in duplicates:
             self.add_error("B025", node, duplicate, self.in_trystar)
 
+    def check_for_b047(self, node: ast.Try | ast.TryStar) -> None:
+        # Only builtin exceptions are checked, since we can't know the class
+        # hierarchy of anything else from the AST.
+        caught: list[tuple[str, type]] = []
+        for handler in node.handlers:
+            if handler.type is None:
+                # a bare `except:` catches the same as `except BaseException:`
+                names = ["BaseException"]
+            else:
+                names = [
+                    e.id
+                    for e in _flatten_excepthandler(handler.type)
+                    if isinstance(e, ast.Name)
+                ]
+
+            current = []
+            for name in names:
+                exc = getattr(builtins, name, None)
+                if not (
+                    isinstance(exc, type) and _typesafe_issubclass(exc, BaseException)
+                ):
+                    continue
+                for caught_name, caught_exc in caught:
+                    # the same name caught twice is reported by B025
+                    if (
+                        name != caught_name or handler.type is None
+                    ) and _typesafe_issubclass(exc, caught_exc):
+                        self.add_error(
+                            "B047", handler, name, caught_name, self.in_trystar
+                        )
+                        break
+                current.append((name, exc))
+            caught.extend(current)
+
     @staticmethod
     def _is_infinite_iterator(node: ast.expr) -> bool:
         if not (
@@ -3455,6 +3490,13 @@ error_codes = {
             "B046 Mutable value passed to `dict.fromkeys()`. The same object is "
             "shared by every key, so changing it for one key changes it for all of "
             "them. Use a dict comprehension instead, e.g. `{{key: [] for key in keys}}`."
+        )
+    ),
+    "B047": Error(
+        message=(
+            "B047 `{0}` is never caught by this handler, since the earlier "
+            "`except{2} {1}` already catches it. Reorder the handlers or remove "
+            "the unreachable one."
         )
     ),
     # Warnings disabled by default.
