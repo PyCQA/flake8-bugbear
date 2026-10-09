@@ -42,6 +42,14 @@ except OSError:
 except IOError:  # B047: 0, "IOError", "OSError", ""
     pass
 
+# starred tuples are expanded
+try:
+    pass
+except Exception:
+    pass
+except (*(ValueError,),):  # B013: 0, "ValueError", "" # B047: 0, "ValueError", "Exception", ""
+    pass
+
 # good
 try:
     pass

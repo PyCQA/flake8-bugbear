@@ -2221,12 +2221,12 @@ class BugBearVisitor(ast.NodeVisitor):
             if handler.type is None:
                 # a bare `except:` catches the same as `except BaseException:`
                 names = ["BaseException"]
-            elif isinstance(handler.type, ast.Tuple):
-                names = [e.id for e in handler.type.elts if isinstance(e, ast.Name)]
-            elif isinstance(handler.type, ast.Name):
-                names = [handler.type.id]
             else:
-                continue
+                names = [
+                    e.id
+                    for e in _flatten_excepthandler(handler.type)
+                    if isinstance(e, ast.Name)
+                ]
 
             current = []
             for name in names:
