@@ -2648,8 +2648,37 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.add_error("B045", node.target, name)
 
     def check_for_b044(self, node: ast.Assert) -> None:
-        if isinstance(node.test, ast.GeneratorExp):
-            self.add_error("B044", node)
+        test = node.test
+        if isinstance(test, ast.GeneratorExp):
+            self.add_error("B044", node, "generator_expression", "`all()`")
+        elif isinstance(test, ast.Lambda):
+            self.add_error("B044", node, "lambda", "to call it")
+        elif isinstance(test, ast.Constant):
+            # `assert False` is B011, and `assert True` is left alone on purpose
+            value = test.value
+            if isinstance(value, (str, bytes)) and value:
+                self.add_error("B044", node, "non-empty string", "the condition")
+            elif (
+                isinstance(value, (int, float, complex))
+                and not isinstance(value, bool)
+                and value
+            ):
+                self.add_error("B044", node, "non-zero number", "the condition")
+        elif isinstance(test, ast.JoinedStr):
+            if any(
+                isinstance(part, ast.Constant) and part.value for part in test.values
+            ):
+                self.add_error("B044", node, "f-string", "the condition")
+        elif isinstance(test, (ast.List, ast.Set)):
+            # a starred element like `[*a]` could be empty
+            if any(not isinstance(elt, ast.Starred) for elt in test.elts):
+                kind = f"non-empty {type(test).__name__.lower()}"
+                self.add_error("B044", node, kind, "the condition")
+        elif isinstance(test, ast.Dict):
+            # a `None` key is a `**a` unpacking, which could be empty
+            if any(key is not None for key in test.keys):
+                self.add_error("B044", node, "non-empty dict", "the condition")
+        # non-empty tuples are already reported by pyflakes (F631)
 
     def check_for_b046(self, node: ast.Call) -> None:
         if not (
@@ -3474,11 +3503,7 @@ error_codes = {
             "it is not any safer than normal property access."
         )
     ),
-    "B044": Error(
-        message=(
-            "B044 `assert <generator_expression>` is always true. Did you forget `all()`?"
-        )
-    ),
+    "B044": Error(message="B044 `assert <{0}>` is always true. Did you forget {1}?"),
     "B045": Error(
         message=(
             "B045 Loop control variable {} overrides a variable in an enclosing loop. "
