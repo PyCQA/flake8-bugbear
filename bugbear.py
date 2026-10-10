@@ -762,6 +762,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.check_for_b028(node)
         self.check_for_b034(node)
         self.check_for_b039(node)
+        self.check_for_b046(node)
         self.check_for_b905(node)
         self.check_for_b910(node)
         self.check_for_b911(node)
@@ -810,6 +811,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_For(self, node: ast.For) -> None:
+        self.check_for_b045(node)
         self.check_for_b007(node)
         self.check_for_b020(node)
         self.check_for_b023(node)
@@ -819,6 +821,7 @@ class BugBearVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
+        self.check_for_b045(node)
         self.check_for_b023(node)
         self.generic_visit(node)
 
@@ -911,6 +914,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def visit_Try(self, node: ast.Try | ast.TryStar) -> None:
         self.check_for_b012(node)
         self.check_for_b025(node)
+        self.check_for_b047(node)
         self.generic_visit(node)
 
     def visit_TryStar(self, node: ast.TryStar) -> None:
@@ -2209,6 +2213,40 @@ class BugBearVisitor(ast.NodeVisitor):
         for duplicate in duplicates:
             self.add_error("B025", node, duplicate, self.in_trystar)
 
+    def check_for_b047(self, node: ast.Try | ast.TryStar) -> None:
+        # Only builtin exceptions are checked, since we can't know the class
+        # hierarchy of anything else from the AST.
+        caught: list[tuple[str, type]] = []
+        for handler in node.handlers:
+            if handler.type is None:
+                # a bare `except:` catches the same as `except BaseException:`
+                names = ["BaseException"]
+            else:
+                names = [
+                    e.id
+                    for e in _flatten_excepthandler(handler.type)
+                    if isinstance(e, ast.Name)
+                ]
+
+            current = []
+            for name in names:
+                exc = getattr(builtins, name, None)
+                if not (
+                    isinstance(exc, type) and _typesafe_issubclass(exc, BaseException)
+                ):
+                    continue
+                for caught_name, caught_exc in caught:
+                    # the same name caught twice is reported by B025
+                    if (
+                        name != caught_name or handler.type is None
+                    ) and _typesafe_issubclass(exc, caught_exc):
+                        self.add_error(
+                            "B047", handler, name, caught_name, self.in_trystar
+                        )
+                        break
+                current.append((name, exc))
+            caught.extend(current)
+
     @staticmethod
     def _is_infinite_iterator(node: ast.expr) -> bool:
         if not (
@@ -2598,6 +2636,17 @@ class BugBearVisitor(ast.NodeVisitor):
                 return
         # no `def __init__` found, which is fine
 
+    def check_for_b045(self, node: ast.For | ast.AsyncFor) -> None:
+        # The stack belongs to the current scope: nested functions, classes,
+        # and comprehensions cannot overwrite an enclosing loop's binding.
+        outer_names = set()
+        for ancestor, child in zip(self.node_stack, self.node_stack[1:], strict=False):
+            if isinstance(ancestor, (ast.For, ast.AsyncFor)) and child in ancestor.body:
+                outer_names.update(names_from_assignments(ancestor.target))
+        for name in names_from_assignments(node.target):
+            if name in outer_names and not name.startswith("_"):
+                self.add_error("B045", node.target, name)
+
     def check_for_b044(self, node: ast.Assert) -> None:
         test = node.test
         if isinstance(test, ast.GeneratorExp):
@@ -2630,6 +2679,31 @@ class BugBearVisitor(ast.NodeVisitor):
             if any(key is not None for key in test.keys):
                 self.add_error("B044", node, "non-empty dict", "the condition")
         # non-empty tuples are already reported by pyflakes (F631)
+
+    def check_for_b046(self, node: ast.Call) -> None:
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "fromkeys"
+            and ".".join(compose_call_path(node.func.value)) in B046_DICT_TYPES
+        ):
+            return
+
+        if len(node.args) == 2:
+            value = node.args[1]
+        elif len(node.args) == 1:
+            # OrderedDict.fromkeys() also takes the value as a keyword argument
+            value = next((kw.value for kw in node.keywords if kw.arg == "value"), None)
+        else:
+            return
+
+        if isinstance(
+            value,
+            (ast.List, ast.Dict, ast.Set, ast.ListComp, ast.DictComp, ast.SetComp),
+        ) or (
+            isinstance(value, ast.Call)
+            and ".".join(compose_call_path(value.func)) in B006_MUTABLE_CALLS
+        ):
+            self.add_error("B046", value)
 
     def check_for_b909(self, node: ast.For) -> None:
         if isinstance(node.iter, ast.Name):
@@ -3143,6 +3217,11 @@ B019_CACHES = {
     "async_lru.alru_cache",
     "alru_cache",
 }
+B046_DICT_TYPES = {
+    "dict",
+    "OrderedDict",
+    "collections.OrderedDict",
+}
 B902_IMPLICIT_CLASSMETHODS = {"__new__", "__init_subclass__", "__class_getitem__"}
 B902_SELF = ["self"]  # it's a list because the first is preferred
 B902_CLS = ["cls", "klass"]  # ditto.
@@ -3199,9 +3278,10 @@ error_codes = {
     ),
     "B005": Error(
         message=(
-            "B005 Using .strip() with multi-character strings is misleading "
-            "the reader. It looks like stripping a substring. Move your "
-            "character set to a constant if this is deliberate. Use "
+            "B005 Using .strip() with a multi-character string that repeats "
+            "characters is misleading the reader. It looks like stripping a "
+            "substring, but the argument is treated as a set of characters. "
+            "Move your character set to a constant if this is deliberate. Use "
             ".replace(), .removeprefix(), .removesuffix(), or regular "
             "expressions to remove string fragments."
         )
@@ -3424,6 +3504,26 @@ error_codes = {
         )
     ),
     "B044": Error(message="B044 `assert <{0}>` is always true. Did you forget {1}?"),
+    "B045": Error(
+        message=(
+            "B045 Loop control variable {} overrides a variable in an enclosing loop. "
+            "Use a different name for the inner loop variable."
+        )
+    ),
+    "B046": Error(
+        message=(
+            "B046 Mutable value passed to `dict.fromkeys()`. The same object is "
+            "shared by every key, so changing it for one key changes it for all of "
+            "them. Use a dict comprehension instead, e.g. `{{key: [] for key in keys}}`."
+        )
+    ),
+    "B047": Error(
+        message=(
+            "B047 `{0}` is never caught by this handler, since the earlier "
+            "`except{2} {1}` already catches it. Reorder the handlers or remove "
+            "the unreachable one."
+        )
+    ),
     # Warnings disabled by default.
     "B901": Error(
         message=(
