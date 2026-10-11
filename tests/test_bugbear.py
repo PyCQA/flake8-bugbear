@@ -162,6 +162,33 @@ def test_nested_loop_bindings(source, expected):
     assert [error.vars[0] for error in errors] == expected
 
 
+@pytest.mark.parametrize(
+    "star",
+    [
+        "",
+        pytest.param(
+            "*",
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 11), reason="except* requires 3.11"
+            ),
+        ),
+    ],
+)
+def test_b025_message(star):
+    source = (
+        f"try:\n    pass\nexcept{star} ValueError:\n    pass\n"
+        f"except{star} ValueError:\n    pass\n"
+    )
+    bbc = BugBearChecker(
+        tree=ast.parse(source), filename="example.py", lines=source.splitlines(True)
+    )
+    assert [e[2] for e in bbc.run()] == [
+        "B025 Exception `ValueError` has been caught multiple times. Only the first"
+        f" except{star} ValueError will be considered and all other except{star}"
+        " ValueError catches can be safely removed."
+    ]
+
+
 class BugbearTestCase(unittest.TestCase):
     maxDiff = None
 
