@@ -554,7 +554,8 @@ UNRELEASED
   handler already catches a builtin parent exception (#349)
 * B044: also report asserts on other always-true values, such as a message
   without a condition (``assert "x must be positive"``), non-zero numbers,
-  f-strings, non-empty list/set/dict literals and lambdas (#534, #440)
+  f-strings with literal text, non-empty list/set/dict literals and lambdas
+  (#534, #440)
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)

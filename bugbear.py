@@ -373,6 +373,29 @@ def _to_name_str(node: ast.expr | None) -> str | None:
         return None
 
 
+def _truthy_constant_kind(node: ast.expr) -> str | None:
+    """Describe a constant that is always truthy, like `"x"` or `-1`."""
+    if (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, (ast.UAdd, ast.USub))
+        and isinstance(node.operand, ast.Constant)
+        and not isinstance(node.operand.value, (str, bytes))
+    ):
+        node = node.operand
+    if not isinstance(node, ast.Constant) or not node.value:
+        return None
+    if isinstance(node.value, str):
+        return "non-empty string"
+    if isinstance(node.value, bytes):
+        return "non-empty bytes"
+    # `assert False` is B011, and `assert True` is left alone on purpose
+    if isinstance(node.value, (int, float, complex)) and not isinstance(
+        node.value, bool
+    ):
+        return "non-zero number"
+    return None
+
+
 def names_from_assignments(assign_target: ast.expr) -> Iterator[str]:
     if isinstance(assign_target, ast.Name):
         yield assign_target.id
@@ -2653,17 +2676,8 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B044", node, "generator_expression", "`all()`")
         elif isinstance(test, ast.Lambda):
             self.add_error("B044", node, "lambda", "to call it")
-        elif isinstance(test, ast.Constant):
-            # `assert False` is B011, and `assert True` is left alone on purpose
-            value = test.value
-            if isinstance(value, (str, bytes)) and value:
-                self.add_error("B044", node, "non-empty string", "the condition")
-            elif (
-                isinstance(value, (int, float, complex))
-                and not isinstance(value, bool)
-                and value
-            ):
-                self.add_error("B044", node, "non-zero number", "the condition")
+        elif kind := _truthy_constant_kind(test):
+            self.add_error("B044", node, kind, "the condition")
         elif isinstance(test, ast.JoinedStr):
             if any(
                 isinstance(part, ast.Constant) and part.value for part in test.values
