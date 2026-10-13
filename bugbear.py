@@ -14,6 +14,7 @@ from functools import lru_cache
 from keyword import iskeyword
 from typing import (
     Any,
+    Callable,
     Dict,
     Iterable,
     Iterator,
@@ -472,6 +473,183 @@ class AstPositionNode(Protocol):
     col_offset: int
 
 
+def _b906_is_libcst_module(module: str | None, level: int) -> bool:
+    return (
+        level == 0
+        and module is not None
+        and (module == "libcst" or module.startswith("libcst."))
+    )
+
+
+def _b906_import_binding(alias: ast.alias) -> tuple[str, str | None]:
+    """``(bound name, libcst kind)`` for an ``import`` alias; kind is
+    ``"module"`` for ``import libcst[.sub] [as x]``, else ``None``."""
+    bound = alias.asname or alias.name.partition(".")[0]
+    kind = "module" if _b906_is_libcst_module(alias.name, 0) else None
+    return bound, kind
+
+
+def _b906_importfrom_binding(
+    node: ast.ImportFrom, alias: ast.alias
+) -> tuple[str, str | None]:
+    kind = "name" if _b906_is_libcst_module(node.module, node.level) else None
+    return alias.asname or alias.name, kind
+
+
+def _b906_named_binding(node: ast.AST) -> str:
+    """Name bound by a ``match``/``except`` node itself ('' if none)."""
+    if isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler)):
+        return node.name or ""
+    if isinstance(node, ast.MatchMapping):
+        return node.rest or ""
+    return ""
+
+
+def _b906_scope_bindings(  # noqa: C901
+    statements: list[ast.stmt], cutoff: ast.AST, base: dict[str, str | None]
+) -> dict[str, str | None]:
+    """Resolve names in one scope body up to (excluding) ``cutoff``.
+
+    Walks one scope's statements in order without descending into nested
+    function/class/lambda/comprehension scopes (their bindings are their
+    own; eager comprehensions only leak walruses, handled explicitly).
+    Each name maps to ``"module"``/``"name"`` if its latest binding is a
+    libcst import (see :func:`_b906_import_binding`), else ``None``. Uses
+    latest binding wins, so a rebinding shadows an earlier import and a
+    later import shadows an earlier rebinding. Bare annotations
+    (``x: T``) do not bind. ``global``/``nonlocal`` are not modelled:
+    they only occur inside functions, whose scopes are never resolved.
+    """
+    result = dict(base)
+
+    def bind(name: str, kind: str | None) -> None:
+        result[name] = kind
+
+    def visit_definition(
+        node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+    ) -> None:
+        # Only the parts evaluated in this scope, then the name binding.
+        # Lambdas bind no name in this scope (handled by the caller).
+        name: str | None = None
+        if isinstance(node, ast.ClassDef):
+            parts: list[ast.AST] = [
+                *node.decorator_list,
+                *node.bases,
+                *node.keywords,
+            ]
+            name = node.name
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            parts = list(_b906_definition_exprs(node))
+            name = node.name
+        else:
+            parts = list(_b906_definition_exprs(node))
+        for part in parts:
+            visit(part)
+        if name is not None:
+            bind(name, None)
+
+    def visit_comprehension(
+        node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp,
+    ) -> None:
+        # Targets are comprehension-local; only walruses in the iterated/
+        # element expressions bind in this scope.
+        for generator in node.generators:
+            visit(generator.iter)
+            for condition in generator.ifs:
+                visit(condition)
+        if isinstance(node, ast.DictComp):
+            if node.key is not None:
+                visit(node.key)
+            visit(node.value)
+        else:
+            visit(node.elt)
+
+    def visit(node: ast.AST) -> None:
+        if node is cutoff:
+            return
+        if isinstance(node, FUNCTION_NODES + (ast.ClassDef,)):
+            visit_definition(node)
+            return
+        if isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
+            visit_comprehension(node)
+            return
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                bound, kind = _b906_import_binding(alias)
+                bind(bound, kind)
+            return
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                bound, kind = _b906_importfrom_binding(node, alias)
+                bind(bound, kind)
+            return
+        if isinstance(node, ast.AnnAssign) and node.value is None:
+            visit(node.annotation)
+            if not isinstance(node.target, ast.Name):
+                visit(node.target)
+            return
+        if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
+            visit(node.value)
+            bind(node.target.id, None)
+            return
+        if isinstance(node, ast.Name):
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                bind(node.id, None)
+            return
+        if isinstance(
+            node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar, ast.MatchMapping)
+        ):
+            bound = _b906_named_binding(node)
+            if bound:
+                bind(bound, None)
+            for child in ast.iter_child_nodes(node):
+                visit(child)
+            return
+        for child in ast.iter_child_nodes(node):
+            visit(child)
+
+    for stmt in statements:
+        if stmt is cutoff:
+            break
+        visit(stmt)
+    return result
+
+
+def _b906_definition_exprs(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+) -> list[ast.expr]:
+    """Expressions of a function/lambda evaluated in the enclosing scope."""
+    if isinstance(node, ast.Lambda):
+        return [
+            default
+            for default in (*node.args.defaults, *node.args.kw_defaults)
+            if default is not None
+        ]
+    exprs: list[ast.expr] = list(node.decorator_list)
+    args = [
+        *node.args.posonlyargs,
+        *node.args.args,
+        *node.args.kwonlyargs,
+    ]
+    if node.args.vararg is not None:
+        args.append(node.args.vararg)
+    if node.args.kwarg is not None:
+        args.append(node.args.kwarg)
+    exprs.extend(arg.annotation for arg in args if arg.annotation is not None)
+    exprs.extend(
+        default
+        for default in (*node.args.defaults, *node.args.kw_defaults)
+        if default is not None
+    )
+    if node.returns is not None:
+        exprs.append(node.returns)
+    return exprs
+
+
 def _b031_module_groupby_is_itertools(module: ast.Module) -> bool:
     """Whether a bare ``groupby`` is ``itertools.groupby`` or never bound.
 
@@ -536,6 +714,12 @@ class BugBearVisitor(ast.NodeVisitor):
     _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
     _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
+    # Module-scope libcst bindings from `_b906_scope_bindings` (name ->
+    # ``"module"``/``"name"``/``None``), resolved lazily per class so the
+    # position cutoff is the class being checked; ``None`` until known.
+    _b906_module_libcst: Callable[[ast.AST], dict[str, str | None]] | None = attr.ib(
+        default=None, init=False
+    )
     # None marks an imported name that has since been rebound at module scope.
     _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
     _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
@@ -2375,6 +2559,9 @@ class BugBearVisitor(ast.NodeVisitor):
         if not node.name.startswith("visit_"):
             return
 
+        if self._b906_in_libcst_visitor():
+            return
+
         # extract what's visited
         class_name = node.name[len("visit_") :]
 
@@ -2417,6 +2604,80 @@ class BugBearVisitor(ast.NodeVisitor):
                 break
         else:
             self.add_error("B906", node)
+
+    def _b906_libcst_bindings_for(
+        self, class_node: ast.ClassDef
+    ) -> dict[str, str | None]:
+        """Libcst bindings visible where ``class_node`` is defined.
+
+        The class's bases are evaluated in the enclosing scope, so resolve
+        them sequentially: module bindings up to the outermost enclosing
+        class, then each enclosing class body up to the next class. The
+        class's own body is not consulted -- it is not in scope for its
+        bases. Classes inside functions/lambdas/comprehensions are left
+        unresolved (still checked): their bases see function locals, which
+        we do not model, so a local ``libcst = other`` must not be credited
+        as the import (the shadowing issue raised on #590).
+        """
+        empty: dict[str, str | None] = {}
+        if len(self.contexts) < 2 or not isinstance(self.contexts[0].node, ast.Module):
+            return empty
+        if not all(
+            isinstance(context.node, (ast.Module, ast.ClassDef))
+            for context in self.contexts[:-2]
+        ):
+            return empty
+        module = cast(ast.Module, self.contexts[0].node)
+        # Enclosing classes only: ``contexts[-2]`` is the class itself and
+        # ``contexts[-1]`` is the method, neither is an enclosing scope for
+        # the class's bases (its own body is not in scope for them).
+        enclosing = [
+            cast(ast.ClassDef, context.node) for context in self.contexts[1:-2]
+        ]
+        if self._b906_module_libcst is None:
+            cache: dict[int, dict[str, str | None]] = {}
+
+            def module_bindings(cutoff: ast.AST) -> dict[str, str | None]:
+                key = id(cutoff)
+                if key not in cache:
+                    cache[key] = _b906_scope_bindings(module.body, cutoff, {})
+                return cache[key]
+
+            self._b906_module_libcst = module_bindings
+        bindings = self._b906_module_libcst(enclosing[0] if enclosing else class_node)
+        for index, outer in enumerate(enclosing):
+            cutoff = enclosing[index + 1] if index + 1 < len(enclosing) else class_node
+            bindings = _b906_scope_bindings(outer.body, cutoff, bindings)
+        return bindings
+
+    def _b906_in_libcst_visitor(self) -> bool:
+        """Whether the function is a method of a class that directly inherits from
+        libcst (e.g. ``libcst.CSTVisitor``). libcst visitors have no
+        ``generic_visit`` and visit children automatically, so B906 does not apply.
+
+        The base names must resolve to a libcst import in the scope where
+        the class is defined; a name shadowed or rebound there (the Copilot
+        review on #590) does not count.
+        """
+        if len(self.contexts) < 2 or not isinstance(
+            self.contexts[-2].node, ast.ClassDef
+        ):
+            return False
+        class_node = cast(ast.ClassDef, self.contexts[-2].node)
+        bindings = self._b906_libcst_bindings_for(class_node)
+        if not bindings:
+            return False
+        for base in class_node.bases:
+            root = base
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            if not isinstance(root, ast.Name):
+                continue
+            if root is base and bindings.get(root.id) == "name":
+                return True
+            if root is not base and bindings.get(root.id) == "module":
+                return True
+        return False
 
     def check_for_b907(self, node: ast.JoinedStr) -> None:  # noqa: C901
         quote_marks = "'\""
