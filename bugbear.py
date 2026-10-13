@@ -373,6 +373,29 @@ def _to_name_str(node: ast.expr | None) -> str | None:
         return None
 
 
+def _truthy_constant_kind(node: ast.expr) -> str | None:
+    """Describe a constant that is always truthy, like `"x"` or `-1`."""
+    if (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, (ast.UAdd, ast.USub))
+        and isinstance(node.operand, ast.Constant)
+        and not isinstance(node.operand.value, (str, bytes))
+    ):
+        node = node.operand
+    if not isinstance(node, ast.Constant) or not node.value:
+        return None
+    if isinstance(node.value, str):
+        return "non-empty string"
+    if isinstance(node.value, bytes):
+        return "non-empty bytes"
+    # `assert False` is B011, and `assert True` is left alone on purpose
+    if isinstance(node.value, (int, float, complex)) and not isinstance(
+        node.value, bool
+    ):
+        return "non-zero number"
+    return None
+
+
 def names_from_assignments(assign_target: ast.expr) -> Iterator[str]:
     if isinstance(assign_target, ast.Name):
         yield assign_target.id
@@ -2648,8 +2671,28 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.add_error("B045", node.target, name)
 
     def check_for_b044(self, node: ast.Assert) -> None:
-        if isinstance(node.test, ast.GeneratorExp):
-            self.add_error("B044", node)
+        test = node.test
+        if isinstance(test, ast.GeneratorExp):
+            self.add_error("B044", node, "generator_expression", "`all()`")
+        elif isinstance(test, ast.Lambda):
+            self.add_error("B044", node, "lambda", "to call it")
+        elif kind := _truthy_constant_kind(test):
+            self.add_error("B044", node, kind, "the condition")
+        elif isinstance(test, ast.JoinedStr):
+            if any(
+                isinstance(part, ast.Constant) and part.value for part in test.values
+            ):
+                self.add_error("B044", node, "f-string", "the condition")
+        elif isinstance(test, (ast.List, ast.Set)):
+            # a starred element like `[*a]` could be empty
+            if any(not isinstance(elt, ast.Starred) for elt in test.elts):
+                kind = f"non-empty {type(test).__name__.lower()}"
+                self.add_error("B044", node, kind, "the condition")
+        elif isinstance(test, ast.Dict):
+            # a `None` key is a `**a` unpacking, which could be empty
+            if any(key is not None for key in test.keys):
+                self.add_error("B044", node, "non-empty dict", "the condition")
+        # non-empty tuples are already reported by pyflakes (F631)
 
     def check_for_b046(self, node: ast.Call) -> None:
         if not (
@@ -3474,11 +3517,7 @@ error_codes = {
             "it is not any safer than normal property access."
         )
     ),
-    "B044": Error(
-        message=(
-            "B044 `assert <generator_expression>` is always true. Did you forget `all()`?"
-        )
-    ),
+    "B044": Error(message="B044 `assert <{0}>` is always true. Did you forget {1}?"),
     "B045": Error(
         message=(
             "B045 Loop control variable {} overrides a variable in an enclosing loop. "
