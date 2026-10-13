@@ -3425,8 +3425,9 @@ error_codes = {
     ),
     "B025": Error(
         message=(
-            "B025 Exception `{0}` has been caught multiple times. Only the first except{0}"
-            " will be considered and all other except{0} catches can be safely removed."
+            "B025 Exception `{0}` has been caught multiple times. Only the first"
+            " except{1} {0} will be considered and all other except{1} {0} catches can be"
+            " safely removed."
         )
     ),
     "B026": Error(

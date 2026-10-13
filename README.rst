@@ -559,6 +559,8 @@ UNRELEASED
 * B031: only treat a bare ``groupby()`` call as ``itertools.groupby`` when the
   module doesn't bind ``groupby`` to something else, such as its own
   ``def groupby`` (#356)
+* B025: fix the message running ``except`` and the exception name together
+  (``exceptValueError``) and dropping the ``*`` for ``except*`` handlers
 
 26.9.30
 ~~~~~~~

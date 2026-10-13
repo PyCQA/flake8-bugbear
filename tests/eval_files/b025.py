@@ -12,14 +12,14 @@ except ValueError:
 finally:
     a = 3
 
-try: # B025: 0, "ValueError"
+try: # B025: 0, "ValueError", ""
     a = 1
 except ValueError:
     a = 2
 except ValueError:
     a = 2
 
-try: # B025: 0, "pickle.PickleError"
+try: # B025: 0, "pickle.PickleError", ""
     a = 1
 except pickle.PickleError:
     a = 2
@@ -28,7 +28,7 @@ except ValueError:
 except pickle.PickleError:
     a = 2
 
-try: # B025: 0, "TypeError" # B025: 0, "ValueError"
+try: # B025: 0, "TypeError", "" # B025: 0, "ValueError", ""
     a = 1
 except (ValueError, TypeError):
     a = 2

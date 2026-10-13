@@ -85,7 +85,7 @@ except FileNotFoundError:
     pass
 
 # the same exception caught twice is B025
-try:  # B025: 0, "ValueError"
+try:  # B025: 0, "ValueError", ""
     pass
 except ValueError:
     pass
