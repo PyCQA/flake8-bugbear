@@ -1069,6 +1069,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 self._b008_function_annotations(node), imports
             )
         self.check_for_b019(node)
+        self.check_for_b049(node)
         self.generic_visit(node)
         if self._b008_in_module_child():
             self._b008_shadow_imports((node.name,))
@@ -1088,6 +1089,7 @@ class BugBearVisitor(ast.NodeVisitor):
             )
         self.check_for_b019(node)
         self.check_for_b021(node)
+        self.check_for_b049(node)
         self.check_for_b906(node)
         self.generic_visit(node)
         if self._b008_in_module_child():
@@ -1513,6 +1515,26 @@ class BugBearVisitor(ast.NodeVisitor):
 
             if decorator in B019_CACHES:
                 self.add_error("B019", node.decorator_list[idx])
+                return
+
+    def check_for_b049(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        # Decorators are applied bottom-up, so a property/classmethod/staticmethod
+        # listed *after* @abstractmethod is applied first, and abstractmethod then
+        # tries to set `__isabstractmethod__` on a read-only descriptor.
+        abstract_decorator: ast.expr | None = None
+        for decorator in node.decorator_list:
+            path = ".".join(compose_call_path(decorator))
+            if path in {"abstractmethod", "abc.abstractmethod"}:
+                abstract_decorator = decorator
+            elif abstract_decorator is not None and (
+                path in B049_DESCRIPTORS
+                or (
+                    isinstance(decorator, ast.Attribute)
+                    and isinstance(decorator.value, ast.Name)
+                    and decorator.attr in B049_PROPERTY_ACCESSORS
+                )
+            ):
+                self.add_error("B049", abstract_decorator, path)
                 return
 
     def check_for_b020(self, node: ast.For) -> None:
@@ -3484,6 +3506,10 @@ B014_REDUNDANT_EXCEPTIONS = {
         "binascii.Error",
     },
 }
+# Objects whose `__isabstractmethod__` is read-only, so `@abstractmethod` can't be
+# applied on top of them (B049).
+B049_DESCRIPTORS = {"property", "classmethod", "staticmethod"}
+B049_PROPERTY_ACCESSORS = {"setter", "getter", "deleter"}
 B019_CACHES = {
     "functools.cache",
     "functools.lru_cache",
@@ -3798,6 +3824,13 @@ error_codes = {
             "B047 `{0}` is never caught by this handler, since the earlier "
             "`except{2} {1}` already catches it. Reorder the handlers or remove "
             "the unreachable one."
+        )
+    ),
+    "B049": Error(
+        message=(
+            "B049 `@abstractmethod` is applied to the result of `@{0}`, which raises "
+            "`AttributeError`. `@abstractmethod` must be the innermost decorator, "
+            "listed after `@{0}`."
         )
     ),
     # Warnings disabled by default.

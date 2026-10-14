@@ -342,6 +342,15 @@ exception that this one is a subclass of, e.g. ``except ValueError:`` after
 ``except Exception:``, or a bare ``except:`` after ``except BaseException:``. Only builtin
 exceptions are checked, since the hierarchy of other classes isn't known from the source.
 
+.. _B049:
+
+**B049**: ``@abstractmethod`` must be the innermost decorator. When it is listed *before*
+``@property``, ``@classmethod``, ``@staticmethod`` or a property ``.setter``/``.getter``/
+``.deleter``, it is applied to the resulting descriptor, which raises ``AttributeError``
+when the class is defined. Put ``@abstractmethod`` last, directly above the ``def``.
+``functools.cached_property`` isn't covered: it doesn't forward ``__isabstractmethod__``,
+so there ``@abstractmethod`` has to be the outer decorator.
+
 
 Opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~
@@ -544,6 +553,10 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B049: New check for ``@abstractmethod`` listed before ``@property``,
+  ``@classmethod`` or ``@staticmethod`` (or a property ``.setter``/``.getter``/
+  ``.deleter``). It must be the innermost decorator, otherwise the class definition
+  raises ``AttributeError`` (#279)
 * B906: don't flag ``visit_`` methods of libcst visitors (classes inheriting
   from ``libcst``), which have no ``generic_visit`` (#359)
 * B045: detect reuse of an enclosing loop's control variable in a nested loop
