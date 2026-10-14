@@ -457,6 +457,13 @@ on the first line and urls or paths that are on their own line::
       "https://some-super-long-domain-name.com/with/some/very/long/paths"
   )
 
+If ``max-doc-length`` is set in your ``flake8`` configuration, ``B950`` measures
+docstring lines and comment-only lines against it instead of ``max-line-length``,
+with the same 10% tolerance. These are the lines ``pycodestyle``'s ``W505`` checks:
+string statements on their own (such as docstrings) and comments that are not
+trailing a line of code. Other lines, including code with a trailing comment, still
+use ``max-line-length``. Without ``max-doc-length``, nothing changes (#285).
+
 
 How to enable opinionated warnings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -568,6 +575,8 @@ UNRELEASED
 * B903: don't flag classes that inherit from another class, like an exception
   or ``dict`` subclass, which a namedtuple can't replace, and fix ``__slot__``
   in the message to ``__slots__`` (#63)
+* B950: respect the ``max-doc-length`` option for docstring and comment-only lines,
+  as ``pycodestyle``'s ``W505`` does; behavior is unchanged when it is not set (#285)
 
 26.9.30
 ~~~~~~~
