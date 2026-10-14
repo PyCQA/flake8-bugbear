@@ -2210,6 +2210,7 @@ class BugBearVisitor(ast.NodeVisitor):
         def is_classmethod(decorators: set[str]) -> bool:
             return (
                 any(name in decorators for name in self.b902_classmethod_decorators)
+                or "abstractclassmethod" in decorators
                 or node.name in B902_IMPLICIT_CLASSMETHODS
             )
 
@@ -2226,7 +2227,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if d is not None
         }
 
-        if "staticmethod" in decorators:
+        if "staticmethod" in decorators or "abstractstaticmethod" in decorators:
             # TODO: maybe warn if the first argument is surprisingly `self` or
             # `cls`?
             return

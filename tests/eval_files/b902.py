@@ -17,6 +17,18 @@ class NoWarnings:
     @staticmethod
     def not_a_problem(arg1): ...
 
+    @abstractclassmethod
+    def abstract_class_method(cls, arg1): ...
+
+    @abc.abstractclassmethod
+    def dotted_abstract_class_method(cls, arg1): ...
+
+    @abstractstaticmethod
+    def abstract_static_method(arg1): ...
+
+    @abc.abstractstaticmethod
+    def dotted_abstract_static_method(arg1): ...
+
 
 class Warnings:
     def __init__(i_am_special): ... # B902: 17, "'i_am_special'", "instance", "self"
@@ -27,6 +39,9 @@ class Warnings:
 
     @classmethod
     def wat(self, i_like_confusing_people): ... # B902: 12, "'self'", "class", "cls"
+
+    @abc.abstractclassmethod
+    def abstract_wat(self): ... # B902: 21, "'self'", "class", "cls"
 
     def i_am_strange(*args, **kwargs): # B902: 22, "*args", "instance", "self"
         self = args[0]

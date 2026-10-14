@@ -568,6 +568,8 @@ UNRELEASED
 * B903: don't flag classes that inherit from another class, like an exception
   or ``dict`` subclass, which a namedtuple can't replace, and fix ``__slot__``
   in the message to ``__slots__`` (#63)
+* B902: treat ``abc.abstractclassmethod`` and ``abc.abstractstaticmethod`` like
+  ``classmethod`` and ``staticmethod`` instead of expecting ``self`` (#33)
 
 26.9.30
 ~~~~~~~
