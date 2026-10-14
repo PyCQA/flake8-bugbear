@@ -409,7 +409,7 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 
 .. _B909:
 
-**B909**: **Was B038** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs.
+**B909**: **Was B038** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs. Loops over ``d.keys()``, ``d.values()`` and ``d.items()`` are checked against ``d``, since those are views of the dict rather than copies.
 
 .. _B910:
 
@@ -563,6 +563,9 @@ UNRELEASED
   ``def groupby`` (#356)
 * B025: fix the message running ``except`` and the exception name together
   (``exceptValueError``) and dropping the ``*`` for ``except*`` handlers
+* B909: also check loops over ``d.keys()``, ``d.values()`` and ``d.items()``,
+  which are views of ``d``, so ``for k in d.keys(): d.pop(k)`` is reported like
+  ``for k in d: d.pop(k)``
 
 26.9.30
 ~~~~~~~
