@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import ast
 import builtins
+import io
 import itertools
 import logging
 import math
 import re
 import sys
+import tokenize
 import warnings
 from collections import Counter, defaultdict
 from contextlib import suppress
@@ -155,11 +157,42 @@ class BugBearChecker:
             if self.should_warn(e.message[:4]):
                 yield self.adapt_error(e)
 
+    def _doc_line_numbers(self) -> set[int]:
+        """Return the line numbers that pycodestyle's W505 treats as documentation.
+
+        These are lines holding only a comment and lines of a string literal that is a
+        statement on its own (docstrings), but not trailing comments or strings that
+        are part of code.
+        """
+        doc_lines: set[int] = set()
+        for node in ast.walk(self.tree):
+            if (
+                isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+                and not self.lines[node.lineno - 1][: node.col_offset].strip()
+            ):
+                doc_lines.update(range(node.lineno, (node.end_lineno or 0) + 1))
+        with suppress(tokenize.TokenError, SyntaxError):
+            for token in tokenize.generate_tokens(
+                io.StringIO("".join(self.lines)).readline
+            ):
+                if (
+                    token.type == tokenize.COMMENT
+                    and not token.line[: token.start[1]].strip()
+                ):
+                    doc_lines.add(token.start[0])
+        return doc_lines
+
     def gen_line_based_checks(self) -> Iterator["error"]:
         """gen_line_based_checks() -> (error, error, error, ...)
 
         The following simple checks are based on the raw lines, not the AST.
         """
+        # Only when `max-doc-length` is configured are docstring and comment lines
+        # measured against it instead of `max-line-length`.
+        max_doc_length: int | None = getattr(self.options, "max_doc_length", None)
+        doc_lines = self._doc_line_numbers() if max_doc_length is not None else set()
         noqa_type_ignore_regex = re.compile(
             r"#\s*(noqa|type:\s*ignore|pragma:)[^#\r\n]*$"
         )
@@ -173,8 +206,11 @@ class BugBearChecker:
             if no_comment_line != line:
                 no_comment_line = noqa_type_ignore_regex.sub("", no_comment_line)
 
+            max_length = self.max_line_length
+            if max_doc_length is not None and lineno in doc_lines:
+                max_length = max_doc_length
             length = len(no_comment_line) - 1
-            if length > 1.1 * self.max_line_length and no_comment_line.strip():
+            if length > 1.1 * max_length and no_comment_line.strip():
                 # Special case long URLS and paths to follow pycodestyle.
                 # Would use the `pycodestyle.maximum_line_length` directly but
                 # need to supply it arguments that are not available so chose
@@ -187,16 +223,14 @@ class BugBearChecker:
 
                 num_leading_whitespaces = len(no_comment_line) - len(chunks[-1])
                 too_many_leading_white_spaces = (
-                    num_leading_whitespaces >= self.max_line_length - 7
+                    num_leading_whitespaces >= max_length - 7
                 )
 
                 skip = is_line_comment_url_path or just_long_url_path
                 if skip and not too_many_leading_white_spaces:
                     continue
 
-                yield error_codes["B950"](
-                    lineno, length, vars=(length, self.max_line_length)
-                )
+                yield error_codes["B950"](lineno, length, vars=(length, max_length))
 
     @classmethod
     def adapt_error(cls, e: error) -> tuple[int, int, str, type]:
