@@ -62,7 +62,9 @@ def test_eval(
         if test.startswith("B012"):
             warnings.filterwarnings("ignore", category=SyntaxWarning)
         errors = [
-            e for e in bbc.run() if (test == "B950" or not e[2].startswith("B950"))
+            e
+            for e in bbc.run()
+            if (test.startswith("B950") or not e[2].startswith("B950"))
         ]
     errors.sort()
     assert errors == tuple_expected
@@ -82,7 +84,7 @@ def _parse_eval_file(test: str, content: str) -> tuple[list[error], Namespace | 
             options = eval(f"Namespace({line[10:]})")
 
         # skip commented out lines
-        if not line or (line[0] == "#" and test != "B950"):
+        if not line or (line[0] == "#" and not test.startswith("B950")):
             continue
 
         # skip lines that *don't* have a comment
@@ -288,6 +290,29 @@ class BugbearTestCase(unittest.TestCase):
                 B950(37, 140, vars=(140, 79)),
             ),
         )
+
+    def test_b950_max_doc_length_unset(self):
+        # without `max-doc-length`, docstrings and comments use `max-line-length`
+        filename = EVAL_FILES_DIR / "b950_max_doc_length.py"
+
+        for mock_options in (
+            Namespace(select=["B950"]),
+            Namespace(select=["B950"], max_doc_length=None),
+        ):
+            bbc = BugBearChecker(filename=str(filename), options=mock_options)
+            self.assertEqual(
+                [e[0] for e in bbc.run()],
+                [11, 13, 16, 18, 24, 28, 31, 36, 43, 48, 51],
+            )
+
+    def test_b950_max_doc_length_larger_than_max_line_length(self):
+        filename = EVAL_FILES_DIR / "b950_max_doc_length.py"
+
+        mock_options = Namespace(select=["B950"], max_doc_length=100)
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        # code lines over `max-line-length` + 10% (11, 18, 43) and the only doc line
+        # over `max-doc-length` + 10% (16)
+        self.assertEqual([e[0] for e in bbc.run()], [11, 16, 18, 43])
 
     def test_b912_suppressed_on_pre_3_14(self):
         # `map(strict=...)` only exists on Python 3.14+, so the check should
