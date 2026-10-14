@@ -450,12 +450,13 @@ def names_from_assignments(assign_target: ast.expr) -> Iterator[str]:
 
 
 def _nested_tables(table: Any, deep: bool) -> Iterator[Any]:
-    """Tables of the functions nested in `table`, looking through class bodies."""
+    """Tables of the functions nested in `table`, looking through class bodies and
+    the annotation and type parameter scopes of Python 3.12+."""
     for child in table.get_children() if table else ():
-        is_class = isinstance(child, symtable.Class)
-        if not is_class:
+        is_function = isinstance(child, symtable.Function)
+        if is_function:
             yield child
-        if deep or is_class:
+        if deep or not is_function:
             yield from _nested_tables(child, deep)
 
 
