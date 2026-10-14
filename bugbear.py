@@ -1530,7 +1530,6 @@ class BugBearVisitor(ast.NodeVisitor):
                 path in B049_DESCRIPTORS
                 or (
                     isinstance(decorator, ast.Attribute)
-                    and isinstance(decorator.value, ast.Name)
                     and decorator.attr in B049_PROPERTY_ACCESSORS
                 )
             ):

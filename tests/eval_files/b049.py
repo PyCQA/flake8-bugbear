@@ -145,3 +145,10 @@ class Right(ABC):
 @property
 def free_function(self):
     return 1
+
+
+class Qualified(ABC):
+    @abstractmethod  # B049: 5, "Base.value.setter"
+    @Base.value.setter
+    def value(self, v):
+        return 1
