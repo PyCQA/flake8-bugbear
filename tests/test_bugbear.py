@@ -301,8 +301,8 @@ class BugbearTestCase(unittest.TestCase):
         ):
             bbc = BugBearChecker(filename=str(filename), options=mock_options)
             self.assertEqual(
-                [e[0] for e in bbc.run()],
-                [11, 13, 16, 18, 24, 28, 31, 36, 43, 48, 51],
+                [e[0] for e in bbc.run() if e[2].startswith("B950")],
+                [11, 13, 16, 18, 24, 28, 31, 36, 43, 48, 51, 53],
             )
 
     def test_b950_max_doc_length_larger_than_max_line_length(self):
@@ -310,9 +310,11 @@ class BugbearTestCase(unittest.TestCase):
 
         mock_options = Namespace(select=["B950"], max_doc_length=100)
         bbc = BugBearChecker(filename=str(filename), options=mock_options)
-        # code lines over `max-line-length` + 10% (11, 18, 43) and the only doc line
-        # over `max-doc-length` + 10% (16)
-        self.assertEqual([e[0] for e in bbc.run()], [11, 16, 18, 43])
+        # code lines over `max-line-length` + 10% (11, 18, 43) and the only doc lines
+        # over `max-doc-length` + 10% (16, 53)
+        self.assertEqual(
+            [e[0] for e in bbc.run() if e[2].startswith("B950")], [11, 16, 18, 43, 53]
+        )
 
     def test_b912_suppressed_on_pre_3_14(self):
         # `map(strict=...)` only exists on Python 3.14+, so the check should

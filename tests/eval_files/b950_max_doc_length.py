@@ -50,3 +50,5 @@ def g():
 
 "A bare string statement that is far too long for the doc limit, yes it is"  # B950: 95, 95, 50
 
+b"A bare bytes statement that is far too long for the doc limit, yes it is"  # B018: 0, "Constant" # B950: 119, 119, 50
+"A string statement followed by code is code, as for W505"; w = 1
