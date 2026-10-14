@@ -553,6 +553,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B007: don't flag a loop variable that is read by a function or lambda defined
+  in the same scope as the loop (#175)
 * B906: don't flag ``visit_`` methods of libcst visitors (classes inheriting
   from ``libcst``), which have no ``generic_visit`` (#359)
 * B045: detect reuse of an enclosing loop's control variable in a nested loop
