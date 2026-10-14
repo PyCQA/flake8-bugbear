@@ -3020,12 +3020,30 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B046", value)
 
     def check_for_b909(self, node: ast.For) -> None:
-        if isinstance(node.iter, ast.Name):
-            name = _to_name_str(node.iter)
-            key = _to_name_str(node.target)
-        elif isinstance(node.iter, ast.Attribute):
-            name = _to_name_str(node.iter)
-            key = _to_name_str(node.target)
+        iterable = node.iter
+        target = node.target
+        # `d.keys()`, `d.values()` and `d.items()` are views of `d`, not copies
+        if (
+            isinstance(iterable, ast.Call)
+            and isinstance(iterable.func, ast.Attribute)
+            and iterable.func.attr in ("keys", "values", "items")
+            and not iterable.args
+            and not iterable.keywords
+        ):
+            if (
+                iterable.func.attr == "items"
+                and isinstance(target, ast.Tuple)
+                and len(target.elts) == 2
+            ):
+                target = target.elts[0]
+            iterable = iterable.func.value
+
+        if isinstance(iterable, ast.Name):
+            name = _to_name_str(iterable)
+            key = _to_name_str(target)
+        elif isinstance(iterable, ast.Attribute):
+            name = _to_name_str(iterable)
+            key = _to_name_str(target)
         else:
             return
 

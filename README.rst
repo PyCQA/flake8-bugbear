@@ -411,7 +411,7 @@ This is meant to be enabled by developers writing visitors using the ``ast`` mod
 
 .. _B909:
 
-**B909**: **Was B038** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs.
+**B909**: **Was B038** - Found a mutation of a mutable loop iterable inside the loop body. Changes to the iterable of a loop such as calls to `list.remove()` or via `del` can cause unintended bugs. Loops over ``d.keys()``, ``d.values()`` and ``d.items()`` are checked against ``d``, since those are views of the dict rather than copies.
 
 .. _B910:
 
@@ -577,6 +577,9 @@ UNRELEASED
   in the message to ``__slots__`` (#63)
 * B950: respect the ``max-doc-length`` option for docstring and comment-only lines,
   as ``pycodestyle``'s ``W505`` does; behavior is unchanged when it is not set (#285)
+* B909: also check loops over ``d.keys()``, ``d.values()`` and ``d.items()``,
+  which are views of ``d``, so ``for k in d.keys(): d.pop(k)`` is reported like
+  ``for k in d: d.pop(k)``
 
 26.9.30
 ~~~~~~~
