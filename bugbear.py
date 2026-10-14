@@ -2280,6 +2280,11 @@ class BugBearVisitor(ast.NodeVisitor):
             )
 
     def check_for_b903(self, node: ast.ClassDef) -> None:
+        # a namedtuple can't stand in for a subclass of something else, like an
+        # exception or a dict
+        if any(not (isinstance(b, ast.Name) and b.id == "object") for b in node.bases):
+            return
+
         body = node.body
         if (
             body
@@ -3836,7 +3841,7 @@ error_codes = {
         message=(
             "B903 Data class should either be immutable or use __slots__ to "
             "save memory. Use collections.namedtuple to generate an immutable "
-            "class, or enumerate the attributes in a __slot__ declaration in "
+            "class, or enumerate the attributes in a __slots__ declaration in "
             "the class to leave attributes mutable."
         )
     ),

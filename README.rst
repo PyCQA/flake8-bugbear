@@ -374,7 +374,9 @@ either bare or dotted such as ``abc.ABCMeta``).
 data classes that only set attributes in an ``__init__`` method, and do
 nothing else. If the attributes should be mutable, define the attributes
 in ``__slots__`` to save per-instance memory and to prevent accidentally
-creating additional attributes on instances.
+creating additional attributes on instances. Classes that inherit from another
+class, such as an exception or ``dict``, are not reported, since a namedtuple
+can't replace them.
 
 .. _B904:
 
@@ -563,6 +565,9 @@ UNRELEASED
   ``def groupby`` (#356)
 * B025: fix the message running ``except`` and the exception name together
   (``exceptValueError``) and dropping the ``*`` for ``except*`` handlers
+* B903: don't flag classes that inherit from another class, like an exception
+  or ``dict`` subclass, which a namedtuple can't replace, and fix ``__slot__``
+  in the message to ``__slots__`` (#63)
 * B909: also check loops over ``d.keys()``, ``d.values()`` and ``d.items()``,
   which are views of ``d``, so ``for k in d.keys(): d.pop(k)`` is reported like
   ``for k in d: d.pop(k)``
