@@ -590,6 +590,8 @@ UNRELEASED
   in the message to ``__slots__`` (#63)
 * B950: respect the ``max-doc-length`` option for docstring and comment-only lines,
   as ``pycodestyle``'s ``W505`` does; behavior is unchanged when it is not set (#285)
+* B902: treat ``abc.abstractclassmethod`` and ``abc.abstractstaticmethod`` like
+  ``classmethod`` and ``staticmethod`` instead of expecting ``self`` (#33)
 
 26.9.30
 ~~~~~~~
