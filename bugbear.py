@@ -160,17 +160,18 @@ class BugBearChecker:
     def _doc_line_numbers(self) -> set[int]:
         """Return the line numbers that pycodestyle's W505 treats as documentation.
 
-        These are lines holding only a comment and lines of a string literal that is a
-        statement on its own (docstrings), but not trailing comments or strings that
-        are part of code.
+        These are lines holding only a comment and lines of a string or bytes literal
+        that is a statement on its own (docstrings), but not trailing comments or
+        strings that are part of code, even code after a `;` on the same line.
         """
         doc_lines: set[int] = set()
         for node in ast.walk(self.tree):
             if (
                 isinstance(node, ast.Expr)
                 and isinstance(node.value, ast.Constant)
-                and isinstance(node.value.value, str)
+                and isinstance(node.value.value, (str, bytes))
                 and not self.lines[node.lineno - 1][: node.col_offset].strip()
+                and self._only_comment_after(node)
             ):
                 doc_lines.update(range(node.lineno, (node.end_lineno or 0) + 1))
         with suppress(tokenize.TokenError, SyntaxError):
@@ -183,6 +184,12 @@ class BugBearChecker:
                 ):
                     doc_lines.add(token.start[0])
         return doc_lines
+
+    def _only_comment_after(self, node: ast.expr) -> bool:
+        """Whether nothing but a comment follows `node` on its last line."""
+        line = self.lines[(node.end_lineno or node.lineno) - 1].encode()
+        rest = line[node.end_col_offset or 0 :].decode(errors="replace").strip()
+        return not rest or rest.startswith("#")
 
     def gen_line_based_checks(self) -> Iterator["error"]:
         """gen_line_based_checks() -> (error, error, error, ...)
