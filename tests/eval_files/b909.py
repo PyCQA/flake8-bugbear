@@ -157,10 +157,20 @@ for key in some_dict.keys():
 for _ in some_dict.values():
     some_dict.clear() # B909: 4
 
+for value in some_dict.values():
+    some_dict[value] = 1 # B909: 4
+
 for key, value in some_dict.items():
     some_dict[key] = value * 2 # no error
     some_dict[key.upper()] = value # B909: 4
     del some_dict[key] # B909: 4
+
+for [key, value] in some_dict.items():
+    some_dict[key] = value * 2 # no error
+    del some_dict[key] # B909: 4
+
+for item in some_dict.items():
+    some_dict[item] = 1 # B909: 4
 
 for key, value in self.some_dict.items():
     self.some_dict.update({key.upper(): value}) # B909: 4
