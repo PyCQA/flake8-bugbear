@@ -94,6 +94,18 @@ def k():
             return  # warning  # B012: 12, ""
 
 
+async def k_async(xs):
+    try:
+        pass
+    finally:
+        async for _ in xs:
+            break  # no warning
+        async for _ in xs:
+            continue  # no warning
+        async for _ in xs:
+            return  # warning  # B012: 12, ""
+
+
 while True:
     try:
         pass
