@@ -1,7 +1,6 @@
 import abc
 import abc as notabc
-from abc import ABC, ABCMeta
-from abc import abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from abc import abstractmethod as abstract
 from abc import abstractmethod as abstractaoeuaoeuaoeu
 from abc import abstractmethod as notabstract
