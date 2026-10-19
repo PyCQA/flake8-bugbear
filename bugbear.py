@@ -3049,16 +3049,38 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B046", value)
 
     def check_for_b909(self, node: ast.For) -> None:
-        if isinstance(node.iter, ast.Name):
-            name = _to_name_str(node.iter)
-            key = _to_name_str(node.target)
-        elif isinstance(node.iter, ast.Attribute):
-            name = _to_name_str(node.iter)
-            key = _to_name_str(node.target)
+        iterable = node.iter
+        # the loop variable holding a key of the iterable, if there is one
+        target: ast.expr | None = node.target
+        # `d.keys()`, `d.values()` and `d.items()` are views of `d`, not copies
+        if (
+            isinstance(iterable, ast.Call)
+            and isinstance(iterable.func, ast.Attribute)
+            and iterable.func.attr in ("keys", "values", "items")
+            and not iterable.args
+            and not iterable.keywords
+        ):
+            if (
+                iterable.func.attr == "items"
+                and isinstance(target, (ast.Tuple, ast.List))
+                and len(target.elts) == 2
+            ):
+                target = target.elts[0]
+            elif iterable.func.attr != "keys":
+                # a value or a (key, value) pair, so `d[target] = ...` can add a key
+                target = None
+            iterable = iterable.func.value
+
+        if isinstance(iterable, ast.Name):
+            name = _to_name_str(iterable)
+            key = _to_name_str(target)
+        elif isinstance(iterable, ast.Attribute):
+            name = _to_name_str(iterable)
+            key = _to_name_str(target)
         else:
             return
 
-        if name is None or key is None:
+        if name is None or (key is None and target is not None):
             return
 
         checker = B909Checker(name, key)
@@ -3132,8 +3154,10 @@ class B909Checker(ast.NodeVisitor):
         "discard",
     )
 
-    def __init__(self, name: str, key: str) -> None:
+    def __init__(self, name: str, key: str | None) -> None:
         self.name = name
+        # assigning to `name[key]` doesn't change its size; with no key loop
+        # variable, every subscript assignment is reported
         self.key = key
         self.mutations: dict[
             int, list[ast.Assign | ast.AugAssign | ast.Delete | ast.Call]
@@ -3145,7 +3169,7 @@ class B909Checker(ast.NodeVisitor):
             if (
                 isinstance(target, ast.Subscript)
                 and _to_name_str(target.value) == self.name
-                and _to_name_str(target.slice) != self.key
+                and (self.key is None or _to_name_str(target.slice) != self.key)
             ):
                 self.mutations[self._conditional_block].append(node)
         self.generic_visit(node)
