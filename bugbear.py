@@ -2403,11 +2403,21 @@ class BugBearVisitor(ast.NodeVisitor):
                 and isinstance(node.value.func, ast.Name)
                 and node.value.func.id in FUNCTIONS_WITHOUT_SIDE_EFFECTS
             )
+            # a lambda that is neither assigned nor passed anywhere is never called
+            or isinstance(node.value, ast.Lambda)
             or (
-                isinstance(node.value, (ast.UnaryOp, ast.BinOp))
-                and _is_useless_operation(node.value)
+                (
+                    (
+                        isinstance(node.value, (ast.UnaryOp, ast.BinOp))
+                        and _is_useless_operation(node.value)
+                    )
+                    # a generator expression is lazy, so its body never runs
+                    or isinstance(node.value, ast.GeneratorExp)
+                )
                 # directly in a `try` or `with` block, an operation is often run
-                # only to see it raise: `with pytest.raises(TypeError): "1" + 1`
+                # only to see it raise: `with pytest.raises(TypeError): "1" + 1`.
+                # A generator expression calls `iter()` on its first iterable
+                # right away, so the same goes for `(x for x in 1)`
                 and not (
                     self.node_stack
                     and isinstance(self.node_stack[-1], B018_RAISING_BLOCKS)
