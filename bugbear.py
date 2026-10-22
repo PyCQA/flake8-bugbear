@@ -1412,7 +1412,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
                 return
 
-            if isinstance(node, (ast.While, ast.For)):
+            if isinstance(node, (ast.While, ast.For, ast.AsyncFor)):
                 bad_node_types = (ast.Return,)
 
             elif isinstance(node, bad_node_types):

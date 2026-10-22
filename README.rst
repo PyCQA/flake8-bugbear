@@ -598,6 +598,8 @@ UNRELEASED
 * B909: also check loops over ``d.keys()``, ``d.values()`` and ``d.items()``,
   which are views of ``d``, so ``for k in d.keys(): d.pop(k)`` is reported like
   ``for k in d: d.pop(k)``
+* B012: don't flag ``break`` or ``continue`` in an ``async for`` loop inside a
+  ``finally`` block, as for ``for`` and ``while`` loops
 * B018: also report generator expressions and lambdas used as statements. A
   statement like ``(print(x) for x in items)`` never runs its body, and a bare
   ``lambda x: True`` is usually an assignment that lost its target (#452)

@@ -3,10 +3,9 @@ from typing import List
 
 import fastapi
 import fastapi as fastapi_alias
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi import Depends as DependsAlias
 from fastapi import Depends as loop_depends
-from fastapi import Query
 from other import Depends as OtherDepends
 
 if condition:
