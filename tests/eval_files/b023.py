@@ -59,7 +59,7 @@ while True:
 # Nested loops should not duplicate reports
 for j in range(2):
     for k in range(3):
-        lambda: j * k  # error  # B023: 16, "j"  # B023: 20, "k"
+        lambda: j * k  # error  # B018: 8, "Lambda"  # B023: 16, "j"  # B023: 20, "k"
 
 
 for j, k, l in [(1, 2, 3)]:

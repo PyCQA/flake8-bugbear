@@ -175,10 +175,13 @@ using ``pytest.raises``), or use the context manager form with a target
 
 **B018**: Found useless expression. Either assign it to a variable or remove it.
 The check also considers function calls without side-effects such as ``isinstance``,
-and unary and arithmetic operations such as ``-x`` or ``a * b``. Shifts, bitwise
-operators and ``@`` are left alone, since libraries overload them for their side
-effects, and so is an operation directly in a ``try`` or ``with`` block, where it may be
-run only to see it raise.
+unary and arithmetic operations such as ``-x`` or ``a * b``, generator expressions
+(which are lazy, so their body never runs) and lambdas (which nothing can call), as
+long as what they evaluate right away doesn't call a function, like
+``(x for x in f())`` or ``lambda x=f(): x``. Shifts, bitwise operators and ``@`` are
+left alone, since libraries overload them for their side effects, and so is an
+operation, a generator expression or a lambda with defaults directly in a ``try`` or
+``with`` block, where it may be run only to see it raise.
 Note that dangling commas will cause things to be interpreted as useless tuples.
 For example, in the statement ``print(".."),`` is the same as ``(print(".."),)``
 which is an unassigned tuple. Simply remove the comma to clear the error.
@@ -597,6 +600,9 @@ UNRELEASED
   ``for k in d: d.pop(k)``
 * B012: don't flag ``break`` or ``continue`` in an ``async for`` loop inside a
   ``finally`` block, as for ``for`` and ``while`` loops
+* B018: also report generator expressions and lambdas used as statements. A
+  statement like ``(print(x) for x in items)`` never runs its body, and a bare
+  ``lambda x: True`` is usually an assignment that lost its target (#452)
 
 26.9.30
 ~~~~~~~

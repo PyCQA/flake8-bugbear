@@ -2403,11 +2403,34 @@ class BugBearVisitor(ast.NodeVisitor):
                 and isinstance(node.value.func, ast.Name)
                 and node.value.func.id in FUNCTIONS_WITHOUT_SIDE_EFFECTS
             )
+            # a lambda that is neither assigned nor passed anywhere is never called
+            or (isinstance(node.value, ast.Lambda) and not _lambda_defaults(node.value))
             or (
-                isinstance(node.value, (ast.UnaryOp, ast.BinOp))
-                and _is_useless_operation(node.value)
+                (
+                    (
+                        isinstance(node.value, (ast.UnaryOp, ast.BinOp))
+                        and _is_useless_operation(node.value)
+                    )
+                    # a generator expression is lazy, so its body never runs, but
+                    # its first iterable is evaluated right away: `(x for x in f())`
+                    # still calls `f`
+                    or (
+                        isinstance(node.value, ast.GeneratorExp)
+                        and _is_useless_operation(node.value.generators[0].iter)
+                    )
+                    # and so are the defaults of a lambda: `lambda x=f(): x`
+                    or (
+                        isinstance(node.value, ast.Lambda)
+                        and all(
+                            map(_is_useless_operation, _lambda_defaults(node.value))
+                        )
+                    )
+                )
                 # directly in a `try` or `with` block, an operation is often run
-                # only to see it raise: `with pytest.raises(TypeError): "1" + 1`
+                # only to see it raise: `with pytest.raises(TypeError): "1" + 1`.
+                # The same goes for the first iterable of a generator expression,
+                # which `iter()` is called on, and the defaults of a lambda:
+                # `(x for x in 1)` or `lambda x=1 / 0: x`
                 and not (
                     self.node_stack
                     and isinstance(self.node_stack[-1], B018_RAISING_BLOCKS)
@@ -3227,7 +3250,8 @@ def _is_useless_operation(node: ast.expr) -> bool:
     """Whether a unary or arithmetic operation, used as a statement, does nothing.
 
     Every binary operator in it has to be arithmetic, and no operand may call,
-    await, yield or assign: `f() + 1` still calls `f`.
+    await, yield or assign: `f() + 1` still calls `f`. This also checks what a
+    generator expression or a lambda evaluates right away.
     """
     for child in ast.walk(node):
         if isinstance(child, ast.BinOp) and not isinstance(
@@ -3239,6 +3263,11 @@ def _is_useless_operation(node: ast.expr) -> bool:
         ):
             return False
     return True
+
+
+def _lambda_defaults(node: ast.Lambda) -> list[ast.expr]:
+    """The defaults of a lambda, which are evaluated when it is created."""
+    return [d for d in node.args.defaults + node.args.kw_defaults if d is not None]
 
 
 def _dotted_name(node: ast.AST) -> str | None:
