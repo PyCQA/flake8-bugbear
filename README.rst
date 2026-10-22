@@ -565,6 +565,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B007: don't flag a loop variable that is read by a function or lambda defined
+  in the same scope as the loop (#175)
 * B049: New check for ``@abstractmethod`` listed before ``@property``,
   ``@classmethod`` or ``@staticmethod`` (or a property ``.setter``/``.getter``/
   ``.deleter``). It must be the innermost decorator, otherwise the class definition

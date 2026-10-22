@@ -7,6 +7,7 @@ import itertools
 import logging
 import math
 import re
+import symtable
 import sys
 import tokenize
 import warnings
@@ -448,6 +449,17 @@ def names_from_assignments(assign_target: ast.expr) -> Iterator[str]:
             yield from names_from_assignments(child)
 
 
+def _nested_tables(table: Any, deep: bool) -> Iterator[Any]:
+    """Tables of the functions nested in `table`, looking through class bodies and
+    the annotation and type parameter scopes of Python 3.12+."""
+    for child in table.get_children() if table else ():
+        is_function = isinstance(child, symtable.Function)
+        if is_function:
+            yield child
+        if deep or not is_function:
+            yield from _nested_tables(child, deep)
+
+
 def children_in_scope(node: ast.AST) -> Iterator[ast.AST]:
     yield node
     if not isinstance(node, FUNCTION_NODES):
@@ -753,6 +765,8 @@ class BugBearVisitor(ast.NodeVisitor):
 
     NODE_WINDOW_SIZE = 4
     _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
+    _closure_reads_cache: dict[int, set[str]] = attr.ib(factory=dict, init=False)
+    _symtable_root: Any = attr.ib(default=False, init=False)
     _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
     _b005_imports: set[str] = attr.ib(factory=set, init=False)
     # Module-scope libcst bindings from `_b906_scope_bindings` (name ->
@@ -1398,10 +1412,72 @@ class BugBearVisitor(ast.NodeVisitor):
         body = NameFinder()
         for expr in node.body:
             body.visit(expr)
-        used_names = set(body.names)
-        for name in sorted(ctrl_names - used_names):
+        unused_names = ctrl_names - set(body.names)
+        scope = self.contexts[-1].node
+        # Names bound in a class body are not visible to the functions nested in it.
+        if unused_names and not isinstance(scope, ast.ClassDef):
+            unused_names -= self._closure_reads(scope)
+        for name in sorted(unused_names):
             n = targets.names[name][0]
             self.add_error("B007", n, name)
+
+    def _closure_reads(self, scope: Any) -> set[str]:
+        """Names read by functions nested in `scope`, as resolved by CPython:
+        their free variables, plus (for a function or module) the globals
+        they read when the name is global in the enclosing table."""
+        if id(scope) not in self._closure_reads_cache:
+            if self._symtable_root is False:  # once per file
+                try:
+                    source = "".join(self.lines)
+                    self._symtable_root = symtable.symtable(
+                        source, self.filename, "exec"
+                    )
+                except Exception:  # SyntaxError, ValueError, ...: no exemption
+                    self._symtable_root = None
+            table, module = self._symtable_root, isinstance(scope, ast.Module)
+            scope_globals: set[str] = set()
+            if not module:
+                key = (scope.name, scope.lineno)
+                table = next(
+                    (
+                        t
+                        for t in _nested_tables(table, deep=True)
+                        if isinstance(t, symtable.Function)
+                        and (t.get_name(), t.get_lineno()) == key
+                    ),
+                    None,
+                )
+                if table is not None:
+                    # A `global` declaration makes the loop target global too, in
+                    # which case nested readers have no free variable.
+                    scope_globals = {
+                        s.get_name() for s in table.get_symbols() if s.is_global()
+                    }
+            reads: set[str] = set()
+            for t in _nested_tables(table, deep=module):
+                if module:
+                    reads.update(
+                        s.get_name()
+                        for s in t.get_symbols()
+                        if s.is_global() and s.is_referenced()
+                    )
+                else:
+                    reads.update(t.get_frees())
+            if scope_globals:
+                # Referenced globals don't propagate through intermediate
+                # functions, so look at every function nested in the scope. A
+                # name bound locally in between is not global in the table that
+                # reads it, so shadowing still counts as unused.
+                for t in _nested_tables(table, deep=True):
+                    reads.update(
+                        s.get_name()
+                        for s in t.get_symbols()
+                        if s.get_name() in scope_globals
+                        and s.is_global()
+                        and s.is_referenced()
+                    )
+            self._closure_reads_cache[id(scope)] = reads
+        return self._closure_reads_cache[id(scope)]
 
     def check_for_b011(self, node: ast.Assert) -> None:
         if isinstance(node.test, ast.Constant) and node.test.value is False:
