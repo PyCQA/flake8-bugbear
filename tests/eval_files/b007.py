@@ -289,3 +289,51 @@ def decorated_scope_with_closure():
 
     for i in range(3):
         f()
+
+
+def global_loop_variable_read_by_closure():
+    global gi
+
+    def f():
+        return gi
+
+    for gi in range(3):
+        f()
+
+
+def global_loop_variable_read_by_deeply_nested_closure():
+    global gh
+
+    def g():
+        def h():
+            return gh
+
+        return h
+
+    for gh in range(3):
+        g()
+
+
+def global_loop_variable_shadowed_by_intermediate_local():
+    global go
+
+    def mid():
+        go = 5
+
+        def inner():
+            return go
+
+        return inner
+
+    for go in range(3):  # B007: 8, "go"
+        mid()
+
+
+def global_loop_variable_shadowed_by_comprehension():
+    global gc
+
+    def f():
+        return [gc for gc in range(3)]
+
+    for gc in range(3):  # B007: 8, "gc"
+        f()

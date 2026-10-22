@@ -1422,8 +1422,9 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B007", n, name)
 
     def _closure_reads(self, scope: Any) -> set[str]:
-        """Names read by functions nested in `scope`, as resolved by CPython: their
-        free variables, or for a module the globals they read."""
+        """Names read by functions nested in `scope`, as resolved by CPython:
+        their free variables, plus (for a function or module) the globals
+        they read when the name is global in the enclosing table."""
         if id(scope) not in self._closure_reads_cache:
             if self._symtable_root is False:  # once per file
                 try:
@@ -1434,6 +1435,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 except Exception:  # SyntaxError, ValueError, ...: no exemption
                     self._symtable_root = None
             table, module = self._symtable_root, isinstance(scope, ast.Module)
+            scope_globals: set[str] = set()
             if not module:
                 key = (scope.name, scope.lineno)
                 table = next(
@@ -1445,6 +1447,12 @@ class BugBearVisitor(ast.NodeVisitor):
                     ),
                     None,
                 )
+                if table is not None:
+                    # A `global` declaration makes the loop target global too, in
+                    # which case nested readers have no free variable.
+                    scope_globals = {
+                        s.get_name() for s in table.get_symbols() if s.is_global()
+                    }
             reads: set[str] = set()
             for t in _nested_tables(table, deep=module):
                 if module:
@@ -1455,6 +1463,19 @@ class BugBearVisitor(ast.NodeVisitor):
                     )
                 else:
                     reads.update(t.get_frees())
+            if scope_globals:
+                # Referenced globals don't propagate through intermediate
+                # functions, so look at every function nested in the scope. A
+                # name bound locally in between is not global in the table that
+                # reads it, so shadowing still counts as unused.
+                for t in _nested_tables(table, deep=True):
+                    reads.update(
+                        s.get_name()
+                        for s in t.get_symbols()
+                        if s.get_name() in scope_globals
+                        and s.is_global()
+                        and s.is_referenced()
+                    )
             self._closure_reads_cache[id(scope)] = reads
         return self._closure_reads_cache[id(scope)]
 
