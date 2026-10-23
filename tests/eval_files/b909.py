@@ -177,3 +177,33 @@ for key, value in self.some_dict.items():
 
 for key in list(some_dict.keys()):
     some_dict.pop(key) # no error
+
+
+# Visit every branch and the condition of an if statement.
+some_list = [1, 2, 3]
+for elem in some_list:
+    if elem == 1:
+        pass
+    elif elem == 2:
+        some_list.remove(elem) # B909: 8
+    else:
+        some_list.clear() # B909: 8
+
+for _ in some_list:
+    if some_list.pop(): # B909: 7
+        break
+
+for elem in some_list:
+    if elem == 1:
+        some_list.remove(elem) # B909: 8
+    else:
+        some_list.clear()
+        break
+
+for elem in some_list:
+    if elem == 1:
+        pass
+    else:
+        some_list.remove(elem) # B909: 8
+        if elem == 2:
+            break

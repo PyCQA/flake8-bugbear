@@ -3306,8 +3306,11 @@ class B909Checker(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_If(self, node: ast.If) -> None:
+        self.visit(node.test)
         self._conditional_block += 1
         self.visit(node.body)
+        self._conditional_block += 1
+        self.visit(node.orelse)
         self._conditional_block += 1
 
     def visit(self, node: ast.AST | list[ast.stmt]) -> ast.AST | list[ast.stmt] | None:
