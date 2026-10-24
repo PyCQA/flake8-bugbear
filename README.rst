@@ -611,6 +611,8 @@ UNRELEASED
 * B018: also report ``map()``, ``filter()``, ``reversed()``, ``zip()`` and
   ``enumerate()`` calls used as statements. They return lazy iterators, so
   ``map(print, items)`` on its own line never calls ``print`` (#452)
+* B909: also check mutations in ``if`` conditions and ``elif``/``else``
+  branches inside loops (#606)
 
 26.9.30
 ~~~~~~~
