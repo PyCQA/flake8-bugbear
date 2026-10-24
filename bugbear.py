@@ -76,6 +76,10 @@ B018_ARITHMETIC_OPERATORS = (
     ast.Mod,
     ast.Pow,
 )
+# Builtins that return a lazy iterator, so `map(print, items)` as a statement
+# never calls `print`. `iter` is left out: `iter(x)` calls `x.__iter__()` right
+# away, which is what a bare `iter(x)` is usually for.
+B018_LAZY_FUNCTIONS = ("enumerate", "filter", "map", "reversed", "zip")
 B018_RAISING_BLOCKS: tuple[type[ast.stmt], ...] = (ast.Try, ast.With, ast.AsyncWith)
 if sys.version_info >= (3, 11):
     B018_RAISING_BLOCKS += (ast.TryStar,)
@@ -2501,12 +2505,20 @@ class BugBearVisitor(ast.NodeVisitor):
                             map(_is_useless_operation, _lambda_defaults(node.value))
                         )
                     )
+                    # `map()`, `filter()` and the like are lazy too, so the
+                    # function or loop they were meant for never runs
+                    or (
+                        isinstance(node.value, ast.Call)
+                        and isinstance(node.value.func, ast.Name)
+                        and node.value.func.id in B018_LAZY_FUNCTIONS
+                    )
                 )
                 # directly in a `try` or `with` block, an operation is often run
                 # only to see it raise: `with pytest.raises(TypeError): "1" + 1`.
                 # The same goes for the first iterable of a generator expression,
-                # which `iter()` is called on, and the defaults of a lambda:
-                # `(x for x in 1)` or `lambda x=1 / 0: x`
+                # which `iter()` is called on, the defaults of a lambda, and the
+                # arguments of a lazy builtin, which it checks right away:
+                # `(x for x in 1)`, `lambda x=1 / 0: x` or `zip(1)`
                 and not (
                     self.node_stack
                     and isinstance(self.node_stack[-1], B018_RAISING_BLOCKS)

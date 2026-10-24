@@ -178,10 +178,13 @@ The check also considers function calls without side-effects such as ``isinstanc
 unary and arithmetic operations such as ``-x`` or ``a * b``, generator expressions
 (which are lazy, so their body never runs) and lambdas (which nothing can call), as
 long as what they evaluate right away doesn't call a function, like
-``(x for x in f())`` or ``lambda x=f(): x``. Shifts, bitwise operators and ``@`` are
-left alone, since libraries overload them for their side effects, and so is an
-operation, a generator expression or a lambda with defaults directly in a ``try`` or
-``with`` block, where it may be run only to see it raise.
+``(x for x in f())`` or ``lambda x=f(): x``. Calls to ``map``, ``filter``,
+``reversed``, ``zip`` and ``enumerate`` are reported too: they are lazy, so in
+``map(print, items)`` on its own line ``print`` is never called. Shifts, bitwise
+operators and ``@`` are left alone, since libraries overload them for their side
+effects, and so is an operation, a generator expression, a lambda with defaults or a
+call to one of these lazy builtins directly in a ``try`` or ``with`` block, where it
+may be run only to see it raise.
 Note that dangling commas will cause things to be interpreted as useless tuples.
 For example, in the statement ``print(".."),`` is the same as ``(print(".."),)``
 which is an unassigned tuple. Simply remove the comma to clear the error.
@@ -605,6 +608,9 @@ UNRELEASED
 * B018: also report generator expressions and lambdas used as statements. A
   statement like ``(print(x) for x in items)`` never runs its body, and a bare
   ``lambda x: True`` is usually an assignment that lost its target (#452)
+* B018: also report ``map()``, ``filter()``, ``reversed()``, ``zip()`` and
+  ``enumerate()`` calls used as statements. They return lazy iterators, so
+  ``map(print, items)`` on its own line never calls ``print`` (#452)
 
 26.9.30
 ~~~~~~~
