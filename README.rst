@@ -613,6 +613,8 @@ UNRELEASED
   ``map(print, items)`` on its own line never calls ``print`` (#452)
 * B909: also check mutations in ``if`` conditions and ``elif``/``else``
   branches inside loops (#606)
+* B042: don't treat a class named like an exception as one when its only base is
+  ``object``, as in ``class ParsedException(object)`` (#538)
 
 26.9.30
 ~~~~~~~

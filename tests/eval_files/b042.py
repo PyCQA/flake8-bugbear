@@ -96,6 +96,12 @@ class ExceptionHandler(Anything):
 class FooException: # safe, doesn't inherit from anything
     def __init__(self, x): ...
 
+# `object` is not an exception base either
+class ParsedException(object):  # safe
+    def __init__(self, x): ...
+class ObjectError(Anything, object):
+    def __init__(self, x): ...  # B042: 4
+
 # a parameterized generic base is not an exception class unless its name says so
 class FailOnException(typing.ContextManager[int]):  # safe
     def __init__(self, x): ...
