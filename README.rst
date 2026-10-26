@@ -615,6 +615,9 @@ UNRELEASED
   branches inside loops (#606)
 * B042: don't treat a class named like an exception as one when its only base is
   ``object``, as in ``class ParsedException(object)`` (#538)
+* B911: only treat a bare ``batched()`` call as ``itertools.batched`` when the
+  module doesn't bind ``batched`` to something else, such as its own
+  ``def batched``, the same way B031 handles ``groupby()``
 
 26.9.30
 ~~~~~~~
