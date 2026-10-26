@@ -3011,8 +3011,14 @@ class BugBearVisitor(ast.NodeVisitor):
         # A class must inherit from a super class to be an exception, and we also
         # require the class name or any of the base names to look like an exception name.
         # A parameterized generic base such as `ContextManager[T]` does not count as
-        # that super class unless its own name looks like an exception name.
-        concrete_bases = [b for b in node.bases if not isinstance(b, ast.Subscript)]
+        # that super class unless its own name looks like an exception name, and
+        # neither does `object`, as in `class ParsedException(object)`.
+        concrete_bases = [
+            b
+            for b in node.bases
+            if not isinstance(b, ast.Subscript)
+            and not (isinstance(b, ast.Name) and b.id == "object")
+        ]
         if not (is_exception(node.name) and concrete_bases):
             for base in node.bases:
                 if isinstance(base, ast.Subscript):
