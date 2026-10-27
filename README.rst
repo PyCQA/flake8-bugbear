@@ -565,8 +565,8 @@ MIT
 Change Log
 ----------
 
-UNRELEASED
-~~~~~~~~~~
+26.10.27
+~~~~~~~~
 
 * B007: don't flag a loop variable that is read by a function or lambda defined
   in the same scope as the loop (#175)
