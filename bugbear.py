@@ -707,6 +707,28 @@ def _b906_definition_exprs(
     return exprs
 
 
+def _module_assigns_itertools_attr(module: ast.Module, name: str) -> bool:
+    """Whether the module has ``name = itertools.<name>``, e.g. in a fallback."""
+    itertools_modules: set[str] = set()
+    bases: set[str] = set()
+    for node in ast.walk(module):
+        if isinstance(node, ast.Import):
+            itertools_modules.update(
+                alias.asname or alias.name
+                for alias in node.names
+                if alias.name == "itertools"
+            )
+        elif (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Attribute)
+            and node.value.attr == name
+            and isinstance(node.value.value, ast.Name)
+            and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+        ):
+            bases.add(node.value.value.id)
+    return not itertools_modules.isdisjoint(bases)
+
+
 def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
     """Whether a bare ``name`` is ``itertools.<name>`` or never bound.
 
@@ -753,7 +775,7 @@ def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
             and node.name == name
         ) or (isinstance(node, ast.MatchMapping) and node.rest == name):
             other = True
-    return from_itertools or not other
+    return from_itertools or not other or _module_assigns_itertools_attr(module, name)
 
 
 @attr.s
