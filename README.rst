@@ -565,6 +565,13 @@ MIT
 Change Log
 ----------
 
+UNRELEASED
+~~~~~~~~~~
+
+* B018: only report a ``map()``, ``filter()``, ``reversed()``, ``zip()`` or
+  ``enumerate()`` statement when the name is the builtin, not when the module
+  defines or imports its own function under that name, which may well do the work
+
 26.10.27
 ~~~~~~~~
 

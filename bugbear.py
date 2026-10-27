@@ -707,16 +707,16 @@ def _b906_definition_exprs(
     return exprs
 
 
-def _module_assigns_itertools_attr(module: ast.Module, name: str) -> bool:
-    """Whether the module has ``name = itertools.<name>``, e.g. in a fallback."""
-    itertools_modules: set[str] = set()
+def _module_assigns_attr(module: ast.Module, source: str, name: str) -> bool:
+    """Whether the module has ``name = <source>.<name>``, e.g. in a fallback."""
+    source_modules: set[str] = set()
     bases: set[str] = set()
     for node in ast.walk(module):
         if isinstance(node, ast.Import):
-            itertools_modules.update(
+            source_modules.update(
                 alias.asname or alias.name
                 for alias in node.names
-                if alias.name == "itertools"
+                if alias.name == source
             )
         elif (
             isinstance(node, ast.Assign)
@@ -726,15 +726,15 @@ def _module_assigns_itertools_attr(module: ast.Module, name: str) -> bool:
             and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
         ):
             bases.add(node.value.value.id)
-    return not itertools_modules.isdisjoint(bases)
+    return not source_modules.isdisjoint(bases)
 
 
-def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
-    """Whether a bare ``name`` is ``itertools.<name>`` or never bound.
+def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
+    """Whether a bare ``name`` is ``<source>.<name>`` or never bound.
 
     Whole-module ``ast.walk``; nested scopes are intentionally not modeled.
     """
-    from_itertools = False
+    from_source = False
     other = False
     for node in ast.walk(module):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -742,15 +742,15 @@ def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
                 other = True
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             for alias in node.names:
-                # Absolute ``from itertools import *`` binds ``name``.
+                # Absolute ``from <source> import *`` binds ``name``.
                 # Other star imports do not. ``import name.sub`` does.
                 if alias.name == "*":
                     if (
                         isinstance(node, ast.ImportFrom)
                         and node.level == 0
-                        and node.module == "itertools"
+                        and node.module == source
                     ):
-                        from_itertools = True
+                        from_source = True
                     continue
                 bound = alias.asname or alias.name.split(".", 1)[0]
                 if bound != name:
@@ -758,10 +758,10 @@ def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
                 if (
                     isinstance(node, ast.ImportFrom)
                     and node.level == 0
-                    and node.module == "itertools"
+                    and node.module == source
                     and alias.name == name
                 ):
-                    from_itertools = True
+                    from_source = True
                 else:
                     other = True
         elif (
@@ -775,7 +775,7 @@ def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
             and node.name == name
         ) or (isinstance(node, ast.MatchMapping) and node.rest == name):
             other = True
-    return from_itertools or not other or _module_assigns_itertools_attr(module, name)
+    return from_source or not other or _module_assigns_attr(module, source, name)
 
 
 @attr.s
@@ -805,8 +805,9 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
     _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
     _b008_class_globals: list[set[str]] = attr.ib(factory=list, init=False)
-    # Bare itertools names (groupby, batched) already resolved for this module.
-    _bare_itertools_names: dict[str, bool] = attr.ib(factory=dict, init=False)
+    # Bare names (groupby, batched, map) already resolved for this module, keyed
+    # by the module they are expected to come from.
+    _bare_names: dict[tuple[str, str], bool] = attr.ib(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = attr.ib(default="")
@@ -2168,17 +2169,17 @@ class BugBearVisitor(ast.NodeVisitor):
             )
         return num_usages
 
-    def _bare_name_is_itertools(self, name: str) -> bool:
-        """Whether a bare ``name()`` in this module is ``itertools.<name>``."""
-        if name not in self._bare_itertools_names:
+    def _bare_name_is_from(self, source: str, name: str) -> bool:
+        """Whether a bare ``name()`` in this module is ``<source>.<name>``."""
+        if (source, name) not in self._bare_names:
             module = self.contexts[0].node if self.contexts else None
             # No module to inspect: keep the historical report.
-            self._bare_itertools_names[name] = (
-                _module_name_is_itertools(module, name)
+            self._bare_names[source, name] = (
+                _module_name_is_from(module, source, name)
                 if isinstance(module, ast.Module)
                 else True
             )
-        return self._bare_itertools_names[name]
+        return self._bare_names[source, name]
 
     def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
@@ -2193,7 +2194,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if (
                 isinstance(node.func, ast.Name)
                 and node.func.id == "groupby"
-                and self._bare_name_is_itertools("groupby")
+                and self._bare_name_is_from("itertools", "groupby")
             ) or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "groupby"
@@ -2528,11 +2529,14 @@ class BugBearVisitor(ast.NodeVisitor):
                         )
                     )
                     # `map()`, `filter()` and the like are lazy too, so the
-                    # function or loop they were meant for never runs
+                    # function or loop they were meant for never runs. Only the
+                    # builtins count: a module's own `def map()` or one imported
+                    # from elsewhere may well run it
                     or (
                         isinstance(node.value, ast.Call)
                         and isinstance(node.value.func, ast.Name)
                         and node.value.func.id in B018_LAZY_FUNCTIONS
+                        and self._bare_name_is_from("builtins", node.value.func.id)
                     )
                 )
                 # directly in a `try` or `with` block, an operation is often run
@@ -3244,7 +3248,7 @@ class BugBearVisitor(ast.NodeVisitor):
             (
                 isinstance(node.func, ast.Name)
                 and node.func.id == "batched"
-                and self._bare_name_is_itertools("batched")
+                and self._bare_name_is_from("itertools", "batched")
             )
             or (
                 isinstance(node.func, ast.Attribute)
