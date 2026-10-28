@@ -573,6 +573,9 @@ UNRELEASED
   defines or imports its own function under that name, which may well do the work
 * B031, B911: a bare ``groupby``/``batched`` imported from ``itertools`` no longer
   counts as ``itertools`` when a later module-level ``def`` or assignment replaces it
+* B905, B910: only report ``zip()`` and ``defaultdict(int)`` when the name is the
+  builtin ``zip``/``collections.defaultdict``, not when a module-level ``def``,
+  ``class``, import or assignment replaces it with something else
 
 26.10.27
 ~~~~~~~~
