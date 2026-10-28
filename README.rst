@@ -565,6 +565,15 @@ MIT
 Change Log
 ----------
 
+UNRELEASED
+~~~~~~~~~~
+
+* B018: only report a ``map()``, ``filter()``, ``reversed()``, ``zip()`` or
+  ``enumerate()`` statement when the name is the builtin, not when the module
+  defines or imports its own function under that name, which may well do the work
+* B031, B911: a bare ``groupby``/``batched`` imported from ``itertools`` no longer
+  counts as ``itertools`` when a later module-level ``def`` or assignment replaces it
+
 26.10.27
 ~~~~~~~~
 

@@ -707,75 +707,114 @@ def _b906_definition_exprs(
     return exprs
 
 
-def _module_assigns_itertools_attr(module: ast.Module, name: str) -> bool:
-    """Whether the module has ``name = itertools.<name>``, e.g. in a fallback."""
-    itertools_modules: set[str] = set()
-    bases: set[str] = set()
-    for node in ast.walk(module):
-        if isinstance(node, ast.Import):
-            itertools_modules.update(
-                alias.asname or alias.name
+def _binds_from_source(
+    node: ast.AST, source: str, name: str, source_modules: set[str]
+) -> bool:
+    """Whether ``node`` binds ``name`` to ``<source>.<name>``.
+
+    That is ``from <source> import <name>``, ``from <source> import *`` or
+    ``name = <source>.<name>`` with ``<source>`` imported as a module.
+    """
+    if isinstance(node, ast.ImportFrom):
+        return (
+            node.level == 0
+            and node.module == source
+            and any(
+                alias.name == "*"
+                or (alias.name == name and alias.asname in (None, name))
                 for alias in node.names
-                if alias.name == "itertools"
             )
-        elif (
-            isinstance(node, ast.Assign)
-            and isinstance(node.value, ast.Attribute)
-            and node.value.attr == name
-            and isinstance(node.value.value, ast.Name)
-            and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+        )
+    return (
+        isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == name
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id in source_modules
+        and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+    )
+
+
+def _rebinds_elsewhere(stmt: ast.stmt, name: str) -> bool:
+    """Whether a module-level ``stmt`` itself binds ``name`` to something else.
+
+    ``name = name`` keeps the binding it had.
+    """
+    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return stmt.name == name
+    if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+        return any(
+            (alias.asname or alias.name.split(".", 1)[0]) == name
+            for alias in stmt.names
+        )
+    if isinstance(stmt, ast.Assign):
+        targets, value = stmt.targets, stmt.value
+    elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+        targets, value = [stmt.target], stmt.value
+    else:
+        return False
+    return not (isinstance(value, ast.Name) and value.id == name) and any(
+        isinstance(t, ast.Name) and t.id == name for t in targets
+    )
+
+
+def _module_binding_is_from(module: ast.Module, source: str, name: str) -> bool:
+    """Whether the last module-level binding of ``name`` is ``<source>.<name>``.
+
+    Statements are taken in source order. A binding from ``<source>`` anywhere
+    in a statement counts for that statement, so a ``try``/``except`` fallback
+    for older Pythons still means ``<source>.<name>``.
+    """
+    source_modules = {
+        alias.asname or alias.name
+        for node in ast.walk(module)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == source
+    }
+    is_from = False
+    for stmt in module.body:
+        if any(
+            _binds_from_source(node, source, name, source_modules)
+            for node in ast.walk(stmt)
         ):
-            bases.add(node.value.value.id)
-    return not itertools_modules.isdisjoint(bases)
+            is_from = True
+        elif _rebinds_elsewhere(stmt, name):
+            is_from = False
+    return is_from
 
 
-def _module_name_is_itertools(module: ast.Module, name: str) -> bool:
-    """Whether a bare ``name`` is ``itertools.<name>`` or never bound.
+def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
+    """Whether a bare ``name`` is ``<source>.<name>`` or never bound.
 
     Whole-module ``ast.walk``; nested scopes are intentionally not modeled.
     """
-    from_itertools = False
-    other = False
+    bound = False
     for node in ast.walk(module):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             if node.name == name:
-                other = True
+                bound = True
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            for alias in node.names:
-                # Absolute ``from itertools import *`` binds ``name``.
-                # Other star imports do not. ``import name.sub`` does.
-                if alias.name == "*":
-                    if (
-                        isinstance(node, ast.ImportFrom)
-                        and node.level == 0
-                        and node.module == "itertools"
-                    ):
-                        from_itertools = True
-                    continue
-                bound = alias.asname or alias.name.split(".", 1)[0]
-                if bound != name:
-                    continue
-                if (
-                    isinstance(node, ast.ImportFrom)
-                    and node.level == 0
-                    and node.module == "itertools"
-                    and alias.name == name
-                ):
-                    from_itertools = True
-                else:
-                    other = True
+            # Star imports are left to ``_module_binding_is_from``: only an
+            # absolute ``from <source> import *`` binds ``name`` there.
+            # ``import name.sub`` binds ``name``.
+            if any(
+                (alias.asname or alias.name.split(".", 1)[0]) == name
+                for alias in node.names
+            ):
+                bound = True
         elif (
             isinstance(node, ast.Name)
             and node.id == name
             and isinstance(node.ctx, ast.Store)
         ):
-            other = True
+            bound = True
         elif (
             isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler))
             and node.name == name
         ) or (isinstance(node, ast.MatchMapping) and node.rest == name):
-            other = True
-    return from_itertools or not other or _module_assigns_itertools_attr(module, name)
+            bound = True
+    return not bound or _module_binding_is_from(module, source, name)
 
 
 @attr.s
@@ -805,8 +844,9 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
     _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
     _b008_class_globals: list[set[str]] = attr.ib(factory=list, init=False)
-    # Bare itertools names (groupby, batched) already resolved for this module.
-    _bare_itertools_names: dict[str, bool] = attr.ib(factory=dict, init=False)
+    # Bare names (groupby, batched, map) already resolved for this module, keyed
+    # by the module they are expected to come from.
+    _bare_names: dict[tuple[str, str], bool] = attr.ib(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = attr.ib(default="")
@@ -2168,17 +2208,17 @@ class BugBearVisitor(ast.NodeVisitor):
             )
         return num_usages
 
-    def _bare_name_is_itertools(self, name: str) -> bool:
-        """Whether a bare ``name()`` in this module is ``itertools.<name>``."""
-        if name not in self._bare_itertools_names:
+    def _bare_name_is_from(self, source: str, name: str) -> bool:
+        """Whether a bare ``name()`` in this module is ``<source>.<name>``."""
+        if (source, name) not in self._bare_names:
             module = self.contexts[0].node if self.contexts else None
             # No module to inspect: keep the historical report.
-            self._bare_itertools_names[name] = (
-                _module_name_is_itertools(module, name)
+            self._bare_names[source, name] = (
+                _module_name_is_from(module, source, name)
                 if isinstance(module, ast.Module)
                 else True
             )
-        return self._bare_itertools_names[name]
+        return self._bare_names[source, name]
 
     def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
@@ -2193,7 +2233,7 @@ class BugBearVisitor(ast.NodeVisitor):
             if (
                 isinstance(node.func, ast.Name)
                 and node.func.id == "groupby"
-                and self._bare_name_is_itertools("groupby")
+                and self._bare_name_is_from("itertools", "groupby")
             ) or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "groupby"
@@ -2528,11 +2568,14 @@ class BugBearVisitor(ast.NodeVisitor):
                         )
                     )
                     # `map()`, `filter()` and the like are lazy too, so the
-                    # function or loop they were meant for never runs
+                    # function or loop they were meant for never runs. Only the
+                    # builtins count: a module's own `def map()` or one imported
+                    # from elsewhere may well run it
                     or (
                         isinstance(node.value, ast.Call)
                         and isinstance(node.value.func, ast.Name)
                         and node.value.func.id in B018_LAZY_FUNCTIONS
+                        and self._bare_name_is_from("builtins", node.value.func.id)
                     )
                 )
                 # directly in a `try` or `with` block, an operation is often run
@@ -3244,7 +3287,7 @@ class BugBearVisitor(ast.NodeVisitor):
             (
                 isinstance(node.func, ast.Name)
                 and node.func.id == "batched"
-                and self._bare_name_is_itertools("batched")
+                and self._bare_name_is_from("itertools", "batched")
             )
             or (
                 isinstance(node.func, ast.Attribute)
