@@ -707,26 +707,81 @@ def _b906_definition_exprs(
     return exprs
 
 
-def _module_assigns_attr(module: ast.Module, source: str, name: str) -> bool:
-    """Whether the module has ``name = <source>.<name>``, e.g. in a fallback."""
-    source_modules: set[str] = set()
-    bases: set[str] = set()
-    for node in ast.walk(module):
-        if isinstance(node, ast.Import):
-            source_modules.update(
-                alias.asname or alias.name
+def _binds_from_source(
+    node: ast.AST, source: str, name: str, source_modules: set[str]
+) -> bool:
+    """Whether ``node`` binds ``name`` to ``<source>.<name>``.
+
+    That is ``from <source> import <name>``, ``from <source> import *`` or
+    ``name = <source>.<name>`` with ``<source>`` imported as a module.
+    """
+    if isinstance(node, ast.ImportFrom):
+        return (
+            node.level == 0
+            and node.module == source
+            and any(
+                alias.name == "*"
+                or (alias.name == name and alias.asname in (None, name))
                 for alias in node.names
-                if alias.name == source
             )
-        elif (
-            isinstance(node, ast.Assign)
-            and isinstance(node.value, ast.Attribute)
-            and node.value.attr == name
-            and isinstance(node.value.value, ast.Name)
-            and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+        )
+    return (
+        isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == name
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id in source_modules
+        and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+    )
+
+
+def _rebinds_elsewhere(stmt: ast.stmt, name: str) -> bool:
+    """Whether a module-level ``stmt`` itself binds ``name`` to something else.
+
+    ``name = name`` keeps the binding it had.
+    """
+    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return stmt.name == name
+    if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+        return any(
+            (alias.asname or alias.name.split(".", 1)[0]) == name
+            for alias in stmt.names
+        )
+    if isinstance(stmt, ast.Assign):
+        targets, value = stmt.targets, stmt.value
+    elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+        targets, value = [stmt.target], stmt.value
+    else:
+        return False
+    return not (isinstance(value, ast.Name) and value.id == name) and any(
+        isinstance(t, ast.Name) and t.id == name for t in targets
+    )
+
+
+def _module_binding_is_from(module: ast.Module, source: str, name: str) -> bool:
+    """Whether the last module-level binding of ``name`` is ``<source>.<name>``.
+
+    Statements are taken in source order. A binding from ``<source>`` anywhere
+    in a statement counts for that statement, so a ``try``/``except`` fallback
+    for older Pythons still means ``<source>.<name>``.
+    """
+    source_modules = {
+        alias.asname or alias.name
+        for node in ast.walk(module)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == source
+    }
+    is_from = False
+    for stmt in module.body:
+        if any(
+            _binds_from_source(node, source, name, source_modules)
+            for node in ast.walk(stmt)
         ):
-            bases.add(node.value.value.id)
-    return not source_modules.isdisjoint(bases)
+            is_from = True
+        elif _rebinds_elsewhere(stmt, name):
+            is_from = False
+    return is_from
 
 
 def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
@@ -734,48 +789,32 @@ def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
 
     Whole-module ``ast.walk``; nested scopes are intentionally not modeled.
     """
-    from_source = False
-    other = False
+    bound = False
     for node in ast.walk(module):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             if node.name == name:
-                other = True
+                bound = True
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            for alias in node.names:
-                # Absolute ``from <source> import *`` binds ``name``.
-                # Other star imports do not. ``import name.sub`` does.
-                if alias.name == "*":
-                    if (
-                        isinstance(node, ast.ImportFrom)
-                        and node.level == 0
-                        and node.module == source
-                    ):
-                        from_source = True
-                    continue
-                bound = alias.asname or alias.name.split(".", 1)[0]
-                if bound != name:
-                    continue
-                if (
-                    isinstance(node, ast.ImportFrom)
-                    and node.level == 0
-                    and node.module == source
-                    and alias.name == name
-                ):
-                    from_source = True
-                else:
-                    other = True
+            # Star imports are left to ``_module_binding_is_from``: only an
+            # absolute ``from <source> import *`` binds ``name`` there.
+            # ``import name.sub`` binds ``name``.
+            if any(
+                (alias.asname or alias.name.split(".", 1)[0]) == name
+                for alias in node.names
+            ):
+                bound = True
         elif (
             isinstance(node, ast.Name)
             and node.id == name
             and isinstance(node.ctx, ast.Store)
         ):
-            other = True
+            bound = True
         elif (
             isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler))
             and node.name == name
         ) or (isinstance(node, ast.MatchMapping) and node.rest == name):
-            other = True
-    return from_source or not other or _module_assigns_attr(module, source, name)
+            bound = True
+    return not bound or _module_binding_is_from(module, source, name)
 
 
 @attr.s
