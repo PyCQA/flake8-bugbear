@@ -713,7 +713,8 @@ def _binds_from_source(
     """Whether ``node`` binds ``name`` to ``<source>.<name>``.
 
     That is ``from <source> import <name>``, ``from <source> import *`` or
-    ``name = <source>.<name>`` with ``<source>`` imported as a module.
+    ``name = <source>.<name>`` (optionally annotated) with ``<source>`` imported
+    as a module.
     """
     if isinstance(node, ast.ImportFrom):
         return (
@@ -725,13 +726,18 @@ def _binds_from_source(
                 for alias in node.names
             )
         )
+    if isinstance(node, ast.Assign):
+        targets, value = node.targets, node.value
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        targets, value = [node.target], node.value
+    else:
+        return False
     return (
-        isinstance(node, ast.Assign)
-        and isinstance(node.value, ast.Attribute)
-        and node.value.attr == name
-        and isinstance(node.value.value, ast.Name)
-        and node.value.value.id in source_modules
-        and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+        isinstance(value, ast.Attribute)
+        and value.attr == name
+        and isinstance(value.value, ast.Name)
+        and value.value.id in source_modules
+        and any(isinstance(t, ast.Name) and t.id == name for t in targets)
     )
 
 
