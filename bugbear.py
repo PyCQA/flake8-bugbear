@@ -102,7 +102,8 @@ class Context(NamedTuple):
 
 def _defines_a_generator(function_node: ast.FunctionDef) -> bool:
     """Does this function's own body contain a yield? (nested ones do not count)"""
-    stack = list(function_node.body)
+    stack: list[ast.AST] = []
+    stack.extend(function_node.body)
     while stack:
         node = stack.pop()
         if isinstance(node, (ast.Yield, ast.YieldFrom)):
@@ -176,7 +177,7 @@ class BugBearChecker:
                 and isinstance(node.value, ast.Constant)
                 and isinstance(node.value.value, (str, bytes))
                 and not self.lines[node.lineno - 1][: node.col_offset].strip()
-                and self._only_comment_after(node)
+                and self._only_comment_after(node.value)
             ):
                 doc_lines.update(range(node.lineno, (node.end_lineno or 0) + 1))
         with suppress(tokenize.TokenError, SyntaxError):
@@ -1782,7 +1783,7 @@ class BugBearVisitor(ast.NodeVisitor):
         # uses, and then if there are any we check for assignment of those names
         # inside the loop body.
         immediately_called = self._immediately_called_functions(loop_node)
-        safe_functions = []
+        safe_functions: list[ast.AsyncFunctionDef | ast.Lambda | ast.FunctionDef] = []
         suspicious_variables = []
         for node in ast.walk(loop_node):
             # check if function is immediately consumed to avoid false alarm
@@ -2777,7 +2778,9 @@ class BugBearVisitor(ast.NodeVisitor):
             return
 
         underscore_indexes = [
-            index for index, target in enumerate(targets) if target.id == "_"
+            index
+            for index, target in enumerate(targets)
+            if isinstance(target, ast.Name) and target.id == "_"
         ]
         if not underscore_indexes or len(underscore_indexes) == len(targets):
             return
@@ -3173,7 +3176,7 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b045(self, node: ast.For | ast.AsyncFor) -> None:
         # The stack belongs to the current scope: nested functions, classes,
         # and comprehensions cannot overwrite an enclosing loop's binding.
-        outer_names = set()
+        outer_names: set[str] = set()
         for ancestor, child in zip(self.node_stack, self.node_stack[1:], strict=False):
             if isinstance(ancestor, (ast.For, ast.AsyncFor)) and child in ancestor.body:
                 outer_names.update(names_from_assignments(ancestor.target))
@@ -3217,7 +3220,12 @@ class BugBearVisitor(ast.NodeVisitor):
             value = node.args[1]
         elif len(node.args) == 1:
             # OrderedDict.fromkeys() also takes the value as a keyword argument
-            value = next((kw.value for kw in node.keywords if kw.arg == "value"), None)
+            kw_value = next(
+                (kw.value for kw in node.keywords if kw.arg == "value"), None
+            )
+            if kw_value is None:
+                return
+            value = kw_value
         else:
             return
 
