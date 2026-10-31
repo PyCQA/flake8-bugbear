@@ -713,7 +713,8 @@ def _binds_from_source(
     """Whether ``node`` binds ``name`` to ``<source>.<name>``.
 
     That is ``from <source> import <name>``, ``from <source> import *`` or
-    ``name = <source>.<name>`` with ``<source>`` imported as a module.
+    ``name = <source>.<name>`` (optionally annotated) with ``<source>`` imported
+    as a module.
     """
     if isinstance(node, ast.ImportFrom):
         return (
@@ -725,13 +726,18 @@ def _binds_from_source(
                 for alias in node.names
             )
         )
+    if isinstance(node, ast.Assign):
+        targets, value = node.targets, node.value
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        targets, value = [node.target], node.value
+    else:
+        return False
     return (
-        isinstance(node, ast.Assign)
-        and isinstance(node.value, ast.Attribute)
-        and node.value.attr == name
-        and isinstance(node.value.value, ast.Name)
-        and node.value.value.id in source_modules
-        and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+        isinstance(value, ast.Attribute)
+        and value.attr == name
+        and isinstance(value.value, ast.Name)
+        and value.value.id in source_modules
+        and any(isinstance(t, ast.Name) and t.id == name for t in targets)
     )
 
 
@@ -758,12 +764,15 @@ def _rebinds_elsewhere(stmt: ast.stmt, name: str) -> bool:
     )
 
 
-def _module_binding_is_from(module: ast.Module, source: str, name: str) -> bool:
+def _module_binding_is_from(
+    module: ast.Module, source: str, name: str, unbound: bool = False
+) -> bool:
     """Whether the last module-level binding of ``name`` is ``<source>.<name>``.
 
     Statements are taken in source order. A binding from ``<source>`` anywhere
     in a statement counts for that statement, so a ``try``/``except`` fallback
-    for older Pythons still means ``<source>.<name>``.
+    for older Pythons still means ``<source>.<name>``. ``unbound`` is returned
+    when no module-level statement binds ``name``.
     """
     source_modules = {
         alias.asname or alias.name
@@ -772,7 +781,7 @@ def _module_binding_is_from(module: ast.Module, source: str, name: str) -> bool:
         for alias in node.names
         if alias.name == source
     }
-    is_from = False
+    is_from = unbound
     for stmt in module.body:
         if any(
             _binds_from_source(node, source, name, source_modules)
@@ -845,8 +854,9 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
     _b008_class_globals: list[set[str]] = attr.ib(factory=list, init=False)
     # Bare names (groupby, batched, map) already resolved for this module, keyed
-    # by the module they are expected to come from.
-    _bare_names: dict[tuple[str, str], bool] = attr.ib(factory=dict, init=False)
+    # by the module they are expected to come from and whether only module-level
+    # bindings count.
+    _bare_names: dict[tuple[str, str, bool], bool] = attr.ib(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = attr.ib(default="")
@@ -2208,17 +2218,27 @@ class BugBearVisitor(ast.NodeVisitor):
             )
         return num_usages
 
-    def _bare_name_is_from(self, source: str, name: str) -> bool:
-        """Whether a bare ``name()`` in this module is ``<source>.<name>``."""
-        if (source, name) not in self._bare_names:
+    def _bare_name_is_from(
+        self, source: str, name: str, module_level: bool = False
+    ) -> bool:
+        """Whether a bare ``name()`` in this module is ``<source>.<name>``.
+
+        With ``module_level``, only module-level statements can rebind ``name``,
+        so a method, class attribute or local variable of that name is ignored.
+        """
+        key = (source, name, module_level)
+        if key not in self._bare_names:
             module = self.contexts[0].node if self.contexts else None
             # No module to inspect: keep the historical report.
-            self._bare_names[source, name] = (
-                _module_name_is_from(module, source, name)
-                if isinstance(module, ast.Module)
-                else True
-            )
-        return self._bare_names[source, name]
+            if not isinstance(module, ast.Module):
+                self._bare_names[key] = True
+            elif module_level:
+                self._bare_names[key] = _module_binding_is_from(
+                    module, source, name, unbound=True
+                )
+            else:
+                self._bare_names[key] = _module_name_is_from(module, source, name)
+        return self._bare_names[key]
 
     def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
@@ -2732,7 +2752,11 @@ class BugBearVisitor(ast.NodeVisitor):
         return False
 
     def check_for_b905(self, node: ast.Call) -> None:
-        if not (isinstance(node.func, ast.Name) and node.func.id == "zip"):
+        if not (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "zip"
+            and self._bare_name_is_from("builtins", "zip", module_level=True)
+        ):
             return
         for arg in node.args:
             if self._is_infinite_iterator(arg):
@@ -3279,6 +3303,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and len(node.args) > 0
             and isinstance(node.args[0], ast.Name)
             and node.args[0].id == "int"
+            and self._bare_name_is_from("collections", "defaultdict", module_level=True)
         ):
             self.add_error("B910", node)
 
