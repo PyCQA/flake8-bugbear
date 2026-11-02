@@ -3438,7 +3438,7 @@ class B909Checker(ast.NodeVisitor):
     def visit(self, node: ast.AST | list[ast.stmt]) -> ast.AST | list[ast.stmt] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
-            return super().visit(node)
+            return super().visit(node)  # type: ignore[no-any-return]
 
         for elem in node:
             if isinstance(elem, ast.Break):
@@ -3511,10 +3511,10 @@ class NameFinder(ast.NodeVisitor):
     ) -> None:
         self.names.setdefault(node.id, []).append(node)
 
-    def visit(self, node) -> Any:
+    def visit(self, node: ast.AST | list[Any]) -> list[Any] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
-            return super().visit(node)
+            return super().visit(node)  # type: ignore[no-any-return]
 
         for elem in node:
             super().visit(elem)
@@ -3586,10 +3586,10 @@ class NamedExprFinder(ast.NodeVisitor):
         self.names.setdefault(node.target.id, []).append(node.target)
         self.generic_visit(node)
 
-    def visit(self, node) -> Any:
+    def visit(self, node: ast.AST | list[Any]) -> list[Any] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
-            return super().visit(node)
+            return super().visit(node)  # type: ignore[no-any-return]
 
         for elem in node:
             super().visit(elem)
@@ -3693,7 +3693,7 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
             self.imported_names[node.target.id] = None
         self.generic_visit(node)
 
-    def visit_Lambda(self, node) -> None:  # noqa: B906
+    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: B906
         self.visit(node.args.defaults)
         self.visit(
             [default for default in node.args.kw_defaults if default is not None]
@@ -3702,14 +3702,14 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
     def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
         self.visit(node.generators[0].iter)
 
-    def visit(self, node) -> None:
+    def visit(self, node: ast.AST | list[Any] | None) -> None:
         """Like super-visit but supports iteration over lists."""
         self.arg_depth += 1
         if isinstance(node, list):
             for elem in node:
                 if elem is not None:
                     super().visit(elem)
-        else:
+        elif node is not None:
             super().visit(node)
         self.arg_depth -= 1
 
