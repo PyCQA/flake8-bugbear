@@ -19,7 +19,6 @@ from functools import lru_cache
 from keyword import iskeyword
 from typing import Any, NamedTuple, Protocol, cast
 
-import attr  # type: ignore
 import pycodestyle  # type: ignore
 from attrs import define, field
 from flake8.exceptions import PluginExecutionFailed
@@ -124,16 +123,19 @@ class BugBearChecker:
     name = "flake8-bugbear"
     version = __version__
 
-    tree: ast.AST = field(default=None)
+    tree: ast.AST | None = field(default=None)
     filename: str = field(default="(none)")
-    lines: list[str] = field(default=None)
+    lines: list[str] | None = field(default=None)
     max_line_length: int = field(default=79)
     visitor: type[BugBearVisitor] = field(init=False, factory=lambda: BugBearVisitor)
-    options: Namespace = field(default=None)
+    options: Namespace | None = field(default=None)
 
     def run(self) -> Iterable[tuple[int, int, str, type]]:
         if not self.tree or not self.lines:
             self.load_file()
+
+        if self.tree is None or self.lines is None:
+            return
 
         if self.options and hasattr(self.options, "extend_immutable_calls"):
             b008_b039_extend_immutable_calls = set(self.options.extend_immutable_calls)
@@ -166,6 +168,8 @@ class BugBearChecker:
         strings that are part of code, even code after a `;` on the same line.
         """
         doc_lines: set[int] = set()
+        if self.tree is None or self.lines is None:
+            return set()
         for node in ast.walk(self.tree):
             if (
                 isinstance(node, ast.Expr)
@@ -188,6 +192,8 @@ class BugBearChecker:
 
     def _only_comment_after(self, node: ast.expr) -> bool:
         """Whether nothing but a comment follows `node` on its last line."""
+        if self.lines is None:
+            return False
         line = self.lines[(node.end_lineno or node.lineno) - 1].encode()
         rest = line[node.end_col_offset or 0 :].decode(errors="replace").strip()
         return not rest or rest.startswith("#")
@@ -204,6 +210,8 @@ class BugBearChecker:
         noqa_type_ignore_regex = re.compile(
             r"#\s*(noqa|type:\s*ignore|pragma:)[^#\r\n]*$"
         )
+        if self.lines is None:
+            return
         for lineno, line in enumerate(self.lines, start=1):
             # Special case: ignore long shebang (following pycodestyle).
             if lineno == 1 and line.startswith("#!"):
@@ -504,7 +512,7 @@ class ExceptBaseExceptionVisitor(ast.NodeVisitor):
         super().generic_visit(node)
 
 
-@attr.define
+@define
 class B040CaughtException:
     name: str
     has_note: bool
@@ -516,7 +524,7 @@ class B041UnhandledKeyType:
     """
 
 
-@attr.define(frozen=True)
+@define(frozen=True)
 class B041VariableKeyType:
     name: str
 
@@ -2027,18 +2035,18 @@ class BugBearVisitor(ast.NodeVisitor):
                 and value.value.id == "abc"
             )
 
-        def is_abstract_decorator(expr):
+        def is_abstract_decorator(expr: ast.expr) -> bool:
             return (isinstance(expr, ast.Name) and expr.id[:8] == "abstract") or (
                 isinstance(expr, ast.Attribute) and expr.attr[:8] == "abstract"
             )
 
-        def is_overload(expr):
+        def is_overload(expr: ast.expr) -> bool:
             return (isinstance(expr, ast.Name) and expr.id == "overload") or (
                 isinstance(expr, ast.Attribute) and expr.attr == "overload"
             )
 
-        def empty_body(body) -> bool:
-            def is_str_or_ellipsis(node):
+        def empty_body(body: list[ast.stmt]) -> bool:
+            def is_str_or_ellipsis(node: ast.expr) -> bool:
                 return isinstance(node, ast.Constant) and (
                     node.value is Ellipsis or isinstance(node.value, str)
                 )
@@ -2892,7 +2900,7 @@ class BugBearVisitor(ast.NodeVisitor):
             for context in self.contexts[:-2]
         ):
             return empty
-        module = cast(ast.Module, self.contexts[0].node)
+        module = self.contexts[0].node
         # Enclosing classes only: ``contexts[-2]`` is the class itself and
         # ``contexts[-1]`` is the method, neither is an enclosing scope for
         # the class's bases (its own body is not in scope for them).
@@ -2928,7 +2936,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.contexts[-2].node, ast.ClassDef
         ):
             return False
-        class_node = cast(ast.ClassDef, self.contexts[-2].node)
+        class_node = self.contexts[-2].node
         bindings = self._b906_libcst_bindings_for(class_node)
         if not bindings:
             return False
@@ -3088,7 +3096,7 @@ class BugBearVisitor(ast.NodeVisitor):
             check(2, "maxsplit")
 
     def check_for_b042(self, node: ast.ClassDef) -> None:  # noqa: C901 # too-complex
-        def is_exception(s: str):
+        def is_exception(s: str) -> bool:
             for ending in "Exception", "Error", "Warning", "ExceptionGroup":
                 if s.endswith(ending):
                     return True
@@ -3727,7 +3735,7 @@ class B020NameFinder(NameFinder):
             self.names.pop(lambda_arg.arg, None)
 
 
-@attr.s
+@define
 class B020AttributeFinder(B020NameFinder):
     """Dotted attribute paths, under the scope rules B020NameFinder uses for names.
 
@@ -3737,7 +3745,7 @@ class B020AttributeFinder(B020NameFinder):
     against the loop target.
     """
 
-    paths: set[str] = attr.ib(factory=set)
+    paths: set[str] = field(factory=set)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         path = _dotted_name(node)
