@@ -861,7 +861,7 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_class_globals: list[set[str]] = field(factory=list, init=False)
     # Bare names (groupby, batched, map) already resolved for this module, keyed
     # by the module they are expected to come from.
-    _bare_names: dict[tuple[str, str], bool] = field(factory=dict, init=False)
+    _bare_names: dict[tuple[str, str, bool], bool] = field(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = field(default="")
@@ -3717,19 +3717,19 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
 class B020NameFinder(NameFinder):
     """Ignore names defined within the local scope of a comprehension."""
 
-    def visit_GeneratorExp(self, node) -> None:
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
         self.visit(node.generators)
 
-    def visit_ListComp(self, node) -> None:
+    def visit_ListComp(self, node: ast.ListComp) -> None:
         self.visit(node.generators)
 
-    def visit_DictComp(self, node) -> None:
+    def visit_DictComp(self, node: ast.DictComp) -> None:
         self.visit(node.generators)
 
-    def visit_comprehension(self, node) -> None:
+    def visit_comprehension(self, node: ast.comprehension) -> None:
         self.visit(node.iter)
 
-    def visit_Lambda(self, node) -> None:
+    def visit_Lambda(self, node: ast.Lambda) -> None:
         self.visit(node.body)
         for lambda_arg in node.args.args:
             self.names.pop(lambda_arg.arg, None)
