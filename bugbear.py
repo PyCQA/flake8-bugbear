@@ -11,6 +11,7 @@ import symtable
 import sys
 import tokenize
 import warnings
+from argparse import Namespace
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import suppress
@@ -18,8 +19,8 @@ from functools import lru_cache
 from keyword import iskeyword
 from typing import Any, NamedTuple, Protocol, cast
 
-import attr  # type: ignore
 import pycodestyle  # type: ignore
+from attrs import define, field
 from flake8.exceptions import PluginExecutionFailed
 
 __version__ = "26.10.27"
@@ -117,21 +118,24 @@ def _is_rebound(
     )
 
 
-@attr.s(unsafe_hash=False)
+@define(slots=False, unsafe_hash=False)
 class BugBearChecker:
     name = "flake8-bugbear"
     version = __version__
 
-    tree = attr.ib(default=None)
-    filename = attr.ib(default="(none)")
-    lines = attr.ib(default=None)
-    max_line_length = attr.ib(default=79)
-    visitor = attr.ib(init=False, factory=lambda: BugBearVisitor)
-    options = attr.ib(default=None)
+    tree: ast.AST | None = field(default=None)
+    filename: str = field(default="(none)")
+    lines: list[str] | None = field(default=None)
+    max_line_length: int = field(default=79)
+    visitor: type[BugBearVisitor] = field(init=False, factory=lambda: BugBearVisitor)
+    options: Namespace | None = field(default=None)
 
     def run(self) -> Iterable[tuple[int, int, str, type]]:
         if not self.tree or not self.lines:
             self.load_file()
+
+        if self.tree is None or self.lines is None:
+            return
 
         if self.options and hasattr(self.options, "extend_immutable_calls"):
             b008_b039_extend_immutable_calls = set(self.options.extend_immutable_calls)
@@ -164,6 +168,8 @@ class BugBearChecker:
         strings that are part of code, even code after a `;` on the same line.
         """
         doc_lines: set[int] = set()
+        if self.tree is None or self.lines is None:
+            return set()
         for node in ast.walk(self.tree):
             if (
                 isinstance(node, ast.Expr)
@@ -186,6 +192,8 @@ class BugBearChecker:
 
     def _only_comment_after(self, node: ast.expr) -> bool:
         """Whether nothing but a comment follows `node` on its last line."""
+        if self.lines is None:
+            return False
         line = self.lines[(node.end_lineno or node.lineno) - 1].encode()
         rest = line[node.end_col_offset or 0 :].decode(errors="replace").strip()
         return not rest or rest.startswith("#")
@@ -202,6 +210,8 @@ class BugBearChecker:
         noqa_type_ignore_regex = re.compile(
             r"#\s*(noqa|type:\s*ignore|pragma:)[^#\r\n]*$"
         )
+        if self.lines is None:
+            return
         for lineno, line in enumerate(self.lines, start=1):
             # Special case: ignore long shebang (following pycodestyle).
             if lineno == 1 and line.startswith("#!"):
@@ -332,7 +342,7 @@ class BugBearChecker:
         return False
 
 
-def _is_identifier(arg) -> bool:
+def _is_identifier(arg: ast.expr) -> bool:
     # Return True if arg is a valid identifier, per
     # https://docs.python.org/2/reference/lexical_analysis.html#identifiers
 
@@ -360,7 +370,7 @@ def _flatten_excepthandler(node: ast.expr | None) -> Iterator[ast.expr | None]:
 
 def _check_redundant_excepthandlers(
     names: Sequence[str], node: ast.ExceptHandler, in_trystar: str
-):
+) -> error | None:
     # See if any of the given exception names could be removed, e.g. from:
     #    (MyError, MyError)  # duplicate names
     #    (MyError, BaseException)  # everything derives from the Base
@@ -494,15 +504,15 @@ class ExceptBaseExceptionVisitor(ast.NodeVisitor):
         ):
             self._re_raised = True
             return
-        return super().generic_visit(node)
+        super().generic_visit(node)
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node is not self.root:
             return  # entered a nested except - stop searching
-        return super().generic_visit(node)
+        super().generic_visit(node)
 
 
-@attr.define
+@define
 class B040CaughtException:
     name: str
     has_note: bool
@@ -514,7 +524,7 @@ class B041UnhandledKeyType:
     """
 
 
-@attr.define(frozen=True)
+@define(frozen=True)
 class B041VariableKeyType:
     name: str
 
@@ -820,45 +830,46 @@ def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
     return not bound or _module_binding_is_from(module, source, name)
 
 
-@attr.s
+@define
 class BugBearVisitor(ast.NodeVisitor):
-    filename = attr.ib()
-    lines = attr.ib()
-    b008_b039_extend_immutable_calls: set[str] = attr.ib(factory=set)
-    b902_classmethod_decorators: set[str] = attr.ib(factory=set)
-    node_window: list[ast.AST] = attr.ib(factory=list)
-    errors: list[error] = attr.ib(factory=list)
-    contexts: list[Context] = attr.ib(factory=list)
-    b040_caught_exception: B040CaughtException | None = attr.ib(default=None)
+    filename: str = field()
+    lines: list[str] = field()
+    b008_b039_extend_immutable_calls: set[str] = field(factory=set)
+    b902_classmethod_decorators: set[str] = field(factory=set)
+    node_window: list[ast.AST] = field(factory=list)
+    errors: list[error] = field(factory=list)
+    contexts: list[Context] = field(factory=list)
+    b040_caught_exception: B040CaughtException | None = field(default=None)
 
     NODE_WINDOW_SIZE = 4
-    _b023_seen: set[ast.Name] = attr.ib(factory=set, init=False)
-    _closure_reads_cache: dict[int, set[str]] = attr.ib(factory=dict, init=False)
-    _symtable_root: Any = attr.ib(default=False, init=False)
-    _b023_scopes: dict[int, tuple] = attr.ib(factory=dict, init=False)
-    _b005_imports: set[str] = attr.ib(factory=set, init=False)
+    _b023_seen: set[ast.Name] = field(factory=set, init=False)
+    _closure_reads_cache: dict[int, set[str]] = field(factory=dict, init=False)
+    _symtable_root: Any = field(default=False, init=False)
+    _b023_scopes: dict[
+        int, tuple[dict[int, ast.AST], dict[str, list[ast.Name]], set[int]]
+    ] = field(factory=dict, init=False)
+    _b005_imports: set[str] = field(factory=set, init=False)
     # Module-scope libcst bindings from `_b906_scope_bindings` (name ->
     # ``"module"``/``"name"``/``None``), resolved lazily per class so the
     # position cutoff is the class being checked; ``None`` until known.
-    _b906_module_libcst: Callable[[ast.AST], dict[str, str | None]] | None = attr.ib(
+    _b906_module_libcst: Callable[[ast.AST], dict[str, str | None]] | None = field(
         default=None, init=False
     )
     # None marks an imported name that has since been rebound at module scope.
-    _b008_imports: dict[str, str | None] = attr.ib(factory=dict, init=False)
-    _b008_class_imports: list[dict[str, str | None]] = attr.ib(factory=list, init=False)
-    _b008_class_globals: list[set[str]] = attr.ib(factory=list, init=False)
+    _b008_imports: dict[str, str | None] = field(factory=dict, init=False)
+    _b008_class_imports: list[dict[str, str | None]] = field(factory=list, init=False)
+    _b008_class_globals: list[set[str]] = field(factory=list, init=False)
     # Bare names (groupby, batched, map) already resolved for this module, keyed
-    # by the module they are expected to come from and whether only module-level
-    # bindings count.
-    _bare_names: dict[tuple[str, str, bool], bool] = attr.ib(factory=dict, init=False)
+    # by the module they are expected to come from.
+    _bare_names: dict[tuple[str, str, bool], bool] = field(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
-    in_trystar: str = attr.ib(default="")
+    in_trystar: str = field(default="")
 
     if False:
         # Useful for tracing what the hell is going on.
 
-        def __getattr__(self, name: str):  # type: ignore[unreachable]
+        def __getattr__(self, name: str):
             print(name)
             return self.__getattribute__(name)
 
@@ -1018,7 +1029,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if node.name is None:
             self.b040_caught_exception = None
         else:
-            self.b040_caught_exception = B040CaughtException(node.name, False)  # type: ignore[call-arg]
+            self.b040_caught_exception = B040CaughtException(node.name, False)
 
         names = self.check_for_b013_b014_b029_b030(node)
 
@@ -1381,7 +1392,7 @@ class BugBearVisitor(ast.NodeVisitor):
             elif isinstance(item, ast.Tuple):
                 return tuple(convert_to_value(i) for i in item.elts)
             elif isinstance(item, ast.Name):
-                return B041VariableKeyType(item.id)  # type: ignore[call-arg]
+                return B041VariableKeyType(item.id)
             else:
                 return B041UnhandledKeyType()
 
@@ -2011,7 +2022,7 @@ class BugBearVisitor(ast.NodeVisitor):
         """Check for inheritance from abstract classes in abc and lack of
         any methods decorated with abstract*"""
 
-        def is_abc_class(value, name: str = "ABC"):
+        def is_abc_class(value: ast.AST, name: str = "ABC") -> bool:
             # class foo(metaclass = [abc.]ABCMeta)
             if isinstance(value, ast.keyword):
                 return value.arg == "metaclass" and is_abc_class(value.value, "ABCMeta")
@@ -2024,18 +2035,18 @@ class BugBearVisitor(ast.NodeVisitor):
                 and value.value.id == "abc"
             )
 
-        def is_abstract_decorator(expr):
+        def is_abstract_decorator(expr: ast.expr) -> bool:
             return (isinstance(expr, ast.Name) and expr.id[:8] == "abstract") or (
                 isinstance(expr, ast.Attribute) and expr.attr[:8] == "abstract"
             )
 
-        def is_overload(expr):
+        def is_overload(expr: ast.expr) -> bool:
             return (isinstance(expr, ast.Name) and expr.id == "overload") or (
                 isinstance(expr, ast.Attribute) and expr.attr == "overload"
             )
 
-        def empty_body(body) -> bool:
-            def is_str_or_ellipsis(node):
+        def empty_body(body: list[ast.stmt]) -> bool:
+            def is_str_or_ellipsis(node: ast.expr) -> bool:
                 return isinstance(node, ast.Constant) and (
                     node.value is Ellipsis or isinstance(node.value, str)
                 )
@@ -2889,7 +2900,7 @@ class BugBearVisitor(ast.NodeVisitor):
             for context in self.contexts[:-2]
         ):
             return empty
-        module = cast(ast.Module, self.contexts[0].node)
+        module = self.contexts[0].node
         # Enclosing classes only: ``contexts[-2]`` is the class itself and
         # ``contexts[-1]`` is the method, neither is an enclosing scope for
         # the class's bases (its own body is not in scope for them).
@@ -2925,7 +2936,7 @@ class BugBearVisitor(ast.NodeVisitor):
             self.contexts[-2].node, ast.ClassDef
         ):
             return False
-        class_node = cast(ast.ClassDef, self.contexts[-2].node)
+        class_node = self.contexts[-2].node
         bindings = self._b906_libcst_bindings_for(class_node)
         if not bindings:
             return False
@@ -3085,7 +3096,7 @@ class BugBearVisitor(ast.NodeVisitor):
             check(2, "maxsplit")
 
     def check_for_b042(self, node: ast.ClassDef) -> None:  # noqa: C901 # too-complex
-        def is_exception(s: str):
+        def is_exception(s: str) -> bool:
             for ending in "Exception", "Error", "Warning", "ExceptionGroup":
                 if s.endswith(ending):
                     return True
@@ -3427,7 +3438,7 @@ class B909Checker(ast.NodeVisitor):
     def visit(self, node: ast.AST | list[ast.stmt]) -> ast.AST | list[ast.stmt] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
-            return super().visit(node)
+            return super().visit(node)  # type: ignore[no-any-return]
 
         for elem in node:
             if isinstance(elem, ast.Break):
@@ -3485,7 +3496,7 @@ def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
             yield name, target
 
 
-@attr.s
+@define
 class NameFinder(ast.NodeVisitor):
     """Finds a name within a tree of nodes.
 
@@ -3493,17 +3504,17 @@ class NameFinder(ast.NodeVisitor):
     key is name string, value is the node (useful for location purposes).
     """
 
-    names: dict[str, list[ast.Name]] = attr.ib(factory=dict)
+    names: dict[str, list[ast.Name]] = field(factory=dict)
 
     def visit_Name(  # noqa: B906 # names don't contain other names
         self, node: ast.Name
     ) -> None:
         self.names.setdefault(node.id, []).append(node)
 
-    def visit(self, node):
+    def visit(self, node: ast.AST | list[Any]) -> list[Any] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
-            return super().visit(node)
+            return super().visit(node)  # type: ignore[no-any-return]
 
         for elem in node:
             super().visit(elem)
@@ -3561,7 +3572,7 @@ class B913UsageFinder(NameFinder):
             self.visit(node.target)
 
 
-@attr.s
+@define
 class NamedExprFinder(ast.NodeVisitor):
     """Finds names defined through an ast.NamedExpr.
 
@@ -3569,16 +3580,16 @@ class NamedExprFinder(ast.NodeVisitor):
     key is name string, value is the node (useful for location purposes).
     """
 
-    names: dict[str, list[ast.Name]] = attr.ib(factory=dict)
+    names: dict[str, list[ast.Name]] = field(factory=dict)
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self.names.setdefault(node.target.id, []).append(node.target)
         self.generic_visit(node)
 
-    def visit(self, node):
+    def visit(self, node: ast.AST | list[Any]) -> list[Any] | None:
         """Like super-visit but supports iteration over lists."""
         if not isinstance(node, list):
-            return super().visit(node)
+            return super().visit(node)  # type: ignore[no-any-return]
 
         for elem in node:
             super().visit(elem)
@@ -3682,7 +3693,7 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
             self.imported_names[node.target.id] = None
         self.generic_visit(node)
 
-    def visit_Lambda(self, node) -> None:  # noqa: B906
+    def visit_Lambda(self, node: ast.Lambda) -> None:  # noqa: B906
         self.visit(node.args.defaults)
         self.visit(
             [default for default in node.args.kw_defaults if default is not None]
@@ -3691,14 +3702,14 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
     def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
         self.visit(node.generators[0].iter)
 
-    def visit(self, node) -> None:
+    def visit(self, node: ast.AST | list[Any] | None) -> None:
         """Like super-visit but supports iteration over lists."""
         self.arg_depth += 1
         if isinstance(node, list):
             for elem in node:
                 if elem is not None:
                     super().visit(elem)
-        else:
+        elif node is not None:
             super().visit(node)
         self.arg_depth -= 1
 
@@ -3706,25 +3717,25 @@ class FunctionDefDefaultsVisitor(ast.NodeVisitor):
 class B020NameFinder(NameFinder):
     """Ignore names defined within the local scope of a comprehension."""
 
-    def visit_GeneratorExp(self, node) -> None:
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
         self.visit(node.generators)
 
-    def visit_ListComp(self, node) -> None:
+    def visit_ListComp(self, node: ast.ListComp) -> None:
         self.visit(node.generators)
 
-    def visit_DictComp(self, node) -> None:
+    def visit_DictComp(self, node: ast.DictComp) -> None:
         self.visit(node.generators)
 
-    def visit_comprehension(self, node) -> None:
+    def visit_comprehension(self, node: ast.comprehension) -> None:
         self.visit(node.iter)
 
-    def visit_Lambda(self, node) -> None:
+    def visit_Lambda(self, node: ast.Lambda) -> None:
         self.visit(node.body)
         for lambda_arg in node.args.args:
             self.names.pop(lambda_arg.arg, None)
 
 
-@attr.s
+@define
 class B020AttributeFinder(B020NameFinder):
     """Dotted attribute paths, under the scope rules B020NameFinder uses for names.
 
@@ -3734,7 +3745,7 @@ class B020AttributeFinder(B020NameFinder):
     against the loop target.
     """
 
-    paths: set[str] = attr.ib(factory=set)
+    paths: set[str] = field(factory=set)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         path = _dotted_name(node)
@@ -3827,7 +3838,7 @@ class error(NamedTuple):
 
 
 class Error:
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         self.message = message
 
     def __call__(self, lineno: int, col: int, vars: tuple[object, ...] = ()) -> error:
