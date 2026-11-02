@@ -869,7 +869,7 @@ class BugBearVisitor(ast.NodeVisitor):
     if False:
         # Useful for tracing what the hell is going on.
 
-        def __getattr__(self, name: str):  # type: ignore[unreachable]
+        def __getattr__(self, name: str):
             print(name)
             return self.__getattribute__(name)
 
@@ -1029,7 +1029,7 @@ class BugBearVisitor(ast.NodeVisitor):
         if node.name is None:
             self.b040_caught_exception = None
         else:
-            self.b040_caught_exception = B040CaughtException(node.name, False)  # type: ignore[call-arg]
+            self.b040_caught_exception = B040CaughtException(node.name, False)
 
         names = self.check_for_b013_b014_b029_b030(node)
 
@@ -1392,7 +1392,7 @@ class BugBearVisitor(ast.NodeVisitor):
             elif isinstance(item, ast.Tuple):
                 return tuple(convert_to_value(i) for i in item.elts)
             elif isinstance(item, ast.Name):
-                return B041VariableKeyType(item.id)  # type: ignore[call-arg]
+                return B041VariableKeyType(item.id)
             else:
                 return B041UnhandledKeyType()
 
