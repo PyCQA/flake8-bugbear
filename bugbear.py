@@ -2776,6 +2776,7 @@ class BugBearVisitor(ast.NodeVisitor):
             isinstance(node.func, ast.Name)
             and node.func.id == "map"
             and len(node.args) > 2
+            and self._bare_name_is_from("builtins", "map", module_level=True)
         ):
             return
         if not any(kw.arg == "strict" for kw in node.keywords):
@@ -2787,6 +2788,7 @@ class BugBearVisitor(ast.NodeVisitor):
             and isinstance(node.iter, ast.Call)
             and isinstance(node.iter.func, ast.Name)
             and node.iter.func.id == "zip"
+            and self._bare_name_is_from("builtins", "zip", module_level=True)
         ):
             return
 
