@@ -1,3 +1,4 @@
+import configparser
 import typing
 from typing import overload
 
@@ -129,3 +130,57 @@ class HasStrReduceEx(Exception):
     def __reduce_ex__(self, protocol): ...
     def __str__(self): ...
     def __init__(self, x): ...
+
+### Calling a base class's __init__ explicitly is checked like super().__init__()
+class MyError_explicit_base_good(Exception):
+    def __init__(self, foo, bar=3):
+        Exception.__init__(self, foo, bar)
+
+class ExplicitDottedBaseError(configparser.Error):
+    def __init__(self, msg):
+        configparser.Error.__init__(self, msg)
+
+class MyError_explicit_base_vararg_good(Exception):
+    def __init__(self, *args):
+        Exception.__init__(self, *args)
+
+class MyError_explicit_base_bad(Exception):
+    def __init__(self, foo, bar=3):  # B042: 4
+        Exception.__init__(self, foo)
+
+class MyError_explicit_base_vararg_bad(Exception):
+    def __init__(self, *args):  # B042: 4
+        Exception.__init__(self)
+
+class MyError_explicit_base_vararg_not_unpacked(Exception):
+    def __init__(self, *args):  # B042: 4
+        Exception.__init__(self, args)
+
+class MyError_explicit_base_transformed(Exception):
+    def __init__(self, msg, opt=""):  # B042: 4
+        Exception.__init__(self, f"Error: {msg}", opt)
+
+class MyError_explicit_base_reordered(Exception):
+    def __init__(self, msg, opt=""):  # B042: 4
+        Exception.__init__(self, opt, msg)
+
+class MyError_explicit_base_substituted(Exception):
+    def __init__(self, msg, opt=""):  # B042: 4
+        Exception.__init__(self, msg, "replacement")
+
+class MyError_explicit_base_reassigned(Exception):
+    def __init__(self, msg):  # B042: 4
+        msg = f"Error: {msg}"
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_keyword(Exception):
+    def __init__(self, msg):  # B042: 4
+        Exception.__init__(self, msg, unexpected=True)
+
+class MyError_explicit_not_a_base(Exception):
+    def __init__(self, foo):  # B042: 4
+        ValueError.__init__(self, foo)
+
+class MyError_explicit_other_instance(Exception):
+    def __init__(self, foo):  # B042: 4
+        Exception.__init__(Exception(), foo)

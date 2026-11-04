@@ -579,6 +579,9 @@ UNRELEASED
 * B905, B910: only report ``zip()`` and ``defaultdict(int)`` when the name is the
   builtin ``zip``/``collections.defaultdict``, not when a module-level ``def``,
   ``class``, import or assignment replaces it with something else
+* B042: don't report an ``__init__`` that calls a direct base class's ``__init__``
+  explicitly and forwards its own arguments unchanged and in order, like
+  ``Exception.__init__(self, msg, opt)``
 
 26.10.27
 ~~~~~~~~

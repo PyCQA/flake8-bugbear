@@ -3170,18 +3170,26 @@ class BugBearVisitor(ast.NodeVisitor):
                 # no arguments, don't need to call super().__init__()
                 return
 
-            # Look for super().__init__()
+            # Look for super().__init__(), or a direct base class's __init__ called
+            # explicitly, like `Exception.__init__(self, ...)`.
             # We only check top-level nodes instead of doing an `ast.walk`.
             # Small risk of false alarm if the user does something weird.
+            positional = fun.args.posonlyargs + fun.args.args
+            self_name = positional[0].arg if positional else None
+            base_names = {_dotted_name(base) for base in node.bases} - {None}
             for b in fun.body:
-                if (
+                if not (
                     isinstance(b, ast.Expr)
                     and isinstance(b.value, ast.Call)
                     and isinstance(b.value.func, ast.Attribute)
-                    and isinstance(b.value.func.value, ast.Call)
-                    and isinstance(b.value.func.value.func, ast.Name)
-                    and b.value.func.value.func.id == "super"
                     and b.value.func.attr == "__init__"
+                ):
+                    continue
+                init_owner = b.value.func.value
+                if (
+                    isinstance(init_owner, ast.Call)
+                    and isinstance(init_owner.func, ast.Name)
+                    and init_owner.func.id == "super"
                 ):
                     if len(b.value.args) != expected_arg_count:
                         self.add_error("B042", fun)
@@ -3193,8 +3201,18 @@ class BugBearVisitor(ast.NodeVisitor):
                             # no Starred argument despite vararg
                             self.add_error("B042", fun)
                     return
+                if (
+                    _dotted_name(init_owner) in base_names
+                    and b.value.args
+                    and isinstance(b.value.args[0], ast.Name)
+                    and b.value.args[0].id == self_name
+                ):
+                    earlier = fun.body[: fun.body.index(b)]
+                    if not _forwards_own_args(fun, b.value, earlier):
+                        self.add_error("B042", fun)
+                    return
             else:
-                # no super().__init__() found
+                # no super().__init__() or base class __init__() call found
                 self.add_error("B042", fun)
                 return
         # no `def __init__` found, which is fine
@@ -3481,6 +3499,37 @@ def _dotted_name(node: ast.AST) -> str | None:
         return None
     parts.append(node.id)
     return ".".join(reversed(parts))
+
+
+def _forwards_own_args(
+    fun: ast.FunctionDef, call: ast.Call, earlier: list[ast.stmt]
+) -> bool:
+    """Whether `call` (`Base.__init__(self, ...)`) passes the positional parameters
+    of `fun` after `self` unchanged and in order, with its `*args` (if any) forwarded
+    as `*args` and no keyword arguments. A parameter that any of the `earlier`
+    statements assigns to or deletes doesn't count as unchanged."""
+    if call.keywords:
+        return False
+    expected = [arg.arg for arg in (fun.args.posonlyargs + fun.args.args)[1:]]
+    if fun.args.vararg:
+        expected.append("*" + fun.args.vararg.arg)
+    forwarded = []
+    for arg in call.args[1:]:
+        if isinstance(arg, ast.Name):
+            forwarded.append(arg.id)
+        elif isinstance(arg, ast.Starred) and isinstance(arg.value, ast.Name):
+            forwarded.append("*" + arg.value.id)
+        else:
+            return False
+    if forwarded != expected:
+        return False
+    rebound = {
+        node.id
+        for statement in earlier
+        for node in ast.walk(statement)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del))
+    }
+    return not rebound.intersection(name.lstrip("*") for name in forwarded)
 
 
 def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
