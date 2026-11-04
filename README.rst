@@ -579,6 +579,9 @@ UNRELEASED
 * B905, B910: only report ``zip()`` and ``defaultdict(int)`` when the name is the
   builtin ``zip``/``collections.defaultdict``, not when a module-level ``def``,
   ``class``, import or assignment replaces it with something else
+* B018, B031, B905, B910, B911: an import or ``zip = builtins.zip`` style alias
+  inside a function or class no longer overrides the module's own ``def``,
+  ``class`` or import of that name, since it only binds the name locally
 
 26.10.27
 ~~~~~~~~

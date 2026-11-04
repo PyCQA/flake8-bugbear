@@ -768,6 +768,14 @@ def _rebinds_elsewhere(stmt: ast.stmt, name: str) -> bool:
     )
 
 
+def _module_scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
+    """``node`` and its descendants, without the bodies of functions and classes."""
+    yield node
+    if not isinstance(node, FUNCTION_NODES + (ast.ClassDef,)):
+        for child in ast.iter_child_nodes(node):
+            yield from _module_scope_nodes(child)
+
+
 def _module_binding_is_from(
     module: ast.Module, source: str, name: str, unbound: bool = False
 ) -> bool:
@@ -775,8 +783,10 @@ def _module_binding_is_from(
 
     Statements are taken in source order. A binding from ``<source>`` anywhere
     in a statement counts for that statement, so a ``try``/``except`` fallback
-    for older Pythons still means ``<source>.<name>``. ``unbound`` is returned
-    when no module-level statement binds ``name``.
+    for older Pythons still means ``<source>.<name>``. Function and class bodies
+    are skipped, since their bindings are local. If no module-level statement
+    binds ``name``, the result is ``unbound``, or ``True`` when a function or
+    class binds it from ``<source>``.
     """
     source_modules = {
         alias.asname or alias.name
@@ -785,15 +795,20 @@ def _module_binding_is_from(
         for alias in node.names
         if alias.name == source
     }
-    is_from = unbound
+    is_from: bool | None = None
     for stmt in module.body:
         if any(
             _binds_from_source(node, source, name, source_modules)
-            for node in ast.walk(stmt)
+            for node in _module_scope_nodes(stmt)
         ):
             is_from = True
         elif _rebinds_elsewhere(stmt, name):
             is_from = False
+    if is_from is None:
+        return unbound or any(
+            _binds_from_source(node, source, name, source_modules)
+            for node in ast.walk(module)
+        )
     return is_from
 
 
