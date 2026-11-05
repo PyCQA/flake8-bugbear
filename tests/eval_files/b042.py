@@ -177,6 +177,69 @@ class MyError_explicit_base_keyword(Exception):
     def __init__(self, msg):  # B042: 4
         Exception.__init__(self, msg, unexpected=True)
 
+class MyError_explicit_base_receiver_reassigned(Exception):
+    def __init__(self, msg):  # B042: 4
+        self = Exception()
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_reassigned_in_if(Exception):
+    def __init__(self, msg):  # B042: 4
+        if not msg:
+            msg = "default"
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_walrus_in_comprehension(Exception):
+    def __init__(self, msg):  # B042: 4
+        self.labels = [(msg := label) for label in ("label",)]
+        Exception.__init__(self, msg)
+
+# names bound in nested scopes don't change the parameters
+class MyError_explicit_base_comprehension_target(Exception):
+    def __init__(self, msg):
+        self.labels = [msg for msg in ("label",)]
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_nested_scopes(Exception):
+    def __init__(self, msg):
+        self.format = lambda msg: msg
+        def helper():
+            msg = "inner"
+        class Inner:
+            msg = "inner"
+        Exception.__init__(self, msg)
+
+# a mixin's __init__ before the one that sets `args`
+class Mixin:
+    def __init__(self): ...
+
+class MyError_mixin_then_super(Exception, Mixin):
+    def __init__(self, msg):
+        Mixin.__init__(self)
+        super().__init__(msg)
+
+class MyError_mixin_then_explicit_base(Exception, Mixin):
+    def __init__(self, msg):
+        Mixin.__init__(self)
+        Exception.__init__(self, msg)
+
+class MyError_mixin_only(Exception, Mixin):
+    def __init__(self, msg):  # B042: 4
+        Mixin.__init__(self)
+
+class MyError_mixin_then_bad_super(Exception, Mixin):
+    def __init__(self, msg):  # B042: 4
+        Mixin.__init__(self)
+        super().__init__()
+
+# only a base that looks like an exception class sets `args`
+class MyError_mixin_forwarding(Exception, Mixin):
+    def __init__(self, msg):  # B042: 4
+        Mixin.__init__(self, msg)
+
+class MyError_explicit_builtin_base(KeyboardInterrupt):
+    def __init__(self, msg):
+        KeyboardInterrupt.__init__(self, msg)
+
 class MyError_explicit_not_a_base(Exception):
     def __init__(self, foo):  # B042: 4
         ValueError.__init__(self, foo)

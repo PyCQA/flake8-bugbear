@@ -581,7 +581,8 @@ UNRELEASED
   ``class``, import or assignment replaces it with something else
 * B042: don't report an ``__init__`` that calls a direct base class's ``__init__``
   explicitly and forwards its own arguments unchanged and in order, like
-  ``Exception.__init__(self, msg, opt)``
+  ``Exception.__init__(self, msg, opt)``, also after another base's ``__init__``
+  such as a mixin's
 
 26.10.27
 ~~~~~~~~

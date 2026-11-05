@@ -3176,7 +3176,19 @@ class BugBearVisitor(ast.NodeVisitor):
             # Small risk of false alarm if the user does something weird.
             positional = fun.args.posonlyargs + fun.args.args
             self_name = positional[0].arg if positional else None
-            base_names = {_dotted_name(base) for base in node.bases} - {None}
+            # Only a base that looks like an exception class sets `args`, so a
+            # mixin's __init__ doesn't count even if it gets the same arguments.
+            base_names = {
+                name
+                for name in map(_dotted_name, node.bases)
+                if name is not None
+                and (
+                    is_exception(name.rpartition(".")[2])
+                    or _typesafe_issubclass(
+                        getattr(builtins, name, type), BaseException
+                    )
+                )
+            }
             for b in fun.body:
                 if not (
                     isinstance(b, ast.Expr)
@@ -3201,18 +3213,18 @@ class BugBearVisitor(ast.NodeVisitor):
                             # no Starred argument despite vararg
                             self.add_error("B042", fun)
                     return
+                # A base class __init__ call that doesn't forward the arguments,
+                # like a mixin's, may be followed by one that does.
                 if (
                     _dotted_name(init_owner) in base_names
                     and b.value.args
                     and isinstance(b.value.args[0], ast.Name)
                     and b.value.args[0].id == self_name
+                    and _forwards_own_args(fun, b.value, fun.body[: fun.body.index(b)])
                 ):
-                    earlier = fun.body[: fun.body.index(b)]
-                    if not _forwards_own_args(fun, b.value, earlier):
-                        self.add_error("B042", fun)
                     return
             else:
-                # no super().__init__() or base class __init__() call found
+                # no super().__init__() or forwarding base class __init__() call found
                 self.add_error("B042", fun)
                 return
         # no `def __init__` found, which is fine
@@ -3506,11 +3518,13 @@ def _forwards_own_args(
 ) -> bool:
     """Whether `call` (`Base.__init__(self, ...)`) passes the positional parameters
     of `fun` after `self` unchanged and in order, with its `*args` (if any) forwarded
-    as `*args` and no keyword arguments. A parameter that any of the `earlier`
-    statements assigns to or deletes doesn't count as unchanged."""
+    as `*args` and no keyword arguments. If any of the `earlier` statements binds or
+    deletes `self` or one of those parameters in `fun`'s scope, they don't count as
+    unchanged."""
     if call.keywords:
         return False
-    expected = [arg.arg for arg in (fun.args.posonlyargs + fun.args.args)[1:]]
+    positional = fun.args.posonlyargs + fun.args.args
+    expected = [arg.arg for arg in positional[1:]]
     if fun.args.vararg:
         expected.append("*" + fun.args.vararg.arg)
     forwarded = []
@@ -3523,13 +3537,42 @@ def _forwards_own_args(
             return False
     if forwarded != expected:
         return False
-    rebound = {
-        node.id
+    params = {arg.arg for arg in positional}
+    if fun.args.vararg:
+        params.add(fun.args.vararg.arg)
+    return not any(
+        name in params
         for statement in earlier
-        for node in ast.walk(statement)
-        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del))
-    }
-    return not rebound.intersection(name.lstrip("*") for name in forwarded)
+        for name in _names_bound_in_scope(statement)
+    )
+
+
+def _names_bound_in_scope(
+    node: ast.AST, in_comprehension: bool = False
+) -> Iterator[str]:
+    """Names that `node` binds or deletes in the scope it runs in.
+
+    Nested functions, lambdas and classes only bind their own name here, and
+    comprehension targets are local to the comprehension, but an assignment
+    expression inside a comprehension binds the enclosing scope."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        yield node.name
+        return
+    if isinstance(node, ast.Lambda):
+        return
+    if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
+        yield node.target.id
+    elif (
+        isinstance(node, ast.Name)
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+        and not in_comprehension
+    ):
+        yield node.id
+    in_comprehension = in_comprehension or isinstance(
+        node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+    )
+    for child in ast.iter_child_nodes(node):
+        yield from _names_bound_in_scope(child, in_comprehension)
 
 
 def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
