@@ -1,3 +1,4 @@
+import builtins
 import configparser
 import typing
 from typing import overload
@@ -236,9 +237,54 @@ class MyError_mixin_forwarding(Exception, Mixin):
     def __init__(self, msg):  # B042: 4
         Mixin.__init__(self, msg)
 
-class MyError_explicit_builtin_base(KeyboardInterrupt):
+# (named ...Error, since B042 only checks classes named like exceptions)
+class ExplicitBuiltinBaseError(KeyboardInterrupt):
     def __init__(self, msg):
         KeyboardInterrupt.__init__(self, msg)
+
+class ExplicitQualifiedBuiltinBaseError(builtins.KeyboardInterrupt):
+    def __init__(self, msg):
+        builtins.KeyboardInterrupt.__init__(self, msg)
+
+class ExplicitOtherModuleInterruptError(signals.KeyboardInterrupt):
+    def __init__(self, msg):  # B042: 4
+        signals.KeyboardInterrupt.__init__(self, msg)
+
+# a nested definition's decorators, defaults and bases run in the enclosing scope
+class MyError_explicit_base_walrus_in_default(Exception):
+    def __init__(self, msg):  # B042: 4
+        def helper(value=(msg := "changed")): ...
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_walrus_in_kwonly_default(Exception):
+    def __init__(self, msg):  # B042: 4
+        def helper(*, value=(msg := "changed")): ...
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_walrus_in_decorator(Exception):
+    def __init__(self, msg):  # B042: 4
+        @(msg := staticmethod)
+        def helper(): ...
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_walrus_in_class_base(Exception):
+    def __init__(self, msg):  # B042: 4
+        class Inner((msg := object)): ...
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_walrus_in_lambda_default(Exception):
+    def __init__(self, msg):  # B042: 4
+        self.format = lambda value=(msg := "changed"): value
+        Exception.__init__(self, msg)
+
+class MyError_explicit_base_nested_definition_unchanged(Exception):
+    def __init__(self, msg):
+        @staticmethod
+        def helper(value: str = "x", *, other: int = 0) -> str:
+            msg = value
+            return msg
+        class Inner(Exception, metaclass=type): ...
+        Exception.__init__(self, msg)
 
 class MyError_explicit_not_a_base(Exception):
     def __init__(self, foo):  # B042: 4

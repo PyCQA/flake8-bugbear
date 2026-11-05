@@ -3193,6 +3193,8 @@ class BugBearVisitor(ast.NodeVisitor):
             self_name = positional[0].arg if positional else None
             # Only a base that looks like an exception class sets `args`, so a
             # mixin's __init__ doesn't count even if it gets the same arguments.
+            # A builtin exception may be written as `builtins.KeyboardInterrupt`,
+            # but `other.KeyboardInterrupt` isn't the builtin one.
             base_names = {
                 name
                 for name in map(_dotted_name, node.bases)
@@ -3200,7 +3202,8 @@ class BugBearVisitor(ast.NodeVisitor):
                 and (
                     is_exception(name.rpartition(".")[2])
                     or _typesafe_issubclass(
-                        getattr(builtins, name, type), BaseException
+                        getattr(builtins, name.removeprefix("builtins."), type),
+                        BaseException,
                     )
                 )
             }
@@ -3567,13 +3570,15 @@ def _names_bound_in_scope(
 ) -> Iterator[str]:
     """Names that `node` binds or deletes in the scope it runs in.
 
-    Nested functions, lambdas and classes only bind their own name here, and
-    comprehension targets are local to the comprehension, but an assignment
-    expression inside a comprehension binds the enclosing scope."""
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-        yield node.name
-        return
-    if isinstance(node, ast.Lambda):
+    The bodies of nested functions, lambdas and classes are scopes of their own,
+    but their name and the expressions evaluated when they are defined belong to
+    this one. Comprehension targets are local to the comprehension, but an
+    assignment expression inside a comprehension binds the enclosing scope."""
+    if isinstance(node, (*FUNCTION_NODES, ast.ClassDef)):
+        if not isinstance(node, ast.Lambda):
+            yield node.name
+        for expression in _definition_expressions(node):
+            yield from _names_bound_in_scope(expression, in_comprehension)
         return
     if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name):
         yield node.target.id
@@ -3588,6 +3593,25 @@ def _names_bound_in_scope(
     )
     for child in ast.iter_child_nodes(node):
         yield from _names_bound_in_scope(child, in_comprehension)
+
+
+def _definition_expressions(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | ast.ClassDef,
+) -> list[ast.expr]:
+    """The expressions evaluated in the enclosing scope when `node` is defined:
+    decorators, class bases and keywords, defaults and annotations."""
+    if isinstance(node, ast.ClassDef):
+        return [*node.decorator_list, *node.bases, *(kw.value for kw in node.keywords)]
+    args = node.args
+    expressions = [*args.defaults, *(d for d in args.kw_defaults if d is not None)]
+    if isinstance(node, ast.Lambda):
+        return expressions
+    params = [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg]
+    expressions += node.decorator_list
+    expressions += [p.annotation for p in params if p and p.annotation]
+    if node.returns:
+        expressions.append(node.returns)
+    return expressions
 
 
 def _dotted_targets(target: ast.AST) -> Iterator[tuple[str, ast.Attribute]]:
