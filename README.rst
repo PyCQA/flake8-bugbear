@@ -548,7 +548,11 @@ Tests / Lints
 
 Just run::
 
-    coverage run tests/test_bugbear.py
+    coverage run -m pytest tests/test_bugbear.py
+
+For seeing the report afterwards run::
+
+    coverage report
 
 
 For linting::
