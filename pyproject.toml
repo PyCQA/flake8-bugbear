@@ -54,6 +54,8 @@ dev = [
     "hypothesmith>=0.2",
     "pre-commit",
     "pytest",
+    "mypy",
+    "types-flake8",
 ]
 
 [tool.setuptools]
