@@ -580,6 +580,9 @@ UNRELEASED
   counts as ``itertools`` when a later module-level ``def`` or assignment replaces it
 * B031, B911: an annotated ``batched: Callable = itertools.batched`` counts as
   ``itertools``, like the same assignment without the annotation
+* B912, B913: only report ``map()`` and ``zip()`` when the name is the builtin, not
+  when a module-level ``def``, ``class``, import or assignment replaces it with
+  something else
 * B905, B910: only report ``zip()`` and ``defaultdict(int)`` when the name is the
   builtin ``zip``/``collections.defaultdict``, not when a module-level ``def``,
   ``class``, import or assignment replaces it with something else
