@@ -619,7 +619,6 @@ def _b906_scope_bindings(  # noqa: C901
             for condition in generator.ifs:
                 visit(condition)
         if isinstance(node, ast.DictComp):
-            if node.key is not None:
                 visit(node.key)
                 if node.value is not None:
                     visit(node.value)
