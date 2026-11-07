@@ -586,6 +586,10 @@ UNRELEASED
 * B018, B031, B905, B910, B911: an import or ``zip = builtins.zip`` style alias
   inside a function or class no longer overrides the module's own ``def``,
   ``class`` or import of that name, since it only binds the name locally
+* B042: don't report an ``__init__`` that calls a direct base class's ``__init__``
+  explicitly and forwards its own arguments unchanged and in order, like
+  ``Exception.__init__(self, msg, opt)``, also after another base's ``__init__``
+  such as a mixin's
 
 26.10.27
 ~~~~~~~~
