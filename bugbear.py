@@ -3705,7 +3705,7 @@ class B913UsageFinder(NameFinder):
             self.visit(node.target)
 
 
-@define
+@define(frozen=True)
 class NamedExprFinder(ast.NodeVisitor):
     """Finds names defined through an ast.NamedExpr.
 
