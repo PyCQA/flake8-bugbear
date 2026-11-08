@@ -13,7 +13,7 @@ class LibcstVisitor(cst.CSTVisitor):
 class Outer:
     unpacked = {**d for d in dicts}
 
-    class LibcstVisitor(cst.CSTVisitor):
+    class InnerVisitor(cst.CSTVisitor):
         def visit_Call(self, node): ...
 
 
