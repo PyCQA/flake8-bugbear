@@ -207,3 +207,58 @@ for elem in some_list:
         some_list.remove(elem) # B909: 8
         if elem == 2:
             break
+
+
+# Unpacking the loop target does not make mutations to the iterable safe.
+records = [("name", 1)]
+for name, value in records:
+    records.append((name.upper(), value)) # B909: 4
+    del records[0] # B909: 4
+
+for [_name, _value] in holder.records:
+    holder.records.clear() # B909: 4
+
+for name, *values in records:
+    records += [(name, *values)] # B909: 4
+
+registry = {("group", "name"): 1}
+for group, name in registry:
+    registry[group, name] = 2 # updating the current key is safe
+
+for group, name in registry.keys():
+    if not name:
+        del registry[group, name] # B909: 8
+
+for (group, name), value in registry.items():
+    registry[group, name] = value * 2
+    removed = registry.pop((group, name)) # B909: 14
+
+for *key, _value in registry.items():
+    registry.pop(key[0]) # B909: 4
+
+for name, value in records:
+    other_records.append((name, value))
+    records.clear()
+    break
+
+# These targets rebind the iterable name or an attribute receiver.
+items = [([1], "label")]
+for items, label in items: # B020: 4
+    items.append(label)
+
+for holder, label in holder.records: # B020: 4
+    holder.records.append(label)
+
+for (group, name), registry in registry.items(): # B020: 19
+    registry.pop((group, name))
+
+for [name, *records] in records: # B020: 12
+    records.append(name)
+
+# A receiver read to assign into a target is not a rebinding.
+for holder.names[0], value in holder.records:
+    holder.records.append((holder.names[0], value)) # B909: 4
+
+# Preserve the existing behavior for unsupported non-unpacking targets.
+for holder.names[0] in holder.records:
+    holder.records.append(holder.names[0])

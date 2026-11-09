@@ -3337,19 +3337,36 @@ class BugBearVisitor(ast.NodeVisitor):
                 target = None
             iterable = iterable.func.value
 
-        if isinstance(iterable, ast.Name):
-            name = _to_name_str(iterable)
-            key = _to_name_str(target)
-        elif isinstance(iterable, ast.Attribute):
-            name = _to_name_str(iterable)
-            key = _to_name_str(target)
-        else:
+        if not isinstance(iterable, (ast.Name, ast.Attribute)):
             return
 
-        if name is None or (key is None and target is not None):
+        name = _to_name_str(iterable)
+        if name is None:
             return
 
-        checker = B909Checker(name, key)
+        key = _to_name_str(target)
+        check_subscript_assignments = target is None or key is not None
+        if not check_subscript_assignments:
+            if not isinstance(node.target, (ast.Tuple, ast.List)):
+                return
+            # An unpacked target can rebind the iterable's name or its receiver.
+            bound_names = (
+                _to_name_str(binding)
+                for binding in ast.walk(node.target)
+                if isinstance(binding, (ast.Name, ast.Attribute))
+                and isinstance(binding.ctx, ast.Store)
+            )
+            if any(
+                bound_name is not None
+                and (name == bound_name or name.startswith(f"{bound_name}."))
+                for bound_name in bound_names
+            ):
+                return
+
+        # An unpacked key can be rebuilt in a subscript without adding an entry.
+        checker = B909Checker(
+            name, key, check_subscript_assignments=check_subscript_assignments
+        )
         checker.visit(node.body)
         for mutation in itertools.chain.from_iterable(
             m for m in checker.mutations.values()
@@ -3425,11 +3442,13 @@ class B909Checker(ast.NodeVisitor):
         "discard",
     )
 
-    def __init__(self, name: str, key: str | None) -> None:
+    def __init__(
+        self, name: str, key: str | None, *, check_subscript_assignments: bool = True
+    ) -> None:
         self.name = name
-        # assigning to `name[key]` doesn't change its size; with no key loop
-        # variable, every subscript assignment is reported
+        # Assigning to an existing key doesn't change the dictionary's size.
         self.key = key
+        self.check_subscript_assignments = check_subscript_assignments
         self.mutations: dict[
             int, list[ast.Assign | ast.AugAssign | ast.Delete | ast.Call]
         ] = defaultdict(list)
@@ -3438,7 +3457,8 @@ class B909Checker(ast.NodeVisitor):
     def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
             if (
-                isinstance(target, ast.Subscript)
+                self.check_subscript_assignments
+                and isinstance(target, ast.Subscript)
                 and _to_name_str(target.value) == self.name
                 and (self.key is None or _to_name_str(target.slice) != self.key)
             ):
