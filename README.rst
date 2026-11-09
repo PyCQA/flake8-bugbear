@@ -601,6 +601,11 @@ MIT
 Change Log
 ----------
 
+UNRELEASED
+~~~~~~~~~~
+
+* B909: detect mutations when a loop unpacks the iterable's elements.
+
 26.11.9
 ~~~~~~~
 
