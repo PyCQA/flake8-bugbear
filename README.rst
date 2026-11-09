@@ -569,8 +569,8 @@ MIT
 Change Log
 ----------
 
-UNRELEASED
-~~~~~~~~~~
+26.11.9
+~~~~~~~
 
 * Drop Python 3.10 support (flake8 itself now requires >=3.11)
 * B018: only report a ``map()``, ``filter()``, ``reversed()``, ``zip()`` or
@@ -593,6 +593,7 @@ UNRELEASED
   explicitly and forwards its own arguments unchanged and in order, like
   ``Exception.__init__(self, msg, opt)``, also after another base's ``__init__``
   such as a mixin's
+* Add type hints throughout bugbear, checked with ``mypy --strict`` in tox and CI
 
 26.10.27
 ~~~~~~~~
