@@ -101,6 +101,22 @@ are created during function definition time. All calls to the function
 reuse this one instance of that data structure, persisting changes
 between them.
 
+.. code-block:: python
+
+    # Bad: calls share the same list.
+    def add_item(item, items=[]):
+        items.append(item)
+        return items
+
+    # Good: create a list for each call that omits items.
+    def add_item(item, items=None):
+        if items is None:
+            items = []
+        items.append(item)
+        return items
+
+More examples: `B006 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b006_b008.py>`_.
+
 .. _B007:
 
 **B007**: Loop control variable not used within the loop body.  If this is
@@ -113,6 +129,22 @@ performed only once at function definition time. All calls to your
 function will reuse the result of that definition-time function call.  If
 this is intended, assign the function call to a module-level variable and
 use that variable as a default value.
+
+.. code-block:: python
+
+    from datetime import datetime
+
+    # Bad: the default timestamp is fixed when the function is defined.
+    def log(message, timestamp=datetime.now()):
+        print(timestamp, message)
+
+    # Good: get the current time for each call that omits timestamp.
+    def log(message, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.now()
+        print(timestamp, message)
+
+More examples: `B008 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b006_b008.py>`_.
 
 .. _B009:
 
