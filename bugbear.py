@@ -1220,6 +1220,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 self._b008_function_annotations(node), imports
             )
         self.check_for_b019(node)
+        self.check_for_b021(node)
         self.check_for_b049(node)
         self.generic_visit(node)
         if self._b008_in_module_child():
@@ -2630,7 +2631,9 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.add_error("B018", node, node.value.__class__.__name__)
 
-    def check_for_b021(self, node: ast.FunctionDef | ast.ClassDef) -> None:
+    def check_for_b021(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+    ) -> None:
         if (
             node.body
             and isinstance(node.body[0], ast.Expr)
