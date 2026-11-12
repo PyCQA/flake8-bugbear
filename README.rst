@@ -605,6 +605,8 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B909: detect mutations when a loop unpacks the iterable's elements.
+* B040: don't report an exception whose note is shown by ``logger.exception()``,
+  ``exc_info=True``, ``traceback.print_exc()``/``format_exc()`` or ``sys.exc_info()``
 
 26.11.9
 ~~~~~~~

@@ -518,6 +518,43 @@ class B040CaughtException:
     has_note: bool
 
 
+# Calls that use the exception currently being handled without it being passed in,
+# e.g. traceback.print_exc() prints it, notes included.
+B040_HANDLED_EXCEPTION_CALLS = {
+    ("traceback", "print_exc"),
+    ("traceback", "format_exc"),
+    ("sys", "exc_info"),
+    ("sys", "exception"),
+}
+
+
+def _reports_handled_exception(node: ast.Call) -> bool:
+    func = node.func
+    if isinstance(func, ast.Attribute):
+        # logging.exception(...) / logger.exception(...) / sys.exception()
+        if func.attr == "exception":
+            return True
+        if (
+            isinstance(func.value, ast.Name)
+            and (func.value.id, func.attr) in B040_HANDLED_EXCEPTION_CALLS
+        ):
+            return True
+    elif isinstance(func, ast.Name) and func.id in (
+        "print_exc",
+        "format_exc",
+        "exc_info",
+    ):
+        # from traceback import print_exc / from sys import exc_info
+        return True
+    # logger.error(..., exc_info=True)
+    return any(
+        kw.arg == "exc_info"
+        and isinstance(kw.value, ast.Constant)
+        and kw.value.value is True
+        for kw in node.keywords
+    )
+
+
 class B041UnhandledKeyType:
     """
     A dictionary key of a type that we do not check for duplicates.
@@ -1131,6 +1168,8 @@ class BugBearVisitor(ast.NodeVisitor):
         if not is_b040_add_note:
             self.check_for_b040_usage(node.args)
             self.check_for_b040_usage(node.keywords)
+            if self.b040_caught_exception and _reports_handled_exception(node):
+                self.b040_caught_exception = None
 
         self.generic_visit(node)
 
