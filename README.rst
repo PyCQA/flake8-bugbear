@@ -103,12 +103,12 @@ between them.
 
 .. code-block:: python
 
-    # Bad: calls share the same list.
+    # Avoid: calls share the same list.
     def add_item(item, items=[]):
         items.append(item)
         return items
 
-    # Good: create a list for each call that omits items.
+    # Prefer: create a list for each call that omits items.
     def add_item(item, items=None):
         if items is None:
             items = []
@@ -134,11 +134,11 @@ use that variable as a default value.
 
     from datetime import datetime
 
-    # Bad: the default timestamp is fixed when the function is defined.
+    # Avoid: the default timestamp is fixed when the function is defined.
     def log(message, timestamp=datetime.now()):
         print(timestamp, message)
 
-    # Good: get the current time for each call that omits timestamp.
+    # Prefer: get the current time for each call that omits timestamp.
     def log(message, timestamp=None):
         if timestamp is None:
             timestamp = datetime.now()
