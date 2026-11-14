@@ -605,6 +605,9 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B909: detect mutations when a loop unpacks the iterable's elements.
+* B031: allow reusing a group after it is rebound to a new ``list``, ``tuple``,
+  ``set``, ``frozenset`` or ``sorted`` container built from it, and when a nested
+  loop rebinds the group's name as its loop variable.
 
 26.11.9
 ~~~~~~~

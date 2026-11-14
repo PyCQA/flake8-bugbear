@@ -216,3 +216,41 @@ for _, group in groupby(items):
             group = tuple(group)
     print(group)
     print(group)  # B031: 10, "group"
+
+# Rebinding to a new container built from the group makes the name reusable
+for _, group in groupby(items):
+    group = tuple(map(str, group))
+    print(group)
+    print(group)
+
+for _, group in groupby(items):
+    group = sorted(group, key=str)
+    print(group)
+    print(group)
+
+for _, group in groupby(items):
+    group = set(group)
+    print(group)
+    print(group)
+
+# map() is lazy, so it may still wrap the original generator
+for _, group in groupby(items):
+    group = map(str, group)
+    print(group)  # B031: 10, "group"
+
+# A nested loop that rebinds the name refers to the new value in its body
+for _, group in groupby(items):
+    for _, group in groupby(group):  # B045: 8, "group"  # B020: 11, "group"
+        print(group)
+        print(group)  # B031: 14, "group"
+
+for _, group in groupby(items):
+    for group in shoppers:  # B045: 8, "group"
+        print(group)
+        print(group)
+
+# The outer generator is still consumed by the nested loop's iterable
+for _, group in groupby(items):
+    print(group)
+    for group in group:  # B020: 8, "group"  # B045: 8, "group"  # B031: 17, "group"
+        print(group)

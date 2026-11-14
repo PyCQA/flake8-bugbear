@@ -2138,16 +2138,16 @@ class BugBearVisitor(ast.NodeVisitor):
         else:
             return False
 
+        # Rebinding the name to a new container makes it reusable, whatever
+        # the container is built from, e.g. `group = tuple(map(f, group))`.
+        # Calls such as `iter(group)` or `map(f, group)` are not included: they
+        # may still wrap the original generator.
         value = node.value
         return (
             any(isinstance(t, ast.Name) and t.id == group_name for t in targets)
             and isinstance(value, ast.Call)
             and isinstance(value.func, ast.Name)
-            and value.func.id in {"list", "tuple"}
-            and len(value.args) == 1
-            and isinstance(value.args[0], ast.Name)
-            and value.args[0].id == group_name
-            and not value.keywords
+            and value.func.id in {"list", "tuple", "set", "frozenset", "sorted"}
         )
 
     def _check_b031_group_usages(
@@ -2206,6 +2206,14 @@ class BugBearVisitor(ast.NodeVisitor):
             num_usages = self._check_b031_group_usage(
                 node.iter, group_name, num_usages, repeated
             )
+            if any(
+                isinstance(n, ast.Name) and n.id == group_name
+                for n in ast.walk(node.target)
+            ):
+                # The nested loop rebinds the name, so references in its body
+                # are to the new value, e.g. `for _, group in groupby(group)`.
+                # A nested groupby() loop is checked on its own.
+                return num_usages
             # Any body reference may run once per nested loop iteration.
             # A nested loop may never run, so its assignments are not definite.
             num_usages = max(
