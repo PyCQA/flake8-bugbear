@@ -188,6 +188,16 @@ Write ``except Exception:``, which catches exactly the same exceptions.
 **B015**: Pointless comparison. This comparison does nothing but
 waste CPU instructions. Either prepend ``assert`` or remove it.
 
+.. code-block:: python
+
+    # Avoid: the comparison result is discarded.
+    sum([1, 2]) == 3
+
+    # Prefer: fail the test if the result differs.
+    assert sum([1, 2]) == 3
+
+More examples: `B015 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b015.py>`_.
+
 .. _B016:
 
 **B016**: Cannot raise a literal. Did you intend to return it or raise
@@ -202,6 +212,20 @@ specific exception (builtin or custom), or use ``assertRaisesRegex``
 (if using ``assertRaises``), or add the ``match`` keyword argument (if
 using ``pytest.raises``), or use the context manager form with a target
 (e.g. ``with self.assertRaises(Exception) as ex:``).
+
+.. code-block:: python
+
+    import pytest
+
+    # Avoid: an unrelated exception can make the test pass.
+    with pytest.raises(Exception):
+        int("not a number")
+
+    # Prefer: check for the expected exception type.
+    with pytest.raises(ValueError):
+        int("not a number")
+
+More examples: `B017 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b017.py>`_.
 
 .. _B018:
 
