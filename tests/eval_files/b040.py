@@ -182,3 +182,61 @@ try:
 except Exception as e:
     e3 = e
     e3.add_note("")  # should error
+
+
+# the exception being handled is reported without being passed in
+import logging
+import sys
+import traceback
+from traceback import print_exc
+
+logger = logging.getLogger(__name__)
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    logger.exception("failed")
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    logging.exception("failed")
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    logger.error("failed", exc_info=True)
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    traceback.print_exc()
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    print_exc()
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    msg = traceback.format_exc()
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    sys.excepthook(*sys.exc_info())
+
+# exc_info=False doesn't log the exception
+try:
+    ...
+except Exception as e:  # B040: 0
+    e.add_note("...")
+    logger.error("failed", exc_info=False)
