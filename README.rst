@@ -250,6 +250,22 @@ positives due to similarly named user-defined functions.
 the loop, because `late-binding closures are a classic gotcha
 <https://docs.python-guide.org/writing/gotchas/#late-binding-closures>`__.
 
+.. code-block:: python
+
+    # Avoid: callbacks read i after the loop has finished.
+    callbacks = []
+    for i in range(3):
+        callbacks.append(lambda: i)
+    print([callback() for callback in callbacks])  # [2, 2, 2]
+
+    # Prefer: capture each iteration's value.
+    callbacks = []
+    for i in range(3):
+        callbacks.append(lambda i=i: i)
+    print([callback() for callback in callbacks])  # [0, 1, 2]
+
+More examples: `B023 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b023.py>`_.
+
 .. _B024:
 
 **B024**: Abstract base class has methods, but none of them are abstract. This
@@ -299,6 +315,20 @@ second usage. Save the result to a list if the result is needed multiple times.
 .. _B032:
 
 **B032**: Possible unintentional type annotation (using ``:``). Did you mean to assign (using ``=``)?
+
+.. code-block:: python
+
+    # Avoid: an annotation leaves the dictionary unchanged.
+    settings = {}
+    settings["port"]: 8000
+    print(settings)  # {}
+
+    # Prefer: assign the value with =.
+    settings = {}
+    settings["port"] = 8000
+    print(settings)  # {'port': 8000}
+
+More examples: `B032 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b032.py>`_.
 
 .. _B033:
 
