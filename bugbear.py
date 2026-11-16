@@ -526,33 +526,27 @@ B040_HANDLED_EXCEPTION_CALLS = {
     ("sys", "exc_info"),
     ("sys", "exception"),
 }
+B040_HANDLED_EXCEPTION_NAMES = {name for _, name in B040_HANDLED_EXCEPTION_CALLS}
 
 
 def _reports_handled_exception(node: ast.Call) -> bool:
+    for kw in node.keywords:
+        if kw.arg == "exc_info" and isinstance(kw.value, ast.Constant):
+            # logger.error(..., exc_info=True); exc_info=False logs no traceback
+            return bool(kw.value.value)
     func = node.func
     if isinstance(func, ast.Attribute):
-        # logging.exception(...) / logger.exception(...) / sys.exception()
-        if func.attr == "exception":
-            return True
-        if (
-            isinstance(func.value, ast.Name)
-            and (func.value.id, func.attr) in B040_HANDLED_EXCEPTION_CALLS
+        if isinstance(func.value, ast.Name) and (
+            (func.value.id, func.attr) in B040_HANDLED_EXCEPTION_CALLS
         ):
             return True
-    elif isinstance(func, ast.Name) and func.id in (
-        "print_exc",
-        "format_exc",
-        "exc_info",
-    ):
-        # from traceback import print_exc / from sys import exc_info
-        return True
-    # logger.error(..., exc_info=True)
-    return any(
-        kw.arg == "exc_info"
-        and isinstance(kw.value, ast.Constant)
-        and kw.value.value is True
-        for kw in node.keywords
-    )
+        # logging.exception(msg) / logger.exception(msg). Not fut.exception(),
+        # which returns the future's exception instead.
+        return func.attr == "exception" and bool(
+            node.args or any(kw.arg == "msg" for kw in node.keywords)
+        )
+    # from traceback import print_exc / from sys import exc_info
+    return isinstance(func, ast.Name) and func.id in B040_HANDLED_EXCEPTION_NAMES
 
 
 class B041UnhandledKeyType:

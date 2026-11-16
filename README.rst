@@ -673,6 +673,9 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B040: still report when the only call is ``fut.exception()``, ``task.exception()``
+  or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
+
 26.11.16
 ~~~~~~~~
 
