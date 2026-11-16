@@ -190,10 +190,10 @@ waste CPU instructions. Either prepend ``assert`` or remove it.
 
 .. code-block:: python
 
-    # Avoid: the comparison result is discarded.
+    # Bad: the comparison result is discarded.
     sum([1, 2]) == 3
 
-    # Prefer: fail the test if the result differs.
+    # Good: fail the test if the result differs.
     assert sum([1, 2]) == 3
 
 More examples: `B015 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b015.py>`_.
@@ -217,11 +217,11 @@ using ``pytest.raises``), or use the context manager form with a target
 
     import pytest
 
-    # Avoid: an unrelated exception can make the test pass.
+    # Bad: an unrelated exception can make the test pass.
     with pytest.raises(Exception):
         int("not a number")
 
-    # Prefer: check for the expected exception type.
+    # Good: check for the expected exception type.
     with pytest.raises(ValueError):
         int("not a number")
 
