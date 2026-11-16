@@ -3,7 +3,7 @@ ci:
 
 repos:
   - repo: https://github.com/pycqa/isort
-    rev: 10.0.0b2
+    rev: 10.0.0b3
     hooks:
       - id: isort
 
@@ -22,7 +22,7 @@ repos:
       exclude: ^tests/eval_files/.*
 
   - repo: https://github.com/rstcheck/rstcheck
-    rev: v6.3.0
+    rev: v6.3.1
     hooks:
     - id: rstcheck
       args:
