@@ -673,6 +673,7 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
 * B040: still report when the only call is ``fut.exception()``, ``task.exception()``
   or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
 

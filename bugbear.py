@@ -1867,6 +1867,13 @@ class BugBearVisitor(ast.NodeVisitor):
                         if isinstance(arg, FUNCTION_NODES):
                             safe_functions.append(arg)
 
+                # an immediately-invoked lambda runs before the iteration ends
+                if isinstance(node.func, ast.Lambda) and not any(
+                    isinstance(child, (ast.Yield, ast.YieldFrom, ast.GeneratorExp))
+                    for child in ast.walk(node.func.body)
+                ):
+                    safe_functions.append(node.func)
+
                 # check for key=
                 for keyword in node.keywords:
                     if keyword.arg == "key" and isinstance(
