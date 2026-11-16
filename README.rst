@@ -55,6 +55,10 @@ Development
 
 If you'd like to do a PR we have development instructions `here <https://github.com/PyCQA/flake8-bugbear/blob/master/DEVELOPMENT.md>`_.
 
+When adding a code example to a warning below, label the snippets with
+``# Avoid:`` and ``# Prefer:`` comments, and link to the warning's test file
+under ``tests/eval_files/`` for more examples.
+
 List of warnings
 ----------------
 
@@ -103,12 +107,12 @@ between them.
 
 .. code-block:: python
 
-    # Bad: calls share the same list.
+    # Avoid: calls share the same list.
     def add_item(item, items=[]):
         items.append(item)
         return items
 
-    # Good: create a list for each call that omits items.
+    # Prefer: create a list for each call that omits items.
     def add_item(item, items=None):
         if items is None:
             items = []
@@ -134,11 +138,11 @@ use that variable as a default value.
 
     from datetime import datetime
 
-    # Bad: the default timestamp is fixed when the function is defined.
+    # Avoid: the default timestamp is fixed when the function is defined.
     def log(message, timestamp=datetime.now()):
         print(timestamp, message)
 
-    # Good: get the current time for each call that omits timestamp.
+    # Prefer: get the current time for each call that omits timestamp.
     def log(message, timestamp=None):
         if timestamp is None:
             timestamp = datetime.now()
@@ -190,10 +194,10 @@ waste CPU instructions. Either prepend ``assert`` or remove it.
 
 .. code-block:: python
 
-    # Bad: the comparison result is discarded.
+    # Avoid: the comparison result is discarded.
     sum([1, 2]) == 3
 
-    # Good: fail the test if the result differs.
+    # Prefer: fail the test if the result differs.
     assert sum([1, 2]) == 3
 
 More examples: `B015 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b015.py>`_.
@@ -217,11 +221,11 @@ using ``pytest.raises``), or use the context manager form with a target
 
     import pytest
 
-    # Bad: an unrelated exception can make the test pass.
+    # Avoid: an unrelated exception can make the test pass.
     with pytest.raises(Exception):
         int("not a number")
 
-    # Good: check for the expected exception type.
+    # Prefer: check for the expected exception type.
     with pytest.raises(ValueError):
         int("not a number")
 
