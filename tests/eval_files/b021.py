@@ -1,6 +1,6 @@
 """
 Should emit:
-B021 - on lines 14, 22, 30, 38, 46, 54, 62, 70, 73
+B021 - on lines 14, 22, 30, 38, 46, 54, 62, 70, 73, 84
 """
 
 VARIABLE = "world"
@@ -74,3 +74,11 @@ def baz():
     f"""I'm probably a docstring: {VARIABLE}!"""  # B021: 4
     print(f"""I'm a normal string""")
     f"""Don't detect me!"""
+
+
+async def foo3():
+    """hello world!"""
+
+
+async def foo4():
+    f"""hello {VARIABLE}!"""  # B021: 4
