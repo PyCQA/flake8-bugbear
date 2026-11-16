@@ -240,3 +240,41 @@ try:
 except Exception as e:  # B040: 0
     e.add_note("...")
     logger.error("failed", exc_info=False)
+
+# exc_info=False on logger.exception() turns the traceback off
+try:
+    ...
+except Exception as e:  # B040: 0
+    e.add_note("...")
+    logger.exception("failed", exc_info=False)
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    logger.exception(msg="failed")
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    logger.exception(**kwargs)
+
+try:
+    ...
+except Exception as e:
+    e.add_note("...")  # safe
+    sys.exception()
+
+# Future.exception() / Task.exception() return a different exception
+try:
+    ...
+except Exception as e:  # B040: 0
+    e.add_note("...")
+    fut.exception()
+
+try:
+    ...
+except Exception as e:  # B040: 0
+    e.add_note("...")
+    task.exception()
