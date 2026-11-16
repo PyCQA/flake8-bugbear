@@ -47,6 +47,9 @@ negated = not haystack.find(needle)  # B048: 14
 if haystack.find(sub=needle):  # B048: 3
     pass
 
+if needle and haystack.find(needle):  # B048: 14
+    pass
+
 
 # OK: the returned index is compared explicitly.
 if haystack.find(needle) == 0:
@@ -63,6 +66,9 @@ if (pos := haystack.find(needle)) != -1:
 
 if bool(haystack.find(needle)):
     pass
+
+# The last `and`/`or` operand is returned, not tested, outside a condition.
+index_or_none = needle and haystack.find(needle)
 
 
 # Out of scope: B048 only checks the `.find()`/`.rfind()` call itself.

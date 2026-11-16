@@ -2351,16 +2351,21 @@ class BugBearVisitor(ast.NodeVisitor):
         # stack. Walk the ancestors, stepping through wrappers that keep
         # testing the value's truthiness (`not`/`and`/`or`, and a walrus
         # whose value is itself tested that way), and report if we reach a
-        # place that uses it as a boolean. A `BoolOp`/`not` is itself such a
-        # place: ``x = s.find(y) or -1`` and ``x = not s.find(y)`` test the
-        # truthiness even outside an ``if`` (see #571 review). Anything
+        # place that uses it as a boolean. `not` and any non-final `and`/`or`
+        # operand are themselves such a place: ``x = s.find(y) or -1`` and
+        # ``x = not s.find(y)`` test the truthiness even outside an ``if``,
+        # while ``x = y and s.find(z)`` just returns the index. Anything
         # else (comparison, arithmetic, plain assignment/return of the
         # index, ``bool(...)`` call, ...) uses the value as an index, not
         # as a boolean, so we stop without reporting.
         child: ast.AST = node
         for parent in reversed(self.node_stack[:-1]):
             if isinstance(parent, ast.BoolOp):
-                return True
+                # Every operand but the last is tested. The last one is the
+                # result of the expression, so it is only tested if that is.
+                if child is not parent.values[-1]:
+                    return True
+                child = parent
             elif isinstance(parent, ast.UnaryOp) and isinstance(parent.op, ast.Not):
                 return True
             elif isinstance(parent, ast.NamedExpr):
