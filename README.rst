@@ -673,10 +673,15 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+26.11.16
+~~~~~~~~
+
+* B048: Add new check for using the result of `str.find()`/`str.rfind()` directly as a boolean (#170)
 * B909: detect mutations when a loop unpacks the iterable's elements.
 * B040: don't report an exception whose note is shown by ``logger.exception()``,
   ``exc_info=True``, ``traceback.print_exc()``/``format_exc()`` or ``sys.exc_info()``
-* B048: Add new check for using the result of `str.find()`/`str.rfind()` directly as a boolean (#170)
+* B021: also check f-string docstrings on ``async def`` functions
+* README: add Avoid/Prefer code examples for B006, B008, B015, B017, B023 and B032
 
 26.11.9
 ~~~~~~~
