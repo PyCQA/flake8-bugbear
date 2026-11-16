@@ -540,10 +540,11 @@ def _reports_handled_exception(node: ast.Call) -> bool:
             (func.value.id, func.attr) in B040_HANDLED_EXCEPTION_CALLS
         ):
             return True
-        # logging.exception(msg) / logger.exception(msg). Not fut.exception(),
-        # which returns the future's exception instead.
+        # logging.exception(msg) / logger.exception(msg), including a **kwargs
+        # splat that may carry msg. Not fut.exception(), which returns the
+        # future's exception instead.
         return func.attr == "exception" and bool(
-            node.args or any(kw.arg == "msg" for kw in node.keywords)
+            node.args or any(kw.arg in ("msg", None) for kw in node.keywords)
         )
     # from traceback import print_exc / from sys import exc_info
     return isinstance(func, ast.Name) and func.id in B040_HANDLED_EXCEPTION_NAMES
