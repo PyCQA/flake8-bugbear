@@ -867,7 +867,7 @@ def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
             isinstance(node, ast.Name)
             and node.id == name
             and isinstance(node.ctx, ast.Store)
-        ):
+        ) or (isinstance(node, ast.arg) and node.arg == name):
             bound = True
         elif (
             isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler))
