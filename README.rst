@@ -366,6 +366,19 @@ More examples: `B032 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/te
 
 **B034**: Calls to `re.sub`, `re.subn` or `re.split` should pass `flags` or `count`/`maxsplit` as keyword arguments. It is commonly assumed that `flags` is the third positional parameter, forgetting about `count`/`maxsplit`, since many other `re` module functions are of the form `f(pattern, string, flags)`.
 
+.. code-block:: python
+
+    import re
+
+    # Avoid: re.IGNORECASE is treated as count, not flags.
+    # On Python 3.13+ this also emits a DeprecationWarning for the positional count.
+    print(re.sub("a", "b", "AAA", re.IGNORECASE))  # AAA
+
+    # Prefer: pass flags by name to match case-insensitively.
+    print(re.sub("a", "b", "AAA", flags=re.IGNORECASE))  # bbb
+
+More examples: `B034 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b034.py>`_.
+
 .. _B035:
 
 **B035**: Found dict comprehension with a static key - either a constant value or variable not from the comprehension expression. This will result in a dict with a single key that was repeatedly overwritten.
@@ -681,10 +694,14 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
 * B914: Add an optional check for implicit string concatenation on one line inside
   brackets or call arguments, where a comma is probably missing (#156)
 * B040: still report when the only call is ``fut.exception()``, ``task.exception()``
   or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
+* B018, B031, B911: a function parameter named ``map``, ``groupby``, ``batched``
+  and so on means the bare name isn't the builtin/itertools one, like a local
+  variable of that name already did
 
 26.11.16
 ~~~~~~~~
