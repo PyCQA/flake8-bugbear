@@ -156,7 +156,11 @@ class BugBearChecker:
             visitor.visit(self.tree)
         except RecursionError as exc:
             raise PluginExecutionFailed(self.filename, self.name, exc) from exc
-        for e in itertools.chain(visitor.errors, self.gen_line_based_checks()):
+        for e in itertools.chain(
+            visitor.errors,
+            self.gen_line_based_checks(),
+            self.gen_token_based_checks(),
+        ):
             if self.should_warn(e.message[:4]):
                 yield self.adapt_error(e)
 
@@ -247,6 +251,18 @@ class BugBearChecker:
                     continue
 
                 yield error_codes["B950"](lineno, length, vars=(length, max_length))
+
+    def gen_token_based_checks(self) -> Iterator["error"]:
+        """B914 looks at the tokens, since the AST has no trace of an implicit
+        concatenation. It is only run when the check is selected."""
+        if self.lines is None:
+            return
+        if self.options is not None and not hasattr(self.options, "select"):
+            return
+        if not self.should_warn("B914"):
+            return
+        for lineno, col in _implicit_string_concatenations("".join(self.lines)):
+            yield error_codes["B914"](lineno, col)
 
     @classmethod
     def adapt_error(cls, e: error) -> tuple[int, int, str, type]:
@@ -3601,6 +3617,140 @@ class B909Checker(ast.NodeVisitor):
         return node
 
 
+_STRING_START_TOKENS = {
+    getattr(tokenize, name)
+    for name in ("FSTRING_START", "TSTRING_START")
+    if hasattr(tokenize, name)
+}
+_STRING_END_TOKENS = {
+    getattr(tokenize, name)
+    for name in ("FSTRING_END", "TSTRING_END")
+    if hasattr(tokenize, name)
+}
+
+
+class _Bracket:
+    """An open bracket, while looking for B914."""
+
+    def __init__(self, char: str, is_call: bool) -> None:
+        self.char = char
+        # `f(...)`, as opposed to `(...)`, which groups an expression or is a tuple
+        self.is_call = is_call
+        self.has_content = False
+
+
+class _ImplicitConcatenationFinder:
+    """Find the string literals that are implicitly concatenated, see B914."""
+
+    def __init__(self) -> None:
+        self.brackets: list[_Bracket] = []
+        # (start, end) of the strings that follow each other, with only newlines
+        # and comments between them
+        self.run: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        # whether the parentheses the run is in held anything before it
+        self.run_after_content = False
+        # nesting of f-strings and t-strings
+        self.string_depth = 0
+        # the last token that is not a NL or a COMMENT
+        self.previous: tokenize.TokenInfo | None = None
+
+    def find(self, tokens: Iterable[tokenize.TokenInfo]) -> Iterator[tuple[int, int]]:
+        for token in tokens:
+            if token.type in (tokenize.NL, tokenize.COMMENT):
+                continue
+            if self._in_string(token):
+                continue
+            if token.type == tokenize.STRING or token.type in _STRING_START_TOKENS:
+                if not self.run and self.brackets:
+                    self.run_after_content = self.brackets[-1].has_content
+                self.run.append((token.start, token.end))
+            else:
+                if self.run:
+                    position = self._end_run(token)
+                    if position is not None:
+                        yield position
+                self._track_brackets(token)
+            self.previous = token
+
+    def _in_string(self, token: tokenize.TokenInfo) -> bool:
+        """Whether `token` is part of an f-string, other than its start. Keep the end
+        of the outermost one as the end of the last string of the run."""
+        if token.type in _STRING_START_TOKENS:
+            self.string_depth += 1
+            return self.string_depth > 1
+        if token.type in _STRING_END_TOKENS:
+            self.string_depth -= 1
+            if self.string_depth == 0:
+                self.run[-1] = (self.run[-1][0], token.end)
+                self.previous = token
+            return True
+        return self.string_depth > 0
+
+    def _end_run(self, token: tokenize.TokenInfo) -> tuple[int, int] | None:
+        """The start of the run, if it is to be reported. `token` follows it."""
+        run, self.run = self.run, []
+        if self.brackets:
+            self.brackets[-1].has_content = True
+        # strings on the same line, as in `["a", "b" "c"]`
+        if not self.brackets or not any(
+            first[1][0] == second[0][0] for first, second in itertools.pairwise(run)
+        ):
+            return None
+        bracket = self.brackets[-1]
+        # `("a" "b")` is written that way on purpose
+        if (
+            bracket.char == "("
+            and not bracket.is_call
+            and not self.run_after_content
+            and token.type == tokenize.OP
+            and token.string == ")"
+        ):
+            return None
+        return run[0][0]
+
+    def _track_brackets(self, token: tokenize.TokenInfo) -> None:
+        if token.type != tokenize.OP:
+            if self.brackets and token.type not in (tokenize.INDENT, tokenize.DEDENT):
+                self.brackets[-1].has_content = True
+            return
+        if token.string in ("(", "[", "{"):
+            if self.brackets:
+                self.brackets[-1].has_content = True
+            self.brackets.append(_Bracket(token.string, self._follows_expression()))
+        elif token.string in (")", "]", "}"):
+            if self.brackets:
+                self.brackets.pop()
+            if self.brackets:
+                self.brackets[-1].has_content = True
+        elif self.brackets:
+            self.brackets[-1].has_content = True
+
+    def _follows_expression(self) -> bool:
+        """Whether the bracket that opens now is a call or a subscript, as opposed
+        to one that starts a display or groups an expression."""
+        previous = self.previous
+        if previous is None:
+            return False
+        if previous.type == tokenize.NAME:
+            return not iskeyword(previous.string)
+        return previous.type == tokenize.OP and previous.string in (")", "]")
+
+
+def _implicit_string_concatenations(source: str) -> Iterator[tuple[int, int]]:
+    """Yield the position of string literals that are implicitly concatenated on a
+    line, inside brackets, as in `["a", "b" "c"]`: a comma is probably missing.
+
+    A concatenation that is the only thing between a pair of parentheses is
+    written that way on purpose, so it is skipped: `("a" "b")`. The same goes for
+    one that is not in brackets at all.
+    """
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+    except (tokenize.TokenError, SyntaxError):
+        return
+    yield from _ImplicitConcatenationFinder().find(tokens)
+
+
 def _is_useless_operation(node: ast.expr) -> bool:
     """Whether a unary or arithmetic operation, used as a statement, does nothing.
 
@@ -4447,6 +4597,12 @@ error_codes = {
             "variables; otherwise remove the arguments and targets."
         )
     ),
+    "B914": Error(
+        message=(
+            "B914 Implicit string concatenation inside brackets. Is a comma missing? "
+            "Join the strings with `+`, or wrap them in parentheses if this is intended."
+        )
+    ),
     "B950": Error(message="B950 line too long ({} > {} characters)"),
 }
 
@@ -4464,5 +4620,6 @@ disabled_by_default = [
     "B911",
     "B912",
     "B913",
+    "B914",
     "B950",
 ]

@@ -18,6 +18,7 @@ from flake8.exceptions import PluginExecutionFailed
 from bugbear import (
     BugBearChecker,
     BugBearVisitor,
+    _implicit_string_concatenations,
     error,
     error_codes,
 )
@@ -64,7 +65,7 @@ def test_eval(
         errors = [
             e
             for e in bbc.run()
-            if (test.startswith("B950") or not e[2].startswith("B950"))
+            if (test.startswith(e[2][:4]) or e[2][:4] not in ("B914", "B950"))
         ]
     errors.sort()
     assert errors == tuple_expected
@@ -280,6 +281,28 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
+    def test_b914_select(self):
+        filename = EVAL_FILES_DIR / "b914.py"
+
+        for mock_options in (
+            Namespace(select=["B914"]),
+            Namespace(select=[], extend_select=["B914"]),
+        ):
+            bbc = BugBearChecker(filename=str(filename), options=mock_options)
+            lines = [e[0] for e in bbc.run() if e[2].startswith("B914")]
+            self.assertEqual(
+                lines,
+                [7, 8, 9, 10, 11, 12, 13, 14, 16, 20, 21, 22, 23, 24, 25, 47, 50]
+                + [68, 69, 70, 71, 74, 74],
+            )
+
+    def test_b914_not_selected(self):
+        filename = EVAL_FILES_DIR / "b914.py"
+
+        mock_options = Namespace(select=["B950"])
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        self.assertFalse([e for e in bbc.run() if e[2].startswith("B914")])
+
     def test_b950_max_doc_length_unset(self):
         # without `max-doc-length`, docstrings and comments use `max-line-length`
         filename = EVAL_FILES_DIR / "b950_max_doc_length.py"
@@ -418,3 +441,25 @@ class TestFuzz(unittest.TestCase):
             "foo = lambda: IOError\ntry:\n    ...\nexcept (foo(),):\n    ...\n"
         )
         BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ('x = ["a" "b"]', [(1, 5)]),
+        ('x = ["a",\n     "b" "c"]', [(2, 5)]),
+        ('x = ["a"\n     "b"]', []),
+        ('x = "a" "b"', []),
+        ('x = ("a" "b")', []),
+        ('x = ("a" "b",)', [(1, 5)]),
+        ('x = ["a" "b"\n     "c" "d"]', [(1, 5)]),
+        # strings in brackets that are inside a string are not looked at
+        ("x = [f\"{'a' 'b'}\"]", []),
+        # not valid python, there is nothing to report
+        ('x = ["a" "b"', []),
+        ("x = (", []),
+        ("", []),
+    ],
+)
+def test_implicit_string_concatenations(source, expected):
+    assert list(_implicit_string_concatenations(source)) == expected
