@@ -675,6 +675,7 @@ UNRELEASED
 
 * B040: still report when the only call is ``fut.exception()``, ``task.exception()``
   or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
+* B007, B020: also check ``async for`` loops
 
 26.11.16
 ~~~~~~~~

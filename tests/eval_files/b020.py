@@ -1,6 +1,6 @@
 """
 Should emit:
-B020 - on lines 8, 21, 36, 58, 75, and 103
+B020 - on lines 8, 21, 36, 58, 75, 103, and 108
 """
 
 items = [1, 2, 3]
@@ -102,3 +102,11 @@ def ok_starred_nested_unpacking(items, value):
 def still_an_error_top_level_of_tuple(items):
     for key, items in list(items):  # B020: 13, "items"
         print(key, items)
+
+
+async def async_for_loops(items):
+    async for items in items:  # B020: 14, "items"
+        print(items)
+
+    async for item in items:
+        print(item)
