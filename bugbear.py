@@ -129,6 +129,10 @@ class BugBearChecker:
     max_line_length: int = field(default=79)
     visitor: type[BugBearVisitor] = field(init=False, factory=lambda: BugBearVisitor)
     options: Namespace | None = field(default=None)
+    # flake8 passes the tokens it already has, so B914 doesn't tokenize again
+    file_tokens: list[tokenize.TokenInfo] | None = field(
+        default=None, repr=False, eq=False
+    )
 
     def run(self) -> Iterable[tuple[int, int, str, type]]:
         if not self.tree or not self.lines:
@@ -257,11 +261,17 @@ class BugBearChecker:
         concatenation. It is only run when the check is selected."""
         if self.lines is None:
             return
+        # `should_warn` reads `options.select`, so skip options that don't have it
         if self.options is not None and not hasattr(self.options, "select"):
             return
         if not self.should_warn("B914"):
             return
-        for lineno, col in _implicit_string_concatenations("".join(self.lines)):
+        positions = (
+            _ImplicitConcatenationFinder().find(self.file_tokens)
+            if self.file_tokens is not None
+            else _implicit_string_concatenations("".join(self.lines))
+        )
+        for lineno, col in positions:
             yield error_codes["B914"](lineno, col)
 
     @classmethod
@@ -3660,6 +3670,8 @@ class _ImplicitConcatenationFinder:
         self.string_depth = 0
         # the last token that is not a NL or a COMMENT
         self.previous: tokenize.TokenInfo | None = None
+        # whether `previous` is the first token of a statement
+        self.previous_starts_statement = False
 
     def find(self, tokens: Iterable[tokenize.TokenInfo]) -> Iterator[tuple[int, int]]:
         for token in tokens:
@@ -3677,7 +3689,16 @@ class _ImplicitConcatenationFinder:
                     if position is not None:
                         yield position
                 self._track_brackets(token)
-            self.previous = token
+            self._set_previous(token)
+
+    def _set_previous(self, token: tokenize.TokenInfo) -> None:
+        previous = self.previous
+        self.previous_starts_statement = previous is None or previous.type in (
+            tokenize.NEWLINE,
+            tokenize.INDENT,
+            tokenize.DEDENT,
+        )
+        self.previous = token
 
     def _in_string(self, token: tokenize.TokenInfo) -> bool:
         """Whether `token` is part of an f-string, other than its start. Keep the end
@@ -3689,7 +3710,7 @@ class _ImplicitConcatenationFinder:
             self.string_depth -= 1
             if self.string_depth == 0:
                 self.run[-1] = (self.run[-1][0], token.end)
-                self.previous = token
+                self._set_previous(token)
             return True
         return self.string_depth > 0
 
@@ -3698,10 +3719,19 @@ class _ImplicitConcatenationFinder:
         run, self.run = self.run, []
         if self.brackets:
             self.brackets[-1].has_content = True
-        # strings on the same line, as in `["a", "b" "c"]`
-        if not self.brackets or not any(
-            first[1][0] == second[0][0] for first, second in itertools.pairwise(run)
-        ):
+        if not self.brackets:
+            return None
+        # strings on the same line, as in `["a", "b" "c"]`: report the first of them
+        # (the run may start lines before) so that `# noqa` goes on that line
+        position = next(
+            (
+                first[0]
+                for first, second in itertools.pairwise(run)
+                if first[1][0] == second[0][0]
+            ),
+            None,
+        )
+        if position is None:
             return None
         bracket = self.brackets[-1]
         # `("a" "b")` is written that way on purpose
@@ -3713,7 +3743,7 @@ class _ImplicitConcatenationFinder:
             and token.string == ")"
         ):
             return None
-        return run[0][0]
+        return position
 
     def _track_brackets(self, token: tokenize.TokenInfo) -> None:
         if token.type != tokenize.OP:
@@ -3739,6 +3769,10 @@ class _ImplicitConcatenationFinder:
         if previous is None:
             return False
         if previous.type == tokenize.NAME:
+            # `match (x):` and `case (x):` are statements, not calls. This misses a
+            # call to a function named `match` that is a statement of its own.
+            if previous.string in ("match", "case") and self.previous_starts_statement:
+                return False
             return not iskeyword(previous.string)
         return previous.type == tokenize.OP and previous.string in (")", "]")
 

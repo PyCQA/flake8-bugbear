@@ -76,3 +76,27 @@ values = ["a" "b", "c" "d"]  # B914: 10  # B914: 19
 # Brackets inside f-strings are not looked at
 values = [f"{x['a' 'b']}", "c"]
 values = [f"{ {'a' 'b': 1} }", "c"]
+
+# The report is on the line of the pair, not on the first line of a long run
+values = [
+    "first part of a long string "
+    "second part "
+    "x" "y"  # B914: 4
+]
+values = [
+    "a" "b"  # B914: 4
+    "c" "d",
+]
+values = [
+    "a"
+    "b",
+    "c" "d"  # B914: 4
+    "e",
+]
+
+# `match` and `case` start a statement here, they are not calls
+match ("a" "b"):
+    case ("a" "b"):
+        pass
+    case ("a", "b" "c"):  # B914: 15
+        pass
