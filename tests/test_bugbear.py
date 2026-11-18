@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import ast
+import io
 import itertools
 import os
 import re
 import site
 import subprocess
 import sys
+import tempfile
+import tokenize
 import unittest
 import warnings
 from argparse import Namespace
@@ -293,8 +296,51 @@ class BugbearTestCase(unittest.TestCase):
             self.assertEqual(
                 lines,
                 [7, 8, 9, 10, 11, 12, 13, 14, 16, 20, 21, 22, 23, 24, 25, 47, 50]
-                + [68, 69, 70, 71, 74, 74],
+                + [68, 69, 70, 71, 74, 74, 84, 87, 93, 101],
             )
+
+    def test_b914_file_tokens(self):
+        # the tokens flake8 gives the plugin are used as they are
+        filename = EVAL_FILES_DIR / "b914.py"
+        source = filename.read_text()
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+        mock_options = Namespace(select=["B914"])
+
+        def run(**kwargs):
+            bbc = BugBearChecker(filename=str(filename), options=mock_options, **kwargs)
+            return [e[:2] for e in bbc.run() if e[2].startswith("B914")]
+
+        self.assertEqual(run(file_tokens=tokens), run())
+        self.assertTrue(run(file_tokens=tokens))
+        self.assertEqual(run(file_tokens=[]), [])
+
+    def test_b914_noqa(self):
+        # `# noqa` works on the line of the pair, which is what is reported
+        source = (
+            "values = [\n"
+            '    "first part of a long string "\n'
+            '    "second part "\n'
+            '    "x" "y"  # noqa: B914\n'
+            "]\n"
+            "other = [\n"
+            '    "first part of a long string "\n'
+            '    "second part "\n'
+            '    "x" "y"\n'
+            "]\n"
+        )
+        with tempfile.TemporaryDirectory() as dirname:
+            path = Path(dirname) / "t.py"
+            path.write_text(source)
+            result = subprocess.run(
+                [sys.executable, "-m", "flake8", "--select=B914", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(
+            [line.split(":")[1:3] for line in result.stdout.splitlines()],
+            [["9", "5"]],
+        )
 
     def test_b914_not_selected(self):
         filename = EVAL_FILES_DIR / "b914.py"
@@ -453,6 +499,13 @@ class TestFuzz(unittest.TestCase):
         ('x = ("a" "b")', []),
         ('x = ("a" "b",)', [(1, 5)]),
         ('x = ["a" "b"\n     "c" "d"]', [(1, 5)]),
+        # the pair is not on the first line of the run
+        ('x = ["a"\n     "b"\n     "c" "d"]', [(3, 5)]),
+        ('x = ["a"\n     "b" "c"\n     "d" "e"]', [(2, 5)]),
+        # `match` and `case` are statements, other names are calls
+        ('match ("a" "b"):\n    case ("a" "b"):\n        pass', []),
+        ('match x:\n    case ("a", "b" "c"):\n        pass', [(2, 15)]),
+        ('f ("a" "b")', [(1, 3)]),
         # strings in brackets that are inside a string are not looked at
         ("x = [f\"{'a' 'b'}\"]", []),
         # not valid python, there is nothing to report
