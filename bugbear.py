@@ -808,6 +808,17 @@ def _module_scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
             yield from _module_scope_nodes(child)
 
 
+def _module_import_names(module: ast.Module, source: str) -> set[str]:
+    """Names that ``import <source>`` or ``import <source> as ...`` bind."""
+    return {
+        alias.asname or alias.name
+        for node in ast.walk(module)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == source
+    }
+
+
 def _module_binding_is_from(
     module: ast.Module, source: str, name: str, unbound: bool = False
 ) -> bool:
@@ -820,13 +831,7 @@ def _module_binding_is_from(
     binds ``name``, the result is ``unbound``, or ``True`` when a function or
     class binds it from ``<source>``.
     """
-    source_modules = {
-        alias.asname or alias.name
-        for node in ast.walk(module)
-        if isinstance(node, ast.Import)
-        for alias in node.names
-        if alias.name == source
-    }
+    source_modules = _module_import_names(module, source)
     is_from: bool | None = None
     for stmt in module.body:
         if any(
@@ -909,6 +914,8 @@ class BugBearVisitor(ast.NodeVisitor):
     # Bare names (groupby, batched, map) already resolved for this module, keyed
     # by the module they are expected to come from.
     _bare_names: dict[tuple[str, str, bool], bool] = field(factory=dict, init=False)
+    # Names a module (itertools) is imported as in this module.
+    _module_names: dict[str, set[str]] = field(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = field(default="")
@@ -2303,6 +2310,25 @@ class BugBearVisitor(ast.NodeVisitor):
                 self._bare_names[key] = _module_name_is_from(module, source, name)
         return self._bare_names[key]
 
+    def _is_module_name(self, node: ast.expr, source: str) -> bool:
+        """Whether ``node`` is ``<source>`` or a name it is imported as.
+
+        ``it`` counts after ``import itertools as it``. ``<source>`` itself always
+        counts, even without an import.
+        """
+        if not isinstance(node, ast.Name):
+            return False
+        if node.id == source:
+            return True
+        if source not in self._module_names:
+            module = self.contexts[0].node if self.contexts else None
+            self._module_names[source] = (
+                _module_import_names(module, source)
+                if isinstance(module, ast.Module)
+                else set()
+            )
+        return node.id in self._module_names[source]
+
     def check_for_b031(self, loop_node: ast.For) -> None:  # noqa: C901
         """Check that `itertools.groupby` isn't iterated over more than once.
 
@@ -2320,8 +2346,7 @@ class BugBearVisitor(ast.NodeVisitor):
             ) or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "groupby"
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "itertools"
+                and self._is_module_name(node.func.value, "itertools")
             ):
                 # We have an invocation of groupby which is a simple unpacking
                 if isinstance(loop_node.target, ast.Tuple) and isinstance(
@@ -2827,13 +2852,11 @@ class BugBearVisitor(ast.NodeVisitor):
                 current.append((name, exc))
             caught.extend(current)
 
-    @staticmethod
-    def _is_infinite_iterator(node: ast.expr) -> bool:
+    def _is_infinite_iterator(self, node: ast.expr) -> bool:
         if not (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "itertools"
+            and self._is_module_name(node.func.value, "itertools")
         ):
             return False
         if node.func.attr in {"cycle", "count"}:
@@ -3485,8 +3508,7 @@ class BugBearVisitor(ast.NodeVisitor):
             or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "batched"
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "itertools"
+                and self._is_module_name(node.func.value, "itertools")
             )
         ) and not any(kw.arg == "strict" for kw in node.keywords):
             self.add_error("B911", node)
