@@ -883,7 +883,7 @@ def _module_name_is_from(module: ast.Module, source: str, name: str) -> bool:
             isinstance(node, ast.Name)
             and node.id == name
             and isinstance(node.ctx, ast.Store)
-        ):
+        ) or (isinstance(node, ast.arg) and node.arg == name):
             bound = True
         elif (
             isinstance(node, (ast.MatchAs, ast.MatchStar, ast.ExceptHandler))
@@ -1882,6 +1882,13 @@ class BugBearVisitor(ast.NodeVisitor):
                     for arg in node.args:
                         if isinstance(arg, FUNCTION_NODES):
                             safe_functions.append(arg)
+
+                # an immediately-invoked lambda runs before the iteration ends
+                if isinstance(node.func, ast.Lambda) and not any(
+                    isinstance(child, (ast.Yield, ast.YieldFrom, ast.GeneratorExp))
+                    for child in ast.walk(node.func.body)
+                ):
+                    safe_functions.append(node.func)
 
                 # check for key=
                 for keyword in node.keywords:

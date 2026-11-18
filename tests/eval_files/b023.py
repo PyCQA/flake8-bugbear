@@ -273,3 +273,27 @@ for _ in range(10):
         garply.append(42)  # B023: 8, "garply"
 else:
     called_in_the_else_suite()
+
+
+# an immediately-invoked lambda finishes before the iteration does
+for _ in range(10):
+    hoge = []
+    (lambda: hoge.append(42))()
+
+
+# still an error: calling a lambda that yields only builds a generator
+for _ in range(10):
+    piyo = []
+    (lambda: (yield piyo))()  # B023: 20, "piyo"
+
+
+# still an error: the generator expression runs after the lambda returns
+for _ in range(10):
+    fuga = []
+    (lambda: (fuga for _ in range(2)))()  # B023: 14, "fuga"
+
+
+# still an error: the returned lambda outlives the iteration
+for _ in range(10):
+    bar = []
+    (lambda: (lambda: bar))()  # B023: 22, "bar"
