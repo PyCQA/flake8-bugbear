@@ -371,6 +371,7 @@ More examples: `B032 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/te
     import re
 
     # Avoid: re.IGNORECASE is treated as count, not flags.
+    # On Python 3.13+ this also emits a DeprecationWarning for the positional count.
     print(re.sub("a", "b", "AAA", re.IGNORECASE))  # AAA
 
     # Prefer: pass flags by name to match case-insensitively.
