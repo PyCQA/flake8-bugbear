@@ -565,6 +565,14 @@ iterables still affect how many times the loop runs. If this is intentional, use
 descriptive variables; otherwise remove the matching arguments and targets.
 Calls with an explicit ``strict=`` argument or starred unpacking are not checked.
 
+.. _B914:
+
+**B914**: Implicit string concatenation of two literals on the same line, inside
+brackets or call arguments, as in ``["a", "b" "c"]`` or ``f("-x" "--extra")``. This
+is usually a missing comma. To concatenate on purpose, join the strings with ``+``,
+or wrap them in parentheses: ``["a", ("b" "c")]``. Strings that continue on the next
+line, and concatenations that are not inside brackets, are not reported.
+
 .. _B950:
 
 **B950**: Line too long. This is a pragmatic equivalent of
@@ -687,6 +695,8 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
+* B914: Add an optional check for implicit string concatenation on one line inside
+  brackets or call arguments, where a comma is probably missing (#156)
 * B040: still report when the only call is ``fut.exception()``, ``task.exception()``
   or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
 * B018, B031, B911: a function parameter named ``map``, ``groupby``, ``batched``

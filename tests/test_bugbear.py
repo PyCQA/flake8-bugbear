@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import ast
+import io
 import itertools
 import os
 import re
 import site
 import subprocess
 import sys
+import tempfile
+import tokenize
 import unittest
 import warnings
 from argparse import Namespace
@@ -18,6 +21,7 @@ from flake8.exceptions import PluginExecutionFailed
 from bugbear import (
     BugBearChecker,
     BugBearVisitor,
+    _implicit_string_concatenations,
     error,
     error_codes,
 )
@@ -64,7 +68,7 @@ def test_eval(
         errors = [
             e
             for e in bbc.run()
-            if (test.startswith("B950") or not e[2].startswith("B950"))
+            if (test.startswith(e[2][:4]) or e[2][:4] not in ("B914", "B950"))
         ]
     errors.sort()
     assert errors == tuple_expected
@@ -280,6 +284,71 @@ class BugbearTestCase(unittest.TestCase):
             ),
         )
 
+    def test_b914_select(self):
+        filename = EVAL_FILES_DIR / "b914.py"
+
+        for mock_options in (
+            Namespace(select=["B914"]),
+            Namespace(select=[], extend_select=["B914"]),
+        ):
+            bbc = BugBearChecker(filename=str(filename), options=mock_options)
+            lines = [e[0] for e in bbc.run() if e[2].startswith("B914")]
+            self.assertEqual(
+                lines,
+                [7, 8, 9, 10, 11, 12, 13, 14, 16, 20, 21, 22, 23, 24, 25, 47, 50]
+                + [68, 69, 70, 71, 74, 74, 84, 87, 93, 101],
+            )
+
+    def test_b914_file_tokens(self):
+        # the tokens flake8 gives the plugin are used as they are
+        filename = EVAL_FILES_DIR / "b914.py"
+        source = filename.read_text()
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+        mock_options = Namespace(select=["B914"])
+
+        def run(**kwargs):
+            bbc = BugBearChecker(filename=str(filename), options=mock_options, **kwargs)
+            return [e[:2] for e in bbc.run() if e[2].startswith("B914")]
+
+        self.assertEqual(run(file_tokens=tokens), run())
+        self.assertTrue(run(file_tokens=tokens))
+        self.assertEqual(run(file_tokens=[]), [])
+
+    def test_b914_noqa(self):
+        # `# noqa` works on the line of the pair, which is what is reported
+        source = (
+            "values = [\n"
+            '    "first part of a long string "\n'
+            '    "second part "\n'
+            '    "x" "y"  # noqa: B914\n'
+            "]\n"
+            "other = [\n"
+            '    "first part of a long string "\n'
+            '    "second part "\n'
+            '    "x" "y"\n'
+            "]\n"
+        )
+        with tempfile.TemporaryDirectory() as dirname:
+            path = Path(dirname) / "t.py"
+            path.write_text(source)
+            result = subprocess.run(
+                [sys.executable, "-m", "flake8", "--select=B914", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(
+            [line.split(":")[1:3] for line in result.stdout.splitlines()],
+            [["9", "5"]],
+        )
+
+    def test_b914_not_selected(self):
+        filename = EVAL_FILES_DIR / "b914.py"
+
+        mock_options = Namespace(select=["B950"])
+        bbc = BugBearChecker(filename=str(filename), options=mock_options)
+        self.assertFalse([e for e in bbc.run() if e[2].startswith("B914")])
+
     def test_b950_max_doc_length_unset(self):
         # without `max-doc-length`, docstrings and comments use `max-line-length`
         filename = EVAL_FILES_DIR / "b950_max_doc_length.py"
@@ -418,3 +487,32 @@ class TestFuzz(unittest.TestCase):
             "foo = lambda: IOError\ntry:\n    ...\nexcept (foo(),):\n    ...\n"
         )
         BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ('x = ["a" "b"]', [(1, 5)]),
+        ('x = ["a",\n     "b" "c"]', [(2, 5)]),
+        ('x = ["a"\n     "b"]', []),
+        ('x = "a" "b"', []),
+        ('x = ("a" "b")', []),
+        ('x = ("a" "b",)', [(1, 5)]),
+        ('x = ["a" "b"\n     "c" "d"]', [(1, 5)]),
+        # the pair is not on the first line of the run
+        ('x = ["a"\n     "b"\n     "c" "d"]', [(3, 5)]),
+        ('x = ["a"\n     "b" "c"\n     "d" "e"]', [(2, 5)]),
+        # `match` and `case` are statements, other names are calls
+        ('match ("a" "b"):\n    case ("a" "b"):\n        pass', []),
+        ('match x:\n    case ("a", "b" "c"):\n        pass', [(2, 15)]),
+        ('f ("a" "b")', [(1, 3)]),
+        # strings in brackets that are inside a string are not looked at
+        ("x = [f\"{'a' 'b'}\"]", []),
+        # not valid python, there is nothing to report
+        ('x = ["a" "b"', []),
+        ("x = (", []),
+        ("", []),
+    ],
+)
+def test_implicit_string_concatenations(source, expected):
+    assert list(_implicit_string_concatenations(source)) == expected
