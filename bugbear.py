@@ -1710,40 +1710,40 @@ class BugBearVisitor(ast.NodeVisitor):
         is called, or a function is called with an invalid dictionary key
         lookup.
         """
-        item = node.items[0]
-        item_context = item.context_expr
+        for item in node.items:
+            item_context = item.context_expr
 
-        if (
-            isinstance(item_context, ast.Call)
-            and (
-                (
-                    isinstance(item_context.func, ast.Attribute)
-                    and (
-                        item_context.func.attr == "assertRaises"
-                        or (
-                            item_context.func.attr == "raises"
-                            and isinstance(item_context.func.value, ast.Name)
-                            and item_context.func.value.id == "pytest"
-                            and "match" not in (
-                                kwd.arg for kwd in item_context.keywords
+            if (
+                isinstance(item_context, ast.Call)
+                and (
+                    (
+                        isinstance(item_context.func, ast.Attribute)
+                        and (
+                            item_context.func.attr == "assertRaises"
+                            or (
+                                item_context.func.attr == "raises"
+                                and isinstance(item_context.func.value, ast.Name)
+                                and item_context.func.value.id == "pytest"
+                                and "match" not in (
+                                    kwd.arg for kwd in item_context.keywords
+                                )
                             )
                         )
                     )
+                    or (
+                        isinstance(item_context.func, ast.Name)
+                        and item_context.func.id == "raises"
+                        and isinstance(item_context.func.ctx, ast.Load)
+                        and "pytest.raises" in self._b005_imports
+                        and "match" not in (kwd.arg for kwd in item_context.keywords)
+                    )
                 )
-                or (
-                    isinstance(item_context.func, ast.Name)
-                    and item_context.func.id == "raises"
-                    and isinstance(item_context.func.ctx, ast.Load)
-                    and "pytest.raises" in self._b005_imports
-                    and "match" not in (kwd.arg for kwd in item_context.keywords)
-                )
-            )
-            and len(item_context.args) == 1
-            and isinstance(item_context.args[0], ast.Name)
-            and item_context.args[0].id in {"Exception", "BaseException"}
-            and not item.optional_vars
-        ):
-            self.add_error("B017", node)
+                and len(item_context.args) == 1
+                and isinstance(item_context.args[0], ast.Name)
+                and item_context.args[0].id in {"Exception", "BaseException"}
+                and not item.optional_vars
+            ):
+                self.add_error("B017", node)
 
     def check_for_b019(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         if (
@@ -2730,17 +2730,17 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B021", node.body[0].value)
 
     def check_for_b022(self, node: ast.With) -> None:
-        item = node.items[0]
-        item_context = item.context_expr
-        if (
-            isinstance(item_context, ast.Call)
-            and isinstance(item_context.func, ast.Attribute)
-            and isinstance(item_context.func.value, ast.Name)
-            and item_context.func.value.id == "contextlib"
-            and item_context.func.attr == "suppress"
-            and len(item_context.args) == 0
-        ):
-            self.add_error("B022", node)
+        for item in node.items:
+            item_context = item.context_expr
+            if (
+                isinstance(item_context, ast.Call)
+                and isinstance(item_context.func, ast.Attribute)
+                and isinstance(item_context.func.value, ast.Name)
+                and item_context.func.value.id == "contextlib"
+                and item_context.func.attr == "suppress"
+                and len(item_context.args) == 0
+            ):
+                self.add_error("B022", node)
 
     @staticmethod
     def _is_assertRaises_like(node: ast.withitem) -> bool:

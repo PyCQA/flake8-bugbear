@@ -692,6 +692,8 @@ UNRELEASED
 * B018, B031, B911: a function parameter named ``map``, ``groupby``, ``batched``
   and so on means the bare name isn't the builtin/itertools one, like a local
   variable of that name already did
+* B017, B022: check every item of a multi-item ``with`` statement, not just the
+  first one, e.g. ``with open(path), pytest.raises(Exception):``
 
 26.11.16
 ~~~~~~~~
