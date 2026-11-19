@@ -692,6 +692,7 @@ UNRELEASED
 * B018, B031, B911: a function parameter named ``map``, ``groupby``, ``batched``
   and so on means the bare name isn't the builtin/itertools one, like a local
   variable of that name already did
+* B007, B020: also check ``async for`` loops
 
 26.11.16
 ~~~~~~~~
