@@ -1,6 +1,6 @@
 """
 Should emit:
-B017 - on lines 24, 26, 28, 31, 32, 73, 75, 77.
+B017 - on lines 24, 26, 28, 31, 32, 73, 75, 77, 81, 83.
 """
 
 import asyncio
@@ -75,4 +75,12 @@ class Foobar(unittest.TestCase):
         with pytest.raises(BaseException):  # B017: 8
             Foo()
         with raises(BaseException):  # B017: 8
+            Foo()
+
+    def raises_not_first_with_item(self):
+        with open("f"), self.assertRaises(Exception):  # B017: 8
+            Foo()
+        with open("f"), pytest.raises(Exception):  # B017: 8
+            Foo()
+        with open("f") as f, pytest.raises(Exception) as ex:
             Foo()
