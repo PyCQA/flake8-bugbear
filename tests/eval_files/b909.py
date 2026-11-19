@@ -262,3 +262,16 @@ for holder.names[0], value in holder.records:
 # Preserve the existing behavior for unsupported non-unpacking targets.
 for holder.names[0] in holder.records:
     holder.records.append(holder.names[0])
+
+# Annotating a write can still mutate the iterable.
+for key in registry:
+    registry[("new", "entry")]: int = 1 # B909: 4
+    registry[key]: int = 2  # updating the current key is safe
+    registry[("new", "entry")]: int # B032: 4
+
+for key in registry:
+    other_registry[key]: int = 1
+
+for _key in registry:
+    registry[("new", "entry")]: int = 1
+    break
