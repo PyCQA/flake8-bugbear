@@ -89,6 +89,18 @@ is unreliable.  If ``x`` implements custom ``__getattr__`` or its
 ``__call__`` is itself not callable, you might get misleading
 results.  Use ``callable(x)`` for consistent results.
 
+.. code-block:: python
+
+    # Avoid: a __call__ attribute alone does not tell you whether x is callable.
+    if hasattr(x, "__call__"):
+        x()
+
+    # Prefer: check whether Python treats x as callable.
+    if callable(x):
+        x()
+
+More examples: `B004 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b004.py>`_.
+
 .. _B005:
 
 **B005**: Using ``.strip()`` with a multi-character string that repeats
@@ -125,6 +137,18 @@ More examples: `B006 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/te
 
 **B007**: Loop control variable not used within the loop body.  If this is
 intended, start the name with an underscore.
+
+.. code-block:: python
+
+    # Avoid: the loop never reads attempt.
+    for attempt in range(3):
+        send_ping()
+
+    # Prefer: mark the unused loop variable explicitly.
+    for _ in range(3):
+        send_ping()
+
+More examples: `B007 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b007.py>`_.
 
 .. _B008:
 
