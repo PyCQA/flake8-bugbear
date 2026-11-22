@@ -718,6 +718,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B033: detect duplicate signed numeric literals in sets.
+
 26.11.22
 ~~~~~~~~
 
