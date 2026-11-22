@@ -719,6 +719,7 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B909: detect subscript assignments and deletions in unpacked targets.
+* B033: detect duplicate signed numeric literals in sets.
 
 26.11.22
 ~~~~~~~~
