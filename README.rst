@@ -718,6 +718,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B909: detect subscript assignments and deletions in unpacked targets.
+
 26.11.22
 ~~~~~~~~
 
