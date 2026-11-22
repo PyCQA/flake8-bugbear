@@ -1248,6 +1248,8 @@ class BugBearVisitor(ast.NodeVisitor):
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
         self.check_for_b045(node)
+        self.check_for_b007(node)
+        self.check_for_b020(node)
         self.check_for_b023(node)
         self.generic_visit(node)
 
@@ -1570,7 +1572,7 @@ class BugBearVisitor(ast.NodeVisitor):
         visitor.visit(kw.value)
         self.errors.extend(visitor.errors)
 
-    def check_for_b007(self, node: ast.For) -> None:
+    def check_for_b007(self, node: ast.For | ast.AsyncFor) -> None:
         targets = NameFinder()
         targets.visit(node.target)
         ctrl_names = set(filter(lambda s: not s.startswith("_"), targets.names))
@@ -1818,7 +1820,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 self.add_error("B049", abstract_decorator, path)
                 return
 
-    def check_for_b020(self, node: ast.For) -> None:
+    def check_for_b020(self, node: ast.For | ast.AsyncFor) -> None:
         iterset = B020AttributeFinder()
         iterset.visit(node.iter)
         iterset_names = set(iterset.names)

@@ -728,6 +728,7 @@ UNRELEASED
   variable of that name already did
 * B031, B905, B911: recognize ``itertools`` imported under another name, e.g.
   ``it.batched()`` and ``it.cycle()`` after ``import itertools as it``
+* B007, B020: also check ``async for`` loops
 
 26.11.16
 ~~~~~~~~

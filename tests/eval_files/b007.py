@@ -337,3 +337,11 @@ def global_loop_variable_shadowed_by_comprehension():
 
     for gc in range(3):  # B007: 8, "gc"
         f()
+
+
+async def async_for_loops(xs):
+    async for i in xs:  # B007: 14, "i"
+        print(10)
+
+    async for j in xs:
+        print(j)
