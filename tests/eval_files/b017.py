@@ -1,6 +1,6 @@
 """
 Should emit:
-B017 - on lines 24, 26, 28, 31, 32, 73, 75, 77, 81, 83.
+B017 - on lines 24, 26, 28, 31, 32, 73, 75, 77, 81, 83, 88.
 """
 
 import asyncio
@@ -83,4 +83,7 @@ class Foobar(unittest.TestCase):
         with open("f"), pytest.raises(Exception):  # B017: 8
             Foo()
         with open("f") as f, pytest.raises(Exception) as ex:
+            Foo()
+        # two offending items still give a single error
+        with pytest.raises(Exception), self.assertRaises(Exception):  # B017: 8
             Foo()

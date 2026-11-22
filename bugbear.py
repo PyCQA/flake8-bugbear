@@ -1744,6 +1744,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 and not item.optional_vars
             ):
                 self.add_error("B017", node)
+                return
 
     def check_for_b019(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         if (
@@ -2741,6 +2742,7 @@ class BugBearVisitor(ast.NodeVisitor):
                 and len(item_context.args) == 0
             ):
                 self.add_error("B022", node)
+                return
 
     @staticmethod
     def _is_assertRaises_like(node: ast.withitem) -> bool:
