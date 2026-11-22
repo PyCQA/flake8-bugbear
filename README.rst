@@ -718,6 +718,8 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B031: avoid ``IndexError`` crash on empty or 1-element tuple targets in
+  ``itertools.groupby()`` loops and support 2-element list unpacking targets
 * B909: check annotated subscript assignments inside loops.
 * B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
 * B914: Add an optional check for implicit string concatenation on one line inside

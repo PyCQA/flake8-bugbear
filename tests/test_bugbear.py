@@ -488,6 +488,18 @@ class TestFuzz(unittest.TestCase):
         )
         BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
 
+    def test_does_not_crash_on_short_tuple_target_in_groupby(self):
+        syntax_tree = ast.parse(
+            "import itertools\n"
+            "for () in itertools.groupby([]):\n"
+            "    pass\n"
+            "for (k,) in itertools.groupby([]):\n"
+            "    pass\n"
+            "for [k] in itertools.groupby([]):\n"
+            "    pass\n"
+        )
+        BugBearVisitor(filename="<string>", lines=[]).visit(syntax_tree)
+
 
 @pytest.mark.parametrize(
     "source, expected",
