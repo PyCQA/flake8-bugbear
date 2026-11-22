@@ -25,13 +25,13 @@ test = {None}
 
 # Signed numbers are represented by UnaryOp nodes in the AST.
 test = {-1, -1} # B033: 12, "-1"
-test = {1, +1} # B033: 11, "1"
+test = {1, +1} # B033: 11, "+1"
 test = {+1, 1} # B033: 12, "1"
 test = {-1, -1.0} # B033: 12, "-1.0"
 test = {0, -0.0} # B033: 11, "-0.0"
-test = {1j, +1j} # B033: 12, "1j"
-test = {-1j, -1j} # B033: 13, "(-0-1j)"
-test = {-1, -True} # B033: 12, "-1"
+test = {1j, +1j} # B033: 12, "+1j"
+test = {-1j, -1j} # B033: 13, "-1j"
+test = {-1, -True} # B033: 12, "-True"
 
 test = {-1, 1, -2.0, 2.0, -1j, 1j}
 value = 1

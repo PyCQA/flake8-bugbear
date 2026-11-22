@@ -3257,7 +3257,13 @@ class BugBearVisitor(ast.NodeVisitor):
             else:
                 continue
             if value in seen:
-                self.add_error("B033", elt, repr(value))
+                # quote a signed number as written: `-1j`, not `(-0-1j)`
+                shown = (
+                    repr(elt.value)
+                    if isinstance(elt, ast.Constant)
+                    else ast.unparse(elt)
+                )
+                self.add_error("B033", elt, shown)
             else:
                 seen.add(value)
 
