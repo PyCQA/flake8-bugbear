@@ -89,6 +89,18 @@ is unreliable.  If ``x`` implements custom ``__getattr__`` or its
 ``__call__`` is itself not callable, you might get misleading
 results.  Use ``callable(x)`` for consistent results.
 
+.. code-block:: python
+
+    # Avoid: a __call__ attribute alone does not tell you whether x is callable.
+    if hasattr(x, "__call__"):
+        x()
+
+    # Prefer: check whether Python treats x as callable.
+    if callable(x):
+        x()
+
+More examples: `B004 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b004.py>`_.
+
 .. _B005:
 
 **B005**: Using ``.strip()`` with a multi-character string that repeats
@@ -125,6 +137,18 @@ More examples: `B006 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/te
 
 **B007**: Loop control variable not used within the loop body.  If this is
 intended, start the name with an underscore.
+
+.. code-block:: python
+
+    # Avoid: the loop never reads attempt.
+    for attempt in range(3):
+        send_ping()
+
+    # Prefer: mark the unused loop variable explicitly.
+    for _ in range(3):
+        send_ping()
+
+More examples: `B007 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b007.py>`_.
 
 .. _B008:
 
@@ -565,6 +589,14 @@ iterables still affect how many times the loop runs. If this is intentional, use
 descriptive variables; otherwise remove the matching arguments and targets.
 Calls with an explicit ``strict=`` argument or starred unpacking are not checked.
 
+.. _B914:
+
+**B914**: Implicit string concatenation of two literals on the same line, inside
+brackets or call arguments, as in ``["a", "b" "c"]`` or ``f("-x" "--extra")``. This
+is usually a missing comma. To concatenate on purpose, join the strings with ``+``,
+or wrap them in parentheses: ``["a", ("b" "c")]``. Strings that continue on the next
+line, and concatenations that are not inside brackets, are not reported.
+
 .. _B950:
 
 **B950**: Line too long. This is a pragmatic equivalent of
@@ -687,11 +719,16 @@ UNRELEASED
 ~~~~~~~~~~
 
 * B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
+* B914: Add an optional check for implicit string concatenation on one line inside
+  brackets or call arguments, where a comma is probably missing (#156)
 * B040: still report when the only call is ``fut.exception()``, ``task.exception()``
   or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
 * B018, B031, B911: a function parameter named ``map``, ``groupby``, ``batched``
   and so on means the bare name isn't the builtin/itertools one, like a local
   variable of that name already did
+* B031, B905, B911: recognize ``itertools`` imported under another name, e.g.
+  ``it.batched()`` and ``it.cycle()`` after ``import itertools as it``
+* B007, B020: also check ``async for`` loops
 * B017, B022: check every item of a multi-item ``with`` statement, not just the
   first one, e.g. ``with open(path), pytest.raises(Exception):``
 
