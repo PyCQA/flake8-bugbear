@@ -1159,6 +1159,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and isinstance(node.args[1], ast.Constant)
                     and isinstance(node.args[1].value, str)
                     and not iskeyword(node.args[1].value)
+                    and not self._is_mangled_in_class(node.args[1].value)
                 ):
                     self.add_error("B009", node)
                 elif (
@@ -1169,6 +1170,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and isinstance(node.args[1], ast.Constant)
                     and isinstance(node.args[1].value, str)
                     and not iskeyword(node.args[1].value)
+                    and not self._is_mangled_in_class(node.args[1].value)
                 ):
                     self.add_error("B010", node)
                 elif (
@@ -1178,6 +1180,7 @@ class BugBearVisitor(ast.NodeVisitor):
                     and isinstance(node.args[1], ast.Constant)
                     and isinstance(node.args[1].value, str)
                     and not iskeyword(node.args[1].value)
+                    and not self._is_mangled_in_class(node.args[1].value)
                 ):
                     self.add_error("B043", node)
 
@@ -1206,6 +1209,13 @@ class BugBearVisitor(ast.NodeVisitor):
             # Avoid nested calls within the parameter list using the variable itself.
             # e.g. `e.add_note(str(e))`
             self.b040_caught_exception = current_b040_caught_exception
+
+    def _is_mangled_in_class(self, name: str) -> bool:
+        return (
+            name.startswith("__")
+            and not name.endswith("__")
+            and any(isinstance(context.node, ast.ClassDef) for context in self.contexts)
+        )
 
     def visit_Module(self, node: ast.Module) -> None:
         self.generic_visit(node)
