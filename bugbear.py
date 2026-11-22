@@ -3244,12 +3244,22 @@ class BugBearVisitor(ast.NodeVisitor):
     def check_for_b033(self, node: ast.Set) -> None:
         seen = set()
         for elt in node.elts:
-            if not isinstance(elt, ast.Constant):
-                continue
-            if elt.value in seen:
-                self.add_error("B033", elt, repr(elt.value))
+            if isinstance(elt, ast.Constant):
+                value = elt.value
+            elif (
+                isinstance(elt, ast.UnaryOp)
+                and isinstance(elt.op, (ast.UAdd, ast.USub))
+                and isinstance(elt.operand, ast.Constant)
+                and isinstance(elt.operand.value, (int, float, complex))
+            ):
+                value = elt.operand.value
+                value = -value if isinstance(elt.op, ast.USub) else +value
             else:
-                seen.add(elt.value)
+                continue
+            if value in seen:
+                self.add_error("B033", elt, repr(value))
+            else:
+                seen.add(value)
 
     def check_for_b034(self, node: ast.Call) -> None:
         if not isinstance(node.func, ast.Attribute):
