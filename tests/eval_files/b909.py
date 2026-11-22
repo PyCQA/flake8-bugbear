@@ -356,3 +356,10 @@ for _key in registry:
 for _key in holder.registry:
     holder.registry = holder.registry["new"] = holder.registry # B909: 4
     holder = holder.registry["new"] = holder # B909: 4
+
+# A statement that mutates the iterable through several targets is reported once.
+for _key in registry:
+    registry["a"], registry["b"] = 1, 2  # B909: 4
+    registry["a"] = registry["b"] = 1  # B909: 4
+    del (registry["a"], registry["b"])  # B909: 4
+    del registry["a"], registry["b"]  # B909: 4

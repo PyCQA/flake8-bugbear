@@ -3644,7 +3644,9 @@ class B909Checker(ast.NodeVisitor):
                         or _to_name_str(assignment_target.slice) != self.key
                     )
                 ):
+                    # report the statement once, however many targets it mutates
                     self.mutations[self._conditional_block].append(node)
+                    return
 
     def _unpack_targets(self, target: ast.expr) -> Iterator[ast.expr]:
         if isinstance(target, (ast.Tuple, ast.List)):
@@ -3661,14 +3663,15 @@ class B909Checker(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Delete(self, node: ast.Delete) -> None:
+        # report the statement once, however many targets it deletes from
+        if any(
+            isinstance(delete_target, ast.Subscript)
+            and _to_name_str(delete_target.value) == self.name
+            for target in node.targets
+            for delete_target in self._unpack_targets(target)
+        ):
+            self.mutations[self._conditional_block].append(node)
         for target in node.targets:
-            for delete_target in self._unpack_targets(target):
-                if (
-                    isinstance(delete_target, ast.Subscript)
-                    and _to_name_str(delete_target.value) == self.name
-                ):
-                    self.mutations[self._conditional_block].append(node)
-
             if isinstance(target, (ast.Tuple, ast.List)):
                 self.generic_visit(target)
 
