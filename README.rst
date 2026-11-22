@@ -718,14 +718,17 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+26.11.22
+~~~~~~~~
+
+* B914: Add an optional check for implicit string concatenation on one line inside
+  brackets or call arguments, where a comma is probably missing (#156)
 * B009, B010, B043: don't flag a private ``__name`` inside a class, where
   ``obj.__name`` would be name-mangled and not equivalent
 * B031: avoid ``IndexError`` crash on empty or 1-element tuple targets in
   ``itertools.groupby()`` loops and support 2-element list unpacking targets
 * B909: check annotated subscript assignments inside loops.
 * B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
-* B914: Add an optional check for implicit string concatenation on one line inside
-  brackets or call arguments, where a comma is probably missing (#156)
 * B040: still report when the only call is ``fut.exception()``, ``task.exception()``
   or ``logger.exception(..., exc_info=False)``, which don't show the caught exception
 * B018, B031, B911: a function parameter named ``map``, ``groupby``, ``batched``
@@ -736,6 +739,7 @@ UNRELEASED
 * B007, B020: also check ``async for`` loops
 * B017, B022: check every item of a multi-item ``with`` statement, not just the
   first one, e.g. ``with open(path), pytest.raises(Exception):``
+* README: add Avoid/Prefer code examples for B004, B007 and B034
 
 26.11.16
 ~~~~~~~~

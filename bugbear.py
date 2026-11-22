@@ -23,7 +23,7 @@ import pycodestyle  # type: ignore
 from attrs import define, field
 from flake8.exceptions import PluginExecutionFailed
 
-__version__ = "26.11.16"
+__version__ = "26.11.22"
 
 LOG = logging.getLogger("flake8.bugbear")
 CONTEXTFUL_NODES = (
