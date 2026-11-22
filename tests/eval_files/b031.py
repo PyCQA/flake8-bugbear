@@ -216,3 +216,21 @@ for _, group in groupby(items):
             group = tuple(group)
     print(group)
     print(group)  # B031: 10, "group"
+
+# Short/empty or wrong-arity unpacking targets must not raise IndexError
+for () in groupby(items):
+    pass
+
+for (_section,) in groupby(items):
+    pass
+
+for [_section] in groupby(items):
+    pass
+
+for _a, _b, _c in groupby(items):
+    pass
+
+# List unpacking of (key, group) is still checked
+for [_section, section_items] in groupby(items, key=lambda p: p[1]):
+    collect_shop_items("Jane", section_items)
+    collect_shop_items("Joe", section_items)  # B031: 30, "section_items"

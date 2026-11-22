@@ -2378,12 +2378,14 @@ class BugBearVisitor(ast.NodeVisitor):
                 and self._is_module_name(node.func.value, "itertools")
             ):
                 # We have an invocation of groupby which is a simple unpacking
-                if isinstance(loop_node.target, ast.Tuple) and isinstance(
-                    loop_node.target.elts[1], ast.Name
+                if (
+                    isinstance(loop_node.target, (ast.Tuple, ast.List))
+                    and len(loop_node.target.elts) == 2
+                    and isinstance(loop_node.target.elts[1], ast.Name)
                 ):
                     group_name = loop_node.target.elts[1].id
                 else:
-                    # Ignore any `groupby()` invocation that isn't unpacked
+                    # Ignore any `groupby()` invocation that isn't a 2-target unpacking
                     return
 
                 self._check_b031_group_usages(loop_node.body, group_name)
