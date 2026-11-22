@@ -729,6 +729,8 @@ UNRELEASED
 * B031, B905, B911: recognize ``itertools`` imported under another name, e.g.
   ``it.batched()`` and ``it.cycle()`` after ``import itertools as it``
 * B007, B020: also check ``async for`` loops
+* B017, B022: check every item of a multi-item ``with`` statement, not just the
+  first one, e.g. ``with open(path), pytest.raises(Exception):``
 
 26.11.16
 ~~~~~~~~

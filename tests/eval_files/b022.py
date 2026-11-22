@@ -1,6 +1,6 @@
 """
 Should emit:
-B022 - on lines 8
+B022 - on lines 8, 21, 24
 """
 
 import contextlib
@@ -16,4 +16,10 @@ if True:
     exceptions_to_suppress.append(ValueError)
 
 with contextlib.suppress(*exceptions_to_suppress):
+    raise ValueError
+
+with open("f"), contextlib.suppress():  # B022: 0
+    raise ValueError
+
+with contextlib.suppress(), contextlib.suppress():  # B022: 0
     raise ValueError
