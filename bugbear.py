@@ -3640,13 +3640,38 @@ class B909Checker(ast.NodeVisitor):
     ) -> None:
         if not self.check_subscript_assignments:
             return
+        iterable_rebound = False
         for target in targets:
-            if (
-                isinstance(target, ast.Subscript)
-                and _to_name_str(target.value) == self.name
-                and (self.key is None or _to_name_str(target.slice) != self.key)
-            ):
-                self.mutations[self._conditional_block].append(node)
+            for assignment_target in self._unpack_targets(target):
+                bound_name = _to_name_str(assignment_target)
+                if bound_name is not None and (
+                    self.name == bound_name or self.name.startswith(f"{bound_name}.")
+                ):
+                    iterable_rebound = True
+                # A rebinding can redirect later unpacked targets. Preserve the
+                # existing checks for direct targets, including chained assignment.
+                if iterable_rebound and assignment_target is not target:
+                    continue
+                if (
+                    isinstance(assignment_target, ast.Subscript)
+                    and _to_name_str(assignment_target.value) == self.name
+                    and (
+                        self.key is None
+                        or _to_name_str(assignment_target.slice) != self.key
+                    )
+                ):
+                    # report the statement once, however many targets it mutates
+                    self.mutations[self._conditional_block].append(node)
+                    return
+
+    def _unpack_targets(self, target: ast.expr) -> Iterator[ast.expr]:
+        if isinstance(target, (ast.Tuple, ast.List)):
+            for element in target.elts:
+                yield from self._unpack_targets(element)
+        elif isinstance(target, ast.Starred):
+            yield from self._unpack_targets(target.value)
+        else:
+            yield target
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         if _to_name_str(node.target) == self.name:
@@ -3654,17 +3679,17 @@ class B909Checker(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Delete(self, node: ast.Delete) -> None:
+        # report the statement once, however many targets it deletes from
+        if any(
+            isinstance(delete_target, ast.Subscript)
+            and _to_name_str(delete_target.value) == self.name
+            for target in node.targets
+            for delete_target in self._unpack_targets(target)
+        ):
+            self.mutations[self._conditional_block].append(node)
         for target in node.targets:
-            if isinstance(target, ast.Subscript):
-                name = _to_name_str(target.value)
-            elif isinstance(target, (ast.Attribute, ast.Name)):
-                name = ""  # ignore "del foo"
-            else:
-                name = ""  # fallback
+            if isinstance(target, (ast.Tuple, ast.List)):
                 self.generic_visit(target)
-
-            if name == self.name:
-                self.mutations[self._conditional_block].append(node)
 
     def visit_Call(self, node: ast.Call) -> None:
         if isinstance(node.func, ast.Attribute):

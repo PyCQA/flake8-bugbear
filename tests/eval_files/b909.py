@@ -275,3 +275,91 @@ for key in registry:
 for _key in registry:
     registry[("new", "entry")]: int = 1
     break
+
+# Unpacking assignment and deletion targets can still mutate the iterable.
+for key in registry:
+    registry["new"], other = 1, 2 # B909: 4
+    [registry["new"], other] = 1, 2 # B909: 4
+    other, [registry["new"], extra] = 1, [2, 3] # B909: 4
+    other, *registry["new"] = 1, 2, 3 # B909: 4
+    result = registry["new"], other = 1, 2 # B909: 4
+    del (registry[key], other) # B909: 4
+    del [registry[key], other] # B909: 4
+    del (other, [registry[key], extra]) # B909: 4
+
+for key in holder.registry:
+    holder.registry["new"], other = 1, 2 # B909: 4
+    del (holder.registry[key], other) # B909: 4
+
+# Keep the current-key exemption, including unpacked targets over dict views.
+for key, value in registry.items():
+    registry[key], other = value, 2
+    [registry[key], other] = value, 2
+    other, *registry[key] = 1, 2, 3
+    registry["new"], other = value, 2 # B909: 4
+
+# Reads inside targets and mutations of nested containers do not change registry.
+for key in registry:
+    registry[key][0], other = 1, 2
+    other[registry[key]], extra = 1, 2
+    other, registry = 1, 2
+    del (registry[key][0], other)
+    del [other[registry[key]], extra]
+    del (registry, other)
+    del [holder.registry, extra]
+
+# Calls inside unpacked deletion targets are still checked for mutations.
+for key in registry:
+    del (other[registry.pop(key)], extra) # B909: 15
+
+for _key in registry:
+    registry["new"], other = 1, 2
+    break
+
+for key in registry:
+    del [registry[key], other]
+    break
+
+# Assignment targets are written from left to right. A later subscript can
+# refer to a rebound iterable or receiver rather than the object being iterated.
+for _key in registry:
+    registry, registry["new"] = {}, 1
+    [registry, registry["new"]] = {}, 1
+    other, (registry, registry["new"]) = 1, ({}, 2)
+    registry, *registry["new"] = {}, 1, 2
+    result = registry, registry["new"] = {}, 1
+
+for _key in holder.registry:
+    holder, holder.registry["new"] = replacement, 1
+    holder.registry, holder.registry["new"] = {}, 1
+
+# A subscript written before the rebinding still mutates the original iterable.
+for _key in registry:
+    registry["new"], registry = 1, {} # B909: 4
+    other, (registry["new"], registry) = 1, (2, {}) # B909: 4
+    *registry["new"], registry = 1, 2, {} # B909: 4
+
+for _key in holder.registry:
+    holder.registry["new"], holder = 1, replacement # B909: 4
+    holder.registry["new"], holder.registry = 1, {} # B909: 4
+
+# Rebinding a target does not suppress mutating calls evaluated on the RHS.
+for key in registry:
+    registry, other = {}, registry.pop(key) # B909: 26
+
+# Preserve checks on direct targets: rebinding can leave the object unchanged.
+previous_registry = registry
+for _key in registry:
+    registry = registry["new"] = registry # B909: 4
+    registry = registry["new"] = previous_registry # B909: 4
+
+for _key in holder.registry:
+    holder.registry = holder.registry["new"] = holder.registry # B909: 4
+    holder = holder.registry["new"] = holder # B909: 4
+
+# A statement that mutates the iterable through several targets is reported once.
+for _key in registry:
+    registry["a"], registry["b"] = 1, 2  # B909: 4
+    registry["a"] = registry["b"] = 1  # B909: 4
+    del (registry["a"], registry["b"])  # B909: 4
+    del registry["a"], registry["b"]  # B909: 4
