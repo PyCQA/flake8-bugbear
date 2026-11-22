@@ -3593,20 +3593,32 @@ class B909Checker(ast.NodeVisitor):
         self.key = key
         self.check_subscript_assignments = check_subscript_assignments
         self.mutations: dict[
-            int, list[ast.Assign | ast.AugAssign | ast.Delete | ast.Call]
+            int,
+            list[ast.Assign | ast.AnnAssign | ast.AugAssign | ast.Delete | ast.Call],
         ] = defaultdict(list)
         self._conditional_block = 0
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        for target in node.targets:
+        self._track_subscript_assignments(node, node.targets)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            self._track_subscript_assignments(node, [node.target])
+        self.generic_visit(node)
+
+    def _track_subscript_assignments(
+        self, node: ast.Assign | ast.AnnAssign, targets: list[ast.expr]
+    ) -> None:
+        if not self.check_subscript_assignments:
+            return
+        for target in targets:
             if (
-                self.check_subscript_assignments
-                and isinstance(target, ast.Subscript)
+                isinstance(target, ast.Subscript)
                 and _to_name_str(target.value) == self.name
                 and (self.key is None or _to_name_str(target.slice) != self.key)
             ):
                 self.mutations[self._conditional_block].append(node)
-        self.generic_visit(node)
 
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         if _to_name_str(node.target) == self.name:

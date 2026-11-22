@@ -718,6 +718,7 @@ Change Log
 UNRELEASED
 ~~~~~~~~~~
 
+* B909: check annotated subscript assignments inside loops.
 * B023: don't flag a lambda that is called right where it is defined, e.g. ``(lambda: x)()``
 * B914: Add an optional check for implicit string concatenation on one line inside
   brackets or call arguments, where a comma is probably missing (#156)
