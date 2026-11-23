@@ -743,6 +743,8 @@ UNRELEASED
 * B017, B022: check every item of a multi-item ``with`` statement, not just the
   first one, e.g. ``with open(path), pytest.raises(Exception):``
 * README: add Avoid/Prefer code examples for B004, B007 and B034
+* B905: don't flag ``zip()`` with a bare ``count()``, ``cycle()`` or ``repeat()``
+  imported from ``itertools``, which are infinite like ``itertools.count()``
 
 26.11.16
 ~~~~~~~~
