@@ -939,7 +939,9 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_class_globals: list[set[str]] = field(factory=list, init=False)
     # Bare names (groupby, batched, map) already resolved for this module, keyed
     # by the module they are expected to come from.
-    _bare_names: dict[tuple[str, str, bool], bool] = field(factory=dict, init=False)
+    _bare_names: dict[tuple[str, str, bool, bool], bool] = field(
+        factory=dict, init=False
+    )
     # Names a module (itertools) is imported as in this module.
     _module_names: dict[str, set[str]] = field(factory=dict, init=False)
 
@@ -2328,22 +2330,23 @@ class BugBearVisitor(ast.NodeVisitor):
         return num_usages
 
     def _bare_name_is_from(
-        self, source: str, name: str, module_level: bool = False
+        self, source: str, name: str, module_level: bool = False, unbound: bool = True
     ) -> bool:
         """Whether a bare ``name()`` in this module is ``<source>.<name>``.
 
         With ``module_level``, only module-level statements can rebind ``name``,
-        so a method, class attribute or local variable of that name is ignored.
+        so a method, class attribute or local variable of that name is ignored,
+        and ``unbound`` is the result when nothing binds ``name``.
         """
-        key = (source, name, module_level)
+        key = (source, name, module_level, unbound)
         if key not in self._bare_names:
             module = self.contexts[0].node if self.contexts else None
             # No module to inspect: keep the historical report.
             if not isinstance(module, ast.Module):
-                self._bare_names[key] = True
+                self._bare_names[key] = unbound
             elif module_level:
                 self._bare_names[key] = _module_binding_is_from(
-                    module, source, name, unbound=True
+                    module, source, name, unbound=unbound
                 )
             else:
                 self._bare_names[key] = _module_name_is_from(module, source, name)
@@ -2895,15 +2898,30 @@ class BugBearVisitor(ast.NodeVisitor):
             caught.extend(current)
 
     def _is_infinite_iterator(self, node: ast.expr) -> bool:
-        if not (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and self._is_module_name(node.func.value, "itertools")
-        ):
+        """Whether ``node`` is an infinite ``itertools`` call.
+
+        A bare ``count()``, ``cycle()`` or ``repeat()`` counts only when that
+        name is imported from itertools.
+        """
+        if not isinstance(node, ast.Call):
             return False
-        if node.func.attr in {"cycle", "count"}:
+        if isinstance(node.func, ast.Attribute) and self._is_module_name(
+            node.func.value, "itertools"
+        ):
+            name = node.func.attr
+        elif (
+            isinstance(node.func, ast.Name)
+            and node.func.id in {"count", "cycle", "repeat"}
+            and self._bare_name_is_from(
+                "itertools", node.func.id, module_level=True, unbound=False
+            )
+        ):
+            name = node.func.id
+        else:
+            return False
+        if name in {"cycle", "count"}:
             return True
-        elif node.func.attr == "repeat":
+        elif name == "repeat":
             if len(node.args) == 1 and len(node.keywords) == 0:
                 # itertools.repeat(iterable)
                 return True
