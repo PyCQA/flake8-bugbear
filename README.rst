@@ -411,6 +411,23 @@ More examples: `B034 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/te
 
 **B036**: Found ``except BaseException:`` without re-raising (no ``raise`` in the top-level of the ``except`` block). This catches all kinds of things (Exception, SystemExit, KeyboardInterrupt...) and may prevent a program from exiting as expected.
 
+.. code-block:: python
+
+    # Avoid: swallow exit and interrupt exceptions.
+    try:
+        run_task()
+    except BaseException:
+        cleanup()
+
+    # Prefer: clean up, then re-raise.
+    try:
+        run_task()
+    except BaseException:
+        cleanup()
+        raise
+
+More examples: `B036 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b036.py>`_.
+
 .. _B037:
 
 **B037**: Found ``return <value>``, ``yield``, ``yield <value>``, or ``yield from <value>`` in class ``__init__()`` method. No values should be returned or yielded, only bare ``return``\s are ok.
@@ -426,6 +443,23 @@ More examples: `B034 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/te
 .. _B040:
 
 **B040**: Caught exception with call to ``add_note`` not used. Did you forget to ``raise`` it?
+
+.. code-block:: python
+
+    # Avoid: the annotated exception is discarded.
+    try:
+        load_settings()
+    except Exception as exc:
+        exc.add_note("while loading settings")
+
+    # Prefer: re-raise it with the added note.
+    try:
+        load_settings()
+    except Exception as exc:
+        exc.add_note("while loading settings")
+        raise
+
+More examples: `B040 tests <https://github.com/PyCQA/flake8-bugbear/blob/main/tests/eval_files/b040.py>`_.
 
 .. _B041:
 
