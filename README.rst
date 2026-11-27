@@ -720,6 +720,8 @@ UNRELEASED
 
 * B909: detect subscript assignments and deletions in unpacked targets.
 * B033: detect duplicate signed numeric literals in sets.
+* B910: also report ``collections.defaultdict(int)``, including when
+  ``collections`` is imported under another name.
 
 26.11.22
 ~~~~~~~~

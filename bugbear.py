@@ -3564,13 +3564,21 @@ class BugBearVisitor(ast.NodeVisitor):
             self.add_error("B909", mutation)
 
     def check_for_b910(self, node: ast.Call) -> None:
+        func = node.func
+        is_defaultdict = (
+            isinstance(func, ast.Name)
+            and func.id == "defaultdict"
+            and self._bare_name_is_from("collections", "defaultdict", module_level=True)
+        ) or (
+            isinstance(func, ast.Attribute)
+            and func.attr == "defaultdict"
+            and self._is_module_name(func.value, "collections")
+        )
         if (
-            isinstance(node.func, ast.Name)
-            and node.func.id == "defaultdict"
-            and len(node.args) > 0
+            is_defaultdict
+            and node.args
             and isinstance(node.args[0], ast.Name)
             and node.args[0].id == "int"
-            and self._bare_name_is_from("collections", "defaultdict", module_level=True)
         ):
             self.add_error("B910", node)
 
