@@ -720,6 +720,8 @@ UNRELEASED
 
 * B909: detect subscript assignments and deletions in unpacked targets.
 * B033: detect duplicate signed numeric literals in sets.
+* B910: also report ``collections.defaultdict(int)``, the module being imported
+  under another name too, like ``B911`` does for ``itertools.batched()``.
 
 26.11.22
 ~~~~~~~~
