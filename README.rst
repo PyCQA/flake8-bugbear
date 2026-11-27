@@ -756,6 +756,8 @@ UNRELEASED
 * B033: detect duplicate signed numeric literals in sets.
 * B910: also report ``collections.defaultdict(int)``, including when
   ``collections`` is imported under another name.
+* B031, B905, B911: recognize names imported from ``itertools`` under another
+  name, e.g. ``bt()`` after ``from itertools import batched as bt``.
 
 26.11.22
 ~~~~~~~~
