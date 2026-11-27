@@ -770,21 +770,27 @@ def _b906_definition_exprs(
 
 
 def _binds_from_source(
-    node: ast.AST, source: str, name: str, source_modules: set[str]
+    node: ast.AST,
+    source: str,
+    name: str,
+    source_modules: set[str],
+    local: str | None = None,
 ) -> bool:
-    """Whether ``node`` binds ``name`` to ``<source>.<name>``.
+    """Whether ``node`` binds ``local`` (``name`` by default) to ``<source>.<name>``.
 
-    That is ``from <source> import <name>``, ``from <source> import *`` or
-    ``name = <source>.<name>`` (optionally annotated) with ``<source>`` imported
-    as a module.
+    That is ``from <source> import <name> [as <local>]``, ``from <source> import
+    *`` (only for ``name`` itself) or ``local = <source>.<name>`` (optionally
+    annotated) with ``<source>`` imported as a module.
     """
+    if local is None:
+        local = name
     if isinstance(node, ast.ImportFrom):
         return (
             node.level == 0
             and node.module == source
             and any(
-                alias.name == "*"
-                or (alias.name == name and alias.asname in (None, name))
+                (alias.name == "*" and local == name)
+                or (alias.name == name and (alias.asname or name) == local)
                 for alias in node.names
             )
         )
@@ -799,7 +805,7 @@ def _binds_from_source(
         and value.attr == name
         and isinstance(value.value, ast.Name)
         and value.value.id in source_modules
-        and any(isinstance(t, ast.Name) and t.id == name for t in targets)
+        and any(isinstance(t, ast.Name) and t.id == local for t in targets)
     )
 
 
@@ -845,10 +851,30 @@ def _module_import_names(module: ast.Module, source: str) -> set[str]:
     }
 
 
+def _module_from_import_aliases(module: ast.Module, source: str) -> dict[str, str]:
+    """Names bound by ``from <source> import <name> as <local>``, to ``<name>``."""
+    return {
+        alias.asname: alias.name
+        for node in ast.walk(module)
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == source
+        for alias in node.names
+        if alias.asname not in (None, alias.name)
+    }
+
+
 def _module_binding_is_from(
-    module: ast.Module, source: str, name: str, unbound: bool = False
+    module: ast.Module,
+    source: str,
+    name: str,
+    unbound: bool = False,
+    local: str | None = None,
 ) -> bool:
-    """Whether the last module-level binding of ``name`` is ``<source>.<name>``.
+    """Whether the last module-level binding of ``local`` is ``<source>.<name>``.
+
+    ``local`` is ``name`` unless given, as for ``from <source> import <name> as
+    <local>``.
 
     Statements are taken in source order. A binding from ``<source>`` anywhere
     in a statement counts for that statement, so a ``try``/``except`` fallback
@@ -857,19 +883,21 @@ def _module_binding_is_from(
     binds ``name``, the result is ``unbound``, or ``True`` when a function or
     class binds it from ``<source>``.
     """
+    if local is None:
+        local = name
     source_modules = _module_import_names(module, source)
     is_from: bool | None = None
     for stmt in module.body:
         if any(
-            _binds_from_source(node, source, name, source_modules)
+            _binds_from_source(node, source, name, source_modules, local)
             for node in _module_scope_nodes(stmt)
         ):
             is_from = True
-        elif _rebinds_elsewhere(stmt, name):
+        elif _rebinds_elsewhere(stmt, local):
             is_from = False
     if is_from is None:
         return unbound or any(
-            _binds_from_source(node, source, name, source_modules)
+            _binds_from_source(node, source, name, source_modules, local)
             for node in ast.walk(module)
         )
     return is_from
@@ -939,11 +967,14 @@ class BugBearVisitor(ast.NodeVisitor):
     _b008_class_globals: list[set[str]] = field(factory=list, init=False)
     # Bare names (groupby, batched, map) already resolved for this module, keyed
     # by the module they are expected to come from.
-    _bare_names: dict[tuple[str, str, bool, bool], bool] = field(
+    _bare_names: dict[tuple[str, str, bool, bool, str], bool] = field(
         factory=dict, init=False
     )
     # Names a module (itertools) is imported as in this module.
     _module_names: dict[str, set[str]] = field(factory=dict, init=False)
+    # Names imported from a module (itertools) under another name, to the
+    # imported name.
+    _from_import_aliases: dict[str, dict[str, str]] = field(factory=dict, init=False)
 
     # set to "*" when inside a try/except*, for correctly printing errors
     in_trystar: str = field(default="")
@@ -2330,27 +2361,52 @@ class BugBearVisitor(ast.NodeVisitor):
         return num_usages
 
     def _bare_name_is_from(
-        self, source: str, name: str, module_level: bool = False, unbound: bool = True
+        self,
+        source: str,
+        name: str,
+        module_level: bool = False,
+        unbound: bool = True,
+        local: str | None = None,
     ) -> bool:
-        """Whether a bare ``name()`` in this module is ``<source>.<name>``.
+        """Whether a bare ``local()`` in this module is ``<source>.<name>``.
 
-        With ``module_level``, only module-level statements can rebind ``name``,
-        so a method, class attribute or local variable of that name is ignored,
-        and ``unbound`` is the result when nothing binds ``name``.
+        ``local`` is ``name`` unless given, as for ``from <source> import <name>
+        as <local>``. With ``module_level``, only module-level statements can
+        rebind it, so a method, class attribute or local variable of that name
+        is ignored, and ``unbound`` is the result when nothing binds it. Another
+        ``local`` needs that import, so it is never taken as unbound.
         """
-        key = (source, name, module_level, unbound)
+        if local is None:
+            local = name
+        elif local != name:
+            unbound = False
+        key = (source, name, module_level, unbound, local)
         if key not in self._bare_names:
             module = self.contexts[0].node if self.contexts else None
             # No module to inspect: keep the historical report.
             if not isinstance(module, ast.Module):
                 self._bare_names[key] = unbound
-            elif module_level:
+            elif module_level or local != name:
                 self._bare_names[key] = _module_binding_is_from(
-                    module, source, name, unbound=unbound
+                    module, source, name, unbound=unbound, local=local
                 )
             else:
                 self._bare_names[key] = _module_name_is_from(module, source, name)
         return self._bare_names[key]
+
+    def _imported_name(self, source: str, local: str) -> str:
+        """The name that ``from <source> import <name> as <local>`` imports.
+
+        ``local`` itself if no such import binds it.
+        """
+        if source not in self._from_import_aliases:
+            module = self.contexts[0].node if self.contexts else None
+            self._from_import_aliases[source] = (
+                _module_from_import_aliases(module, source)
+                if isinstance(module, ast.Module)
+                else {}
+            )
+        return self._from_import_aliases[source].get(local, local)
 
     def _is_module_name(self, node: ast.expr, source: str) -> bool:
         """Whether ``node`` is ``<source>`` or a name it is imported as.
@@ -2376,15 +2432,16 @@ class BugBearVisitor(ast.NodeVisitor):
 
         We emit a warning when the generator returned by `groupby()` is used
         more than once inside a loop body or when it's used in a nested loop.
-        A bare ``groupby()`` counts only when that name is itertools or unbound.
+        A bare ``groupby()`` counts only when that name is itertools or unbound,
+        as does ``gb()`` after ``from itertools import groupby as gb``.
         """
         # for <loop_node.target> in <loop_node.iter>: ...
         if isinstance(loop_node.iter, ast.Call):
             node = loop_node.iter
             if (
                 isinstance(node.func, ast.Name)
-                and node.func.id == "groupby"
-                and self._bare_name_is_from("itertools", "groupby")
+                and self._imported_name("itertools", node.func.id) == "groupby"
+                and self._bare_name_is_from("itertools", "groupby", local=node.func.id)
             ) or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == "groupby"
@@ -2901,7 +2958,7 @@ class BugBearVisitor(ast.NodeVisitor):
         """Whether ``node`` is an infinite ``itertools`` call.
 
         A bare ``count()``, ``cycle()`` or ``repeat()`` counts only when that
-        name is imported from itertools.
+        name is imported from itertools, possibly under another name.
         """
         if not isinstance(node, ast.Call):
             return False
@@ -2909,14 +2966,12 @@ class BugBearVisitor(ast.NodeVisitor):
             node.func.value, "itertools"
         ):
             name = node.func.attr
-        elif (
-            isinstance(node.func, ast.Name)
-            and node.func.id in {"count", "cycle", "repeat"}
-            and self._bare_name_is_from(
-                "itertools", node.func.id, module_level=True, unbound=False
-            )
-        ):
-            name = node.func.id
+        elif isinstance(node.func, ast.Name):
+            name = self._imported_name("itertools", node.func.id)
+            if name not in {"count", "cycle", "repeat"} or not self._bare_name_is_from(
+                "itertools", name, module_level=True, unbound=False, local=node.func.id
+            ):
+                return False
         else:
             return False
         if name in {"cycle", "count"}:
@@ -3578,8 +3633,8 @@ class BugBearVisitor(ast.NodeVisitor):
         if (
             (
                 isinstance(node.func, ast.Name)
-                and node.func.id == "batched"
-                and self._bare_name_is_from("itertools", "batched")
+                and self._imported_name("itertools", node.func.id) == "batched"
+                and self._bare_name_is_from("itertools", "batched", local=node.func.id)
             )
             or (
                 isinstance(node.func, ast.Attribute)

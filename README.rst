@@ -720,6 +720,8 @@ UNRELEASED
 
 * B909: detect subscript assignments and deletions in unpacked targets.
 * B033: detect duplicate signed numeric literals in sets.
+* B031, B905, B911: recognize names imported from ``itertools`` under another
+  name, e.g. ``bt()`` after ``from itertools import batched as bt``
 
 26.11.22
 ~~~~~~~~
